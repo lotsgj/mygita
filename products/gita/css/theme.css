@@ -1,0 +1,19 @@
+:root {
+  --paper: #eee8dc;
+  --paper-deep: #e3dbcd;
+  --ink: #22201c;
+  --muted: #756e63;
+  --line: rgba(73, 62, 49, .12);
+  --saffron: #b65d2a;
+  --saffron-soft: #f6efe4;
+  --indigo: #243c5f;
+  --indigo-soft: #eaefee;
+  --panel-radius: 18px;
+  --shadow: 0 14px 42px rgba(61, 49, 35, .055);
+}
+
+body {
+  background:
+    radial-gradient(circle at 8% 5%, rgba(182, 93, 42, .055), transparent 28rem),
+    var(--paper);
+}

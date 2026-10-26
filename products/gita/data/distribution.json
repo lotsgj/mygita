@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "id": "gitaverse",
+  "name": "Gitaverse",
+  "shortName": "Gitaverse",
+  "description": "Listen to, chant and study the verses of the Bhagavad Gita.",
+  "canonicalUrl": "https://gitaverse.gitajyoti.org/",
+  "databaseName": "gitaverse-profiles",
+  "cachePrefix": "gitaverse",
+  "defaultExperience": "gita-yoga",
+  "journeyExperience": "gita-700",
+  "mediaOrigin": "https://media.gitajyoti.org",
+  "experiences": [
+    {
+      "id": "gita-chant",
+      "renderer": "player-4",
+      "label": "Gita Chant",
+      "cardClass": "experience-chant",
+      "kickerKey": "home.gitaChantKicker",
+      "noteKey": "home.gitaChantNote",
+      "descriptionKey": "home.gitaChantDetail",
+      "featuresKey": "home.gitaChantFeatures",
+      "cardImage": "assets/experience-cards/gita-yoga-card.jpg"
+    },
+    {
+      "id": "gita-yoga",
+      "renderer": "player-2",
+      "label": "Gita Yoga",
+      "cardClass": "experience-yoga",
+      "kickerKey": "home.gitaYogaKicker",
+      "noteKey": "home.gitaYogaNote",
+      "descriptionKey": "home.gitaYogaDetail",
+      "featuresKey": "home.gitaYogaFeatures"
+      ,"cardImage": "assets/experience-cards/gita-yoga-card.jpg"
+    },
+    {
+      "id": "gita-sara",
+      "renderer": "player-3",
+      "label": "Gita Sara",
+      "cardClass": "experience-sara",
+      "kickerKey": "home.gitaSaraKicker",
+      "noteKey": "home.gitaSaraNote",
+      "descriptionKey": "home.gitaSaraDetail",
+      "featuresKey": "home.gitaSaraFeatures"
+      ,"cardImage": "assets/experience-cards/gita-sara-card.jpg"
+    },
+    {
+      "id": "gita-700",
+      "renderer": "player-1",
+      "label": "Gita 700",
+      "cardClass": "experience-700",
+      "kickerKey": "home.gita700Kicker",
+      "noteKey": "home.gita700Note",
+      "descriptionKey": "home.gita700Detail",
+      "featuresKey": "home.gita700Features"
+      ,"cardImage": "assets/experience-cards/gita-700-card.jpg"
+    }
+  ],
+  "translations": {
+    "en": {
+      "profile.contentLanguage": "Preferred Gita content language",
+      "profile.who": "Who is using Gitaverse?",
+      "profile.storageUnavailable": "Local profile storage is unavailable. Gitaverse requires browser storage to keep profiles on this device.",
+      "common.about": "About Gitaverse",
+      "common.install": "Install Gitaverse",
+      "loading.title": "Opening the Gita",
+      "about.body": "Gitaverse is a verse and chanting experience from Gita Jyoti—a simple space to listen to, study and remain close to the Bhagavad Gita.",
+      "about.currentBuild": "Current Gitaverse build",
+      "pwa.ready": "A new Gitaverse version is ready.",
+      "help.about": "Open About Gitaverse",
+      "data.title": "Unable to load the Gita collections",
+      "data.description": "Gitaverse could not load its language and media collections automatically. Choose the local data/collections folder to continue.",
+      "collections.message": "Choose this repository’s data/collections folder to use Gitaverse locally.",
+      "workspace.note": "The folder stays on your device. Gitaverse requests read and write access only after you choose it.",
+      "validation.contentLanguage": "Choose a preferred Gita content language."
+    },
+    "kn": {
+      "profile.contentLanguage": "ಆದ್ಯತೆಯ ಗೀತಾ ವಿಷಯ ಭಾಷೆ",
+      "profile.who": "Gitaverse ಅನ್ನು ಯಾರು ಬಳಸುತ್ತಿದ್ದಾರೆ?",
+      "profile.storageUnavailable": "ಸ್ಥಳೀಯ ಪ್ರೊಫೈಲ್ ಸಂಗ್ರಹಣೆ ಲಭ್ಯವಿಲ್ಲ. ಈ ಸಾಧನದಲ್ಲಿ ಪ್ರೊಫೈಲ್‌ಗಳನ್ನು ಉಳಿಸಲು Gitaverse ಗೆ ಬ್ರೌಸರ್ ಸಂಗ್ರಹಣೆ ಅಗತ್ಯವಿದೆ.",
+      "common.about": "Gitaverse ಕುರಿತು",
+      "common.install": "Gitaverse ಸ್ಥಾಪಿಸಿ",
+      "loading.title": "ಗೀತೆಯನ್ನು ತೆರೆಯಲಾಗುತ್ತಿದೆ",
+      "about.body": "Gitaverse ಗೀತಾಜ್ಯೋತಿಯ ಶ್ಲೋಕ ಮತ್ತು ಪಠಣ ಅನುಭವ—ಭಗವದ್ಗೀತೆಯನ್ನು ಆಲಿಸಲು, ಅಧ್ಯಯನ ಮಾಡಲು ಮತ್ತು ಅದರ ಸಮೀಪದಲ್ಲಿರಲು ಸರಳ ಸ್ಥಳ.",
+      "about.currentBuild": "ಪ್ರಸ್ತುತ Gitaverse ಬಿಲ್ಡ್",
+      "pwa.ready": "Gitaverse ನ ಹೊಸ ಆವೃತ್ತಿ ಸಿದ್ಧವಾಗಿದೆ.",
+      "help.about": "Gitaverse ಕುರಿತು ತೆರೆಯಿರಿ",
+      "data.title": "ಗೀತಾ ಸಂಗ್ರಹಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ",
+      "data.description": "Gitaverse ಭಾಷೆ ಮತ್ತು ಮಾಧ್ಯಮ ಸಂಗ್ರಹಗಳನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ. ಮುಂದುವರಿಯಲು ಸ್ಥಳೀಯ data/collections ಫೋಲ್ಡರ್ ಅನ್ನು ಆಯ್ಕೆಮಾಡಿ.",
+      "collections.message": "Gitaverse ಅನ್ನು ಸ್ಥಳೀಯವಾಗಿ ಬಳಸಲು ಈ ರೆಪೊಸಿಟರಿಯ data/collections ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ.",
+      "workspace.note": "ಫೋಲ್ಡರ್ ನಿಮ್ಮ ಸಾಧನದಲ್ಲೇ ಇರುತ್ತದೆ. ಆಯ್ಕೆಮಾಡಿದ ನಂತರ ಮಾತ್ರ Gitaverse ಓದು ಮತ್ತು ಬರೆಯುವ ಅನುಮತಿ ಕೇಳುತ್ತದೆ.",
+      "validation.contentLanguage": "ಆದ್ಯತೆಯ ಗೀತಾ ವಿಷಯ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ."
+    }
+  },
+  "branding": {
+    "aboutTitle": "About Gitaverse",
+    "aboutBody": "Gitaverse is a verse and chanting experience from Gita Jyoti—a simple space to listen to, study and remain close to the Bhagavad Gita.",
+    "fluteImage": "assets/branding/krishna-flute.svg",
+    "socialImage": "assets/social/gitaverse-preview.png",
+    "socialImageAlt": "Gitaverse with a Krishna flute and the title Shrimad Bhagavad Gita",
+    "icon192": "assets/icons/icon-192.png",
+    "icon512": "assets/icons/icon-512.png",
+    "maskableIcon512": "assets/icons/icon-maskable-512.png",
+    "appleTouchIcon": "assets/icons/apple-touch-icon.png",
+    "themeStyles": ["css/theme.css"],
+    "themeColor": "#243c5f",
+    "backgroundColor": "#eee8dc"
+  }
+}

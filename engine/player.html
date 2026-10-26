@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4efe5">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="app-version" content="dev">
+<meta name="clarity-project-id" content="">
+<title>Verses</title>
+<meta name="description" content="Explore and chant the verses of the Bhagavad Gita with Gitaverse.">
+<link rel="canonical" href="https://gitaverse.gitajyoti.org/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Gitaverse">
+<meta property="og:title" content="Gitaverse">
+<meta property="og:description" content="Explore and chant the verses of the Bhagavad Gita with Gitaverse.">
+<meta property="og:url" content="https://gitaverse.gitajyoti.org/">
+<meta property="og:image" content="https://gitaverse.gitajyoti.org/assets/social/gitaverse-preview.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Gitaverse with a Krishna flute and the title Shrimad Bhagavad Gita">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Gitaverse">
+<meta name="twitter:description" content="Explore and chant the verses of the Bhagavad Gita with Gitaverse.">
+<meta name="twitter:image" content="https://gitaverse.gitajyoti.org/assets/social/gitaverse-preview.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="" sizes="192x192" data-brand-icon>
+<link rel="apple-touch-icon" href="" data-brand-apple-icon>
+<link rel="stylesheet" href="css/fonts.css?v=dev">
+<link rel="stylesheet" href="css/player.css?v=dev">
+<link rel="stylesheet" href="css/editor.css?v=dev">
+<link rel="stylesheet" href="css/renderers/gita-700.css?v=dev">
+<link rel="stylesheet" href="css/renderers/gita-yoga.css?v=dev">
+<link rel="stylesheet" href="css/renderers/gita-sara.css?v=dev">
+<link rel="stylesheet" href="css/renderers/verse-chant.css?v=dev">
+</head>
+<body>
+<main id="profile-setup" class="profile-screen" data-clarity-mask="true" hidden>
+  <section class="profile-form-card">
+    <div class="status-mark">ॐ</div>
+    <h1 id="profile-form-title">Create your profile</h1>
+    <p id="profile-form-intro">Profiles keep each person’s language and experience separate on this device.</p>
+    <form id="profile-form">
+      <section class="profile-form-section" id="profile-details-section">
+        <h2 data-i18n="profile.details">Profile details</h2>
+        <div class="profile-photo-field">
+          <div id="profile-photo-preview"></div>
+          <div class="profile-photo-actions">
+            <label class="secondary-button" for="profile-photo" data-i18n="profile.choosePhoto">Choose photo</label>
+            <input id="profile-photo" type="file" accept="image/*" hidden>
+            <button class="quiet-button" id="profile-photo-remove" type="button" hidden data-i18n="profile.remove">Remove</button>
+            <small data-i18n="profile.photoNote">Optional. Stored only on this device.</small>
+          </div>
+        </div>
+        <label class="field-label" for="profile-name" data-i18n="profile.name">Name</label>
+        <input class="profile-input" id="profile-name" autocomplete="name" maxlength="60" required>
+        <div class="profile-field-grid">
+          <div><label class="field-label" for="profile-dob" data-i18n="profile.dob">Date of birth</label><input class="profile-input" id="profile-dob" type="date" required></div>
+          <div><label class="field-label" for="profile-gender"><span data-i18n="profile.gender">Gender</span> <small data-i18n="profile.optional">(optional)</small></label><select class="profile-input" id="profile-gender"><option value="" data-i18n="profile.notSaid">Prefer not to say</option><option value="female" data-i18n="profile.female">Female</option><option value="male" data-i18n="profile.male">Male</option><option value="nonbinary" data-i18n="profile.nonbinary">Non-binary</option><option value="self-described" data-i18n="profile.selfDescribed">Self-described</option></select></div>
+        </div>
+      </section>
+      <section class="profile-form-section profile-preferences-section" id="profile-preferences-section" tabindex="-1">
+        <h2 data-i18n="profile.preferences">My preferences</h2>
+        <label class="field-label" for="profile-interface-language" data-i18n="profile.appLanguage">App language</label>
+        <select class="profile-input" id="profile-interface-language" required><option value="" data-i18n="profile.chooseLanguage">Choose your language</option><option value="en">English</option><option value="kn">ಕನ್ನಡ</option></select>
+        <label class="field-label" for="profile-content-language" data-i18n="profile.contentLanguage">Preferred Gita content language</label>
+        <select class="profile-input" id="profile-content-language" required><option value="en">English</option><option value="kn">ಕನ್ನಡ</option></select>
+      </section>
+      <label class="check-row"><input id="profile-default" type="checkbox" checked><span data-i18n="profile.default">Use this profile automatically on this device</span></label>
+      <p class="analytics-notice" data-i18n="profile.analytics">We collect anonymised information to improve the product experience.</p>
+      <div class="form-error" id="profile-form-error" role="alert"></div>
+      <div class="profile-form-actions"><button class="quiet-button" id="profile-form-cancel" type="button" hidden data-i18n="profile.cancel">Cancel</button><button class="primary-button" type="submit" data-i18n="profile.save">Save profile</button></div>
+    </form>
+    <div class="landing-links"><button class="about-link" type="button" data-about data-i18n="common.about">About Gitaverse</button><button class="about-link" type="button" data-install data-i18n="common.install" hidden>Install Gitaverse</button></div>
+  </section>
+</main>
+
+<main id="profile-selection" class="profile-screen" data-clarity-mask="true" hidden>
+  <section class="profile-selection-card">
+    <div class="profile-selection-head"><div><div class="status-mark">ॐ</div><h1 id="profile-selection-title">Who is using Gitaverse?</h1><p data-i18n="profile.choose">Choose a profile to continue.</p></div><button class="quiet-button" id="profile-selection-back" type="button" hidden data-i18n="profile.back">Back</button></div>
+    <div class="profile-list" id="profile-list"></div>
+    <button class="add-profile-button" id="add-profile-button" type="button" data-i18n="profile.add">＋ Add another profile</button>
+    <div class="landing-links"><button class="about-link" type="button" data-about data-i18n="common.about">About Gitaverse</button><button class="about-link" type="button" data-install data-i18n="common.install" hidden>Install Gitaverse</button></div>
+  </section>
+</main>
+
+<main id="diksoochi" class="diksoochi" hidden>
+  <header class="home-masthead">
+    <div class="home-brand" aria-label="Gitaverse" data-product-name-aria>
+      <span class="about-flute diksoochi-flute" aria-hidden="true">
+        <img src="" alt="" data-brand-image="flute">
+        <i class="about-note about-note-one">♪</i>
+        <i class="about-note about-note-two">♫</i>
+        <i class="about-note about-note-three">♩</i>
+      </span>
+      <strong data-product-name>Gitaverse</strong>
+    </div>
+    <button class="profile-pill landing-profile-pill" type="button" data-profile-pill data-clarity-mask="true"></button>
+  </header>
+  <section class="diksoochi-shell">
+    <header class="diksoochi-head">
+      <p id="diksoochi-greeting"></p>
+      <h1 class="sr-only" data-i18n="diksoochi.title">Diksoochi</h1>
+    </header>
+    <section class="diksoochi-journey-group">
+      <h2 data-i18n="diksoochi.journey">Your journey</h2>
+      <div class="diksoochi-journey-grid">
+        <a id="continue-journey-link" class="continue-journey-link" href="?play=gita-700">
+          <span class="continue-journey-image" aria-hidden="true"></span>
+          <span class="continue-journey-shade" aria-hidden="true"></span>
+          <span class="continue-journey-copy">
+            <small id="continue-journey-kicker"></small>
+            <strong id="continue-journey-title"></strong>
+            <span class="continue-journey-action"><b>▶</b> <span data-i18n="diksoochi.continue">Continue</span></span>
+          </span>
+        </a>
+        <section class="diksoochi-journey">
+          <span class="journey-spark" aria-hidden="true">✦</span>
+          <p class="journey-card-label" data-i18n="diksoochi.journey">Your journey</p>
+          <div class="diksoochi-journey-statements" id="diksoochi-journey-statements" hidden>
+            <p id="diksoochi-know-summary" hidden><span id="diksoochi-know-summary-text"></span> <button class="journey-details-link" id="journey-details-button" type="button" data-i18n="diksoochi.details">Details</button></p>
+          </div>
+          <p class="diksoochi-journey-empty" id="diksoochi-journey-empty" data-i18n="diksoochi.journeyEmpty">Your journey details will be updated here.</p>
+        </section>
+      </div>
+    </section>
+    <section class="diksoochi-experiences">
+      <h2 data-i18n="diksoochi.choose">Choose an experience</h2>
+      <div class="experience-list" id="experience-list"></div>
+      <section class="experience-detail" id="experience-detail" hidden>
+        <div class="experience-detail-art" aria-hidden="true"></div>
+        <div class="experience-detail-copy">
+          <button class="experience-detail-close" id="experience-detail-close" type="button" aria-label="Close">×</button>
+          <small id="experience-detail-kicker"></small>
+          <h3 id="experience-detail-title"></h3>
+          <p id="experience-detail-description"></p>
+          <ul id="experience-detail-features"></ul>
+          <a class="experience-detail-action" id="experience-detail-action" href="?play=gita-yoga"><span data-i18n="diksoochi.continue">Continue</span> →</a>
+        </div>
+      </section>
+    </section>
+    <div class="landing-links"><button class="about-link" type="button" data-about data-i18n="common.about">About Gitaverse</button><button class="about-link" type="button" data-install data-i18n="common.install" hidden>Install Gitaverse</button></div>
+    <section class="home-collections" id="home-collections" hidden>
+      <div><h2 id="home-collections-title">Local collections</h2><p id="home-collections-message"></p></div>
+      <button class="secondary-button" id="home-collections-button" type="button">Load collections</button>
+      <input id="home-collections-input" type="file" webkitdirectory multiple hidden>
+      <p class="file-error" id="home-collections-error" role="alert"></p>
+    </section>
+  </section>
+</main>
+
+<main id="journey-details" class="journey-details" hidden>
+  <button class="profile-pill landing-profile-pill" type="button" data-profile-pill data-clarity-mask="true"></button>
+  <section class="journey-details-shell">
+    <header class="journey-details-head">
+      <button class="journey-back" id="journey-back-button" type="button" data-i18n="common.back">← Back</button>
+      <h1 data-i18n="diksoochi.journey">Your journey</h1>
+      <div class="journey-view-switch" role="group" aria-label="Journey view" data-i18n-aria="diksoochi.viewLabel">
+        <button type="button" data-journey-view="cards" aria-pressed="false" aria-label="Card view" title="Card view" data-i18n-aria="diksoochi.cardView" data-i18n-title="diksoochi.cardView">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>
+        </button>
+        <button type="button" data-journey-view="table" aria-pressed="false" aria-label="Table view" title="Table view" data-i18n-aria="diksoochi.tableView" data-i18n-title="diksoochi.tableView">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="1.5"/><path d="M3.5 10h17M3.5 14.5h17M9 5v14"/></svg>
+        </button>
+      </div>
+    </header>
+    <p class="journey-note" data-i18n="diksoochi.countNote">Count shows meaningful engagements with each shloka.</p>
+    <div id="journey-cards" class="journey-cards"></div>
+    <div id="journey-table-wrap" class="journey-table-wrap" hidden>
+      <table class="journey-table">
+        <thead><tr><th data-i18n="diksoochi.shloka">Shloka</th><th data-i18n="diksoochi.sanskritShloka">Sanskrit shloka</th><th data-i18n="diksoochi.meaning">Meaning</th><th data-i18n="diksoochi.count">Count</th></tr></thead>
+        <tbody id="journey-table-body"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<main id="loading" class="loading" hidden>
+  <section class="status-card"><div class="status-mark">ॐ</div><h1 data-i18n="loading.title">Opening the Gita</h1><p data-i18n="loading.message">Preparing the verses…</p></section>
+</main>
+
+<main id="error" class="error" hidden>
+  <section class="status-card"><div class="status-mark">ॐ</div><h1 data-i18n="error.title">Unable to open the player</h1><p id="error-message"></p></section>
+</main>
+
+<main id="data-chooser" class="chooser" hidden>
+  <section class="chooser-card">
+    <div class="status-mark">ॐ</div>
+    <h1 data-i18n="data.title">Unable to load the Gita collections</h1>
+    <p data-i18n="data.description">Gitaverse could not load its language and media collections automatically. Choose the local data/collections folder to continue.</p>
+    <div class="file-actions">
+      <label class="file-button" for="collections-folder-input" data-i18n="data.choose">Choose collections folder</label>
+      <input id="collections-folder-input" type="file" webkitdirectory multiple hidden>
+      <button class="retry-button" id="retry-data-button" type="button" data-i18n="data.retry">Try automatic loading again</button>
+    </div>
+    <div class="file-error" id="file-error" role="alert"></div>
+    <p class="file-note" data-i18n="data.localNote">Selected files stay in this browser session and are not uploaded or modified.</p>
+  </section>
+</main>
+
+<main id="app" hidden>
+  <div class="shell">
+    <header class="topbar">
+      <div class="topbar-left">
+      <button class="collection-context" id="collection-trigger" type="button" aria-label="Choose collection" title="Choose collection (B)" hidden>
+        <span class="collection-heading" id="collection-title"></span>
+      </button>
+      <button class="chapter-context" id="chapter-trigger" type="button" aria-label="Choose chapter" title="Choose chapter (C)">
+        <img class="chapter-icon" id="chapter-icon" alt="" hidden>
+        <div class="chapter-heading" id="chapter-title"></div>
+      </button>
+      </div>
+      <div class="shloka-position">
+        <div class="sid-badge" id="sid-label"></div>
+      </div>
+      <div class="top-actions">
+      <div class="top-menu-wrap">
+        <button class="icon-button menu-toggle" id="menu-button" type="button" aria-label="Open menu" aria-expanded="false" title="Menu (M)">
+          <svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg>
+        </button>
+        <div class="top-menu-panel" id="top-menu" hidden>
+          <button class="top-menu-item" id="collections-button" type="button" hidden><span class="top-menu-label" data-i18n="menu.collections">Collections</span><span class="menu-shortcut">B</span></button>
+          <button class="top-menu-item" id="chapters-button" type="button"><span class="top-menu-label" data-i18n="menu.chapters">Chapters</span><span class="menu-shortcut">C</span></button>
+          <button class="top-menu-item" id="goto-button" type="button"><span class="top-menu-label" data-i18n="menu.goto">Go to shloka</span><span class="menu-shortcut">G</span></button>
+          <button class="top-menu-item" id="language-button" type="button"><span class="top-menu-label">Content language (English)</span><span class="menu-shortcut">L</span></button>
+          <button class="top-menu-item" id="questions-button" type="button" hidden><span class="top-menu-label" data-i18n="menu.questionsOn">Questions (On)</span><span class="menu-shortcut">Q</span></button>
+          <button class="top-menu-item" id="fullscreen-button" type="button"><span class="top-menu-label" data-i18n="menu.fullscreen">Fullscreen</span><span class="menu-shortcut">F</span></button>
+          <div class="top-menu-divider"></div>
+          <button class="top-menu-item" id="edit-button" type="button"><span class="top-menu-label" data-i18n="menu.edit">Edit this shloka</span><span class="menu-shortcut">E</span></button>
+          <button class="top-menu-item" id="home-button" type="button"><span class="top-menu-label" data-i18n="menu.home">Home</span><span class="menu-shortcut">A</span></button>
+          <button class="top-menu-item" id="journey-button" type="button"><span class="top-menu-label" data-i18n="menu.journey">Your journey</span><span class="menu-shortcut">J</span></button>
+          <button class="top-menu-item" id="help-button" type="button"><span class="top-menu-label" data-i18n="menu.help">Help</span><span class="menu-shortcut">H</span></button>
+          <div class="top-menu-divider"></div>
+          <button class="top-menu-item" id="about-button" type="button"><span class="top-menu-label" data-i18n="common.about">About Gitaverse</span><span class="menu-shortcut">K</span></button>
+          <button class="top-menu-item" type="button" data-install hidden><span class="top-menu-label" data-i18n="common.install">Install Gitaverse</span></button>
+        </div>
+      </div>
+      <button class="profile-pill topbar-profile-pill" type="button" data-profile-pill data-clarity-mask="true"></button>
+      </div>
+    </header>
+
+    <div class="record-position" id="position-label" aria-label="Current shloka position"></div>
+
+    <section id="renderer-root" aria-live="polite"></section>
+
+    <footer class="controlbar">
+      <button class="footer-action" id="footer-goto-button" type="button" aria-label="Go to shloka" title="Go to shloka (G)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      </button>
+      <div class="audio-player">
+        <button class="play-button" id="play-button" type="button" aria-label="Play audio" title="Play / pause (P or Space)">
+          <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="pause-icon" viewBox="0 0 24 24" hidden><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>
+        </button>
+        <input class="audio-seek" id="audio-seek" type="range" min="0" max="0" step="0.1" value="0" disabled aria-label="Audio position">
+        <span class="audio-time" id="audio-time">00:00 / 00:00</span>
+      </div>
+      <button class="footer-action" id="footer-fullscreen-button" type="button" aria-label="Enter fullscreen" title="Fullscreen (F)">
+        <svg class="fullscreen-enter-icon" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+        <svg class="fullscreen-exit-icon" viewBox="0 0 24 24" hidden><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg>
+      </button>
+    </footer>
+  </div>
+  <audio id="audio" preload="metadata" crossorigin="anonymous"></audio>
+</main>
+
+<aside class="download-reminder" id="download-reminder" hidden aria-label="Edited master download">
+  <button class="download-reminder-action" id="download-reminder-action" type="button">↓ Download edited collection files</button>
+  <button class="download-reminder-close" id="download-reminder-close" type="button" aria-label="Dismiss download reminder">×</button>
+</aside>
+
+<div class="overlay" id="workspace-overlay" hidden>
+  <section class="dialog workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="workspace-title">
+    <header class="dialog-head"><h2 id="workspace-title" data-i18n="workspace.title">Open local collections</h2><button class="icon-button close-dialog" type="button" aria-label="Close" data-i18n-aria="common.close">×</button></header>
+    <div class="dialog-body">
+      <p>Select this repository’s <code>data/collections</code> folder. Gitaverse will reload its collection data and save edited verse text directly to the relevant language master file.</p>
+      <div class="file-actions">
+        <button class="file-button" id="open-collections-workspace" type="button" data-i18n="workspace.open">Open collections folder</button>
+        <button class="retry-button" id="edit-download-only" type="button" data-i18n="workspace.downloadOnly">Edit with downloads only</button>
+      </div>
+      <div class="file-error" id="workspace-error" role="alert" aria-live="polite"></div>
+      <p class="file-note" data-i18n="workspace.note">The folder stays on your device. Gitaverse requests read and write access only after you choose it.</p>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="goto-overlay" hidden>
+  <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="goto-title">
+    <header class="dialog-head"><h2 id="goto-title" data-i18n="dialog.goto">Go to a shloka</h2><button class="icon-button close-dialog" type="button" aria-label="Close" data-i18n-aria="common.close">×</button></header>
+    <div class="dialog-body">
+      <form id="goto-form">
+        <input class="goto-input" id="goto-input" autocomplete="off" spellcheck="false" placeholder="6.7" aria-label="Shloka ID">
+        <p class="dialog-note" data-i18n="goto.note">Enter a stable shloka ID, such as 6.B, 6.7, or 6.E.</p>
+        <div class="dialog-error" id="goto-error"></div>
+      </form>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="collections-overlay" hidden>
+  <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="collections-title">
+    <header class="dialog-head"><h2 id="collections-title" data-i18n="dialog.collections">Collections</h2><button class="icon-button close-dialog" type="button" aria-label="Close" data-i18n-aria="common.close">×</button></header>
+    <div class="dialog-body"><div class="collection-list" id="collection-list"></div></div>
+  </section>
+</div>
+
+<div class="overlay" id="chapters-overlay" hidden>
+  <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="chapters-title">
+    <header class="dialog-head"><h2 id="chapters-title" data-i18n="dialog.chapters">Chapters</h2><button class="icon-button close-dialog" type="button" aria-label="Close" data-i18n-aria="common.close">×</button></header>
+    <div class="dialog-body"><div class="chapter-list" id="chapter-list"></div></div>
+  </section>
+</div>
+
+<div class="overlay" id="language-overlay" hidden>
+  <section class="dialog language-dialog" role="dialog" aria-modal="true" aria-labelledby="language-title">
+    <header class="dialog-head"><h2 id="language-title" data-i18n="dialog.contentLanguage">Choose content language</h2><button class="icon-button close-dialog" type="button" aria-label="Close" data-i18n-aria="common.close">×</button></header>
+    <div class="dialog-body language-options" id="language-options">
+      <button class="language-option" type="button" data-language="en">English</button>
+      <button class="language-option" type="button" data-language="kn">ಕನ್ನಡ</button>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="help-overlay" hidden>
+  <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <header class="dialog-head"><h2 id="help-title" data-i18n="dialog.shortcuts">Keyboard shortcuts</h2><button class="icon-button close-dialog" type="button" aria-label="Close" data-i18n-aria="common.close">×</button></header>
+    <div class="dialog-body">
+      <div class="shortcut-list">
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>←</kbd></div><div class="shortcut-description" data-i18n="help.previous">Previous shloka</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>→</kbd></div><div class="shortcut-description" data-i18n="help.next">Next shloka</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>G</kbd></div><div class="shortcut-description" data-i18n="help.goto">Go to a shloka</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>C</kbd></div><div class="shortcut-description" data-i18n="help.chapters">Open chapters</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>L</kbd></div><div class="shortcut-description" data-i18n="help.language">Choose content language</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>A</kbd></div><div class="shortcut-description" data-i18n="help.home">Return to Home</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>J</kbd></div><div class="shortcut-description" data-i18n="help.journey">Open Your journey</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>P</kbd><kbd>Space</kbd></div><div class="shortcut-description" data-i18n="help.play">Play or pause audio</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>Q</kbd></div><div class="shortcut-description" data-i18n="help.questions">Show or hide Gita Sara questions</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>F</kbd></div><div class="shortcut-description" data-i18n="help.fullscreen">Enter or exit fullscreen</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>H</kbd></div><div class="shortcut-description" data-i18n="help.help">Open this help</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>K</kbd></div><div class="shortcut-description" data-i18n="help.about">Open About Gitaverse</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>M</kbd></div><div class="shortcut-description" data-i18n="help.menu">Open or close menu</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>E</kbd></div><div class="shortcut-description" data-i18n="help.edit">Enter or leave edit mode</div></div>
+        <div class="shortcut-row"><div class="shortcut-keys"><kbd>Esc</kbd></div><div class="shortcut-description" data-i18n="help.escape">Close a dialog or exit fullscreen</div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="profile-menu-overlay" data-clarity-mask="true" hidden>
+  <section class="dialog profile-menu-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-menu-title">
+    <header class="dialog-head"><h2 id="profile-menu-title" data-i18n="profile.title">Profile</h2><button class="icon-button close-dialog" type="button" aria-label="Close" data-i18n-aria="common.close">×</button></header>
+    <div class="dialog-body profile-menu-options">
+      <button type="button" id="profile-preferences-button" data-i18n="profile.preferences">My preferences</button>
+      <button type="button" id="edit-profile-button" data-i18n="profile.viewEdit">View / edit profile</button>
+      <button type="button" id="switch-manage-profiles-button" data-i18n="profile.switchManage">Switch / manage profiles</button>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="about-overlay" hidden>
+  <section class="dialog about-dialog" role="dialog" aria-modal="true" aria-labelledby="about-title">
+    <button class="icon-button close-dialog about-close" type="button" aria-label="Close">×</button>
+    <div class="about-body">
+      <div class="about-flute" aria-hidden="true">
+        <img src="" alt="" data-brand-image="flute">
+        <i class="about-note about-note-one">♪</i>
+        <i class="about-note about-note-two">♫</i>
+        <i class="about-note about-note-three">♩</i>
+      </div>
+      <h2 id="about-title">About Gitaverse</h2>
+      <p>Gitaverse is a verse and chanting experience from Gita Jyoti—a simple space to listen to, study and remain close to the Bhagavad Gita.</p>
+      <div class="about-links">
+        <a href="https://gitajyoti.org/" target="_blank" rel="noopener">Gita Jyoti</a>
+        <a href="https://lightoftheself.org/" target="_blank" rel="noopener">Light of the Self Foundation</a>
+      </div>
+      <p class="about-version">Version <span id="about-version">dev</span></p>
+    </div>
+  </section>
+</div>
+
+<aside class="pwa-notice" id="pwa-update-notice" hidden role="status" aria-live="polite">
+  <span data-i18n="pwa.ready">A new Gitaverse version is ready.</span>
+  <button id="pwa-update-action" type="button" data-i18n="pwa.update">Update now</button>
+  <button class="pwa-notice-close" id="pwa-update-dismiss" type="button" aria-label="Dismiss update">×</button>
+</aside>
+
+<aside class="pwa-notice pwa-status-notice" id="pwa-status-notice" hidden role="status" aria-live="polite">
+  <span id="pwa-status-message"></span>
+</aside>
+
+<script>window.__VERSES_DISTRIBUTION__ = window.__VERSES_DISTRIBUTION__ || null;</script>
+<script src="js/player.bundle.js?v=dev"></script>
+</body>
+</html>

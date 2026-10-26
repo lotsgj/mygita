@@ -1,0 +1,23 @@
+{
+  "id": "sukta-chant",
+  "schemaVersion": 1,
+  "title": "Sukta Chant",
+  "verseCollection": "ganesha-atharva",
+  "verseCollections": ["ganesha-atharva", "purusha-sukta"],
+  "languages": [
+    "sa",
+    "en",
+    "kn"
+  ],
+  "renderer": "verse-chant",
+  "collectionResources": {
+    "purusha-sukta": {
+      "audio": "data/experiences/sukta-chant/purusha-sukta-audio.csv",
+      "images": "data/experiences/sukta-chant/purusha-sukta-images.csv"
+    }
+  },
+  "resources": {
+    "audio": "data/experiences/sukta-chant/audio.csv",
+    "images": "data/experiences/sukta-chant/images.csv"
+  }
+}

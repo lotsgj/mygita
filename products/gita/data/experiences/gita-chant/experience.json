@@ -1,0 +1,17 @@
+{
+  "id": "gita-chant",
+  "schemaVersion": 1,
+  "title": "Gita Chant",
+  "verseCollection": "bhagavad-gita",
+  "verseCollections": ["bhagavad-gita"],
+  "languages": [
+    "sa",
+    "en",
+    "kn"
+  ],
+  "renderer": "verse-chant",
+  "resources": {
+    "audio": "data/experiences/gita-700/audio.csv",
+    "images": "data/experiences/gita-700/images.csv"
+  }
+}

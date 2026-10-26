@@ -1,0 +1,20 @@
+.DS_Store
+dist/
+node_modules/
+coverage/
+test-results/
+playwright-report/
+*.log
+
+# Production media binaries live on media.gitajyoti.org. Keep only collection
+# registries, catalogs, cues, and other metadata in this repository.
+data/collections/audio/**/*.mp3
+data/collections/audio/**/*.m4a
+data/collections/audio/**/*.ogg
+data/collections/audio/**/*.opus
+data/collections/audio/**/*.wav
+products/*/data/collections/audio/**/*.mp3
+products/*/data/collections/audio/**/*.m4a
+products/*/data/collections/audio/**/*.ogg
+products/*/data/collections/audio/**/*.opus
+products/*/data/collections/audio/**/*.wav

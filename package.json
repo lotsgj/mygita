@@ -1,0 +1,28 @@
+{
+  "name": "verses-monorepo",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "playwright": "1.62.1"
+  },
+  "scripts": {
+    "build:distribution": "node engine/scripts/build-distribution.mjs",
+    "build:gita": "node engine/scripts/build-distribution.mjs gita",
+    "build:fonts": "cd engine && node scripts/build-font-css.mjs",
+    "test": "node --test engine/tests/engine/*.test.mjs",
+    "test:engine": "node --test engine/tests/engine/*.test.mjs",
+    "test:unit": "node --test engine/tests/unit/*.test.mjs",
+    "test:contract": "node --test engine/tests/contract/*.test.mjs",
+    "test:browser": "VERSES_ENGINE_ROOT=$PWD/engine node products/gita/tests/browser/player-regression.cjs",
+    "test:docs-browser": "node engine/tests/browser/docs.cjs",
+    "test:events": "node --test engine/tests/unit/event-bus.test.mjs",
+    "test:gita": "node --test products/gita/tests/contract/*.test.mjs",
+    "test:sukta": "node --test products/sukta/tests/contract/*.test.mjs",
+    "test:sukta:browser": "VERSES_ENGINE_ROOT=$PWD/engine node products/sukta/tests/browser/player-regression.cjs",
+    "test:gita:browser": "VERSES_ENGINE_ROOT=$PWD/engine node products/gita/tests/browser/player-regression.cjs",
+    "verify:gita": "npm run build:gita && npm run test && npm run test:unit && npm run test:contract && npm run test:gita && npm run test:gita:browser",
+    "build:docs": "node engine/scripts/build-docs.mjs",
+    "build:player": "cd engine && node scripts/build-player.mjs",
+    "build": "npm run build:gita"
+  }
+}

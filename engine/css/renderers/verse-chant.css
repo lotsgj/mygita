@@ -1,0 +1,135 @@
+.verse-chant-root {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.verse-chant-panels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.verse-chant-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(18px, 3vw, 48px);
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--shadow);
+}
+
+.verse-chant-panel-sanskrit { color: #33261e; background: #fbf6ea; }
+.verse-chant-panel-primary { color: #26384a; background: #f2f4f3; }
+.verse-chant-panel-secondary { color: #45565d; background: #eaefee; }
+
+.verse-chant-text {
+  --verse-chant-fit-size: 12px;
+  --verse-chant-script-scale: 1;
+  --verse-chant-line-height: 1.55;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  text-align: left;
+  font-size: calc(var(--verse-chant-fit-size) * var(--verse-chant-script-scale));
+  line-height: var(--verse-chant-line-height);
+  font-weight: 460;
+  transform: translateY(-3%);
+}
+
+.verse-chant-text[lang="sa"] { --verse-chant-script-scale: 1; --verse-chant-line-height: 1.58; }
+.verse-chant-text[lang="kn"] { --verse-chant-script-scale: .94; --verse-chant-line-height: 1.58; }
+.verse-chant-text[lang="en"] { --verse-chant-script-scale: 1.04; --verse-chant-line-height: 1.35; }
+.verse-chant-text.has-vedic-marks { --verse-chant-line-height: 1.7; }
+.verse-chant-panel-sanskrit .verse-chant-text { font-weight: 560; }
+.verse-chant-line {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: manual;
+}
+.verse-chant-half-verse-end { margin-bottom: .35em; }
+.verse-chant-text[data-wrapped="true"] .verse-chant-line {
+  white-space: normal;
+  padding-left: .7em;
+  text-indent: -.7em;
+}
+.verse-chant-text.empty { color: #8c877d; font-style: italic; font-weight: 400; opacity: .72; }
+
+@media (max-width: 760px) {
+  html.verse-chant-active #app {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  html.verse-chant-active .shell {
+    height: calc(100vh - 18px);
+    height: calc(100dvh - 18px);
+    min-height: 0;
+    grid-template-rows: 54px 12px minmax(0, 1fr);
+    padding-bottom: 64px;
+  }
+
+  html.verse-chant-active #renderer-root { min-height: 0; overflow: hidden; }
+
+  .verse-chant-panels {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(3, 100%);
+    gap: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scroll-snap-type: y mandatory;
+    scrollbar-width: thin;
+  }
+  .verse-chant-panel {
+    height: 100%;
+    padding: clamp(18px, 6vw, 32px);
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+}
+
+html.mobile-layout.verse-chant-active #app {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.mobile-layout.verse-chant-active .shell {
+  height: calc(100vh - 18px);
+  height: calc(100dvh - 18px);
+  min-height: 0;
+  grid-template-rows: 54px 12px minmax(0, 1fr);
+  padding-bottom: 64px;
+}
+
+html.mobile-layout.verse-chant-active #renderer-root { min-height: 0; overflow: hidden; }
+html.mobile-layout.verse-chant-active .verse-chant-panels {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(3, 100%);
+  gap: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: thin;
+}
+html.mobile-layout.verse-chant-active .verse-chant-panel {
+  height: 100%;
+  padding: clamp(18px, 6vw, 32px);
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
