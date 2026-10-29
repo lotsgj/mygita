@@ -30,7 +30,7 @@ Gita Sara emits `gita_sara_view_changed` with only `two_panel` or `three_panel`.
 
 PWA mappings cover update available, accepted, dismissed, completed and failed. `app_version` and display mode are initialized as Clarity session tags even before a profile event. PWA lifecycle events may run without profile context and carry only applicable source/target versions plus completion result or failure stage. The same waiting version produces only one available event per page session.
 
-Rachana uses the same bus and Clarity adapter for handbook opening, document views, navigation opening, profile selection, About, Open Gitaverse, and document failures. Its Clarity tags identify `surface=rachana` and the stable documentation route. Markdown content and local profile identifiers are excluded.
+Rachana uses the same bus and Clarity adapter for handbook opening, document views, navigation opening, profile selection, About, Open MyGita, and document failures. Its Clarity tags identify `surface=rachana` and the stable documentation route. Markdown content and local profile identifiers are excluded.
 
 ## Resume precedence
 

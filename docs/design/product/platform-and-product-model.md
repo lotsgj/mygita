@@ -7,7 +7,7 @@
 
 **MyGita** is both the shared platform name and the intended user-facing app brand. The source repository is `lotsgj/mygita`, with one local working tree that currently contains the engine, documentation and initial product definitions.
 
-The current Bhagavad Gita distribution still carries the technical product folder `products/gita`, the Gitaverse app identity and the `gitaverse.gitajyoti.org` origin. Renaming that product folder, changing the public app identity and migrating installed PWAs are separate changes; the platform decision does not pretend those transitions are already complete.
+The Bhagavad Gita definition still uses the technical folder `products/gita`, but the shared application identity is now MyGita. The intended new origin is `mygita.gitajyoti.org`. Migrating existing installations and origin-bound browser data from `gitaverse.gitajyoti.org` remains a separate, deliberate transition.
 
 ## The hierarchy
 
@@ -32,7 +32,7 @@ The same rule applies to Suktas: start with a coherent bundled product, preserve
 
 ## Repository and distribution strategy
 
-MyGita is initially a single source repository capable of building multiple products. Each build combines the shared engine with one product definition and writes an isolated distribution. Products may later publish to separate deployment repositories and domains.
+MyGita is initially a single source repository that builds one platform PWA containing multiple registered products. Products may later move to isolated source or deployment repositories without changing their data contracts.
 
 The shared platform registry now lives directly under `products/`:
 
@@ -55,7 +55,7 @@ If ownership, repository size, permissions or release cadence later require sour
 
 ## Decisions still open
 
-- The final public name and domain migration from Gitaverse to MyGita.
+- The migration experience from the existing Gitaverse origin and installed PWA to MyGita.
 - The technical rename of `products/gita` to `products/bhagavad-gita`.
 - Whether the Sukta product remains bundled or selected scriptures become independent products.
 - The exact composition and public name of the future Advaita Chants product.

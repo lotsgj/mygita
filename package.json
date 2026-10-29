@@ -1,7 +1,8 @@
 {
-  "name": "verses-monorepo",
+  "name": "mygita",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.25.0",
   "devDependencies": {
     "playwright": "1.62.1"
   },

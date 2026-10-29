@@ -52,6 +52,7 @@ async function run() {
     assert.match(await page.title(), /^Welcome to Rachana — Rachana$/);
     assert.equal(await page.locator('.docs-nav-link.active').getAttribute('aria-current'), 'page');
     assert.equal(await page.locator('#docs-article script').count(), 0);
+    console.log('CHECK: Rachana welcome rendered');
 
     await page.getByRole('button', { name: 'Create a Gitaverse profile' }).click();
     await page.getByLabel('Name', { exact: true }).fill('Rachana Regression');
@@ -69,9 +70,10 @@ async function run() {
     await page.locator('.about-history-item').first().waitFor();
     await page.getByRole('button', { name: '← Back to About' }).click();
     await page.getByRole('button', { name: 'Close' }).click();
+    console.log('CHECK: Rachana shared profile and About verified');
 
     await page.getByRole('link', { name: 'Rachana documentation design' }).click();
-    await page.getByRole('heading', { name: 'Rachana — Gitaverse design details', level: 1 }).waitFor();
+    await page.getByRole('heading', { name: 'Rachana — MyGita design details', level: 1 }).waitFor();
     assert.equal(new URL(page.url()).searchParams.get('page'), 'rachana-design');
 
     await page.getByLabel('Rachana navigation').getByRole('link', { name: 'How catalogs become experiences' }).click();
@@ -82,15 +84,16 @@ async function run() {
     }));
     assert.ok(catalogDiagram.complete && catalogDiagram.naturalWidth > 0, `catalog diagram failed to load: ${JSON.stringify(catalogDiagram)}`);
     await page.goBack();
-    await page.getByRole('heading', { name: 'Rachana — Gitaverse design details', level: 1 }).waitFor();
+    await page.getByRole('heading', { name: 'Rachana — MyGita design details', level: 1 }).waitFor();
 
     await page.getByLabel('Rachana navigation').getByRole('link', { name: 'Sampada' }).click();
-    await page.getByRole('heading', { name: 'Sampada — Treasure trove of Gitaverse enhancements', level: 1 }).waitFor();
+    await page.getByRole('heading', { name: 'Sampada — Treasure trove of MyGita enhancements', level: 1 }).waitFor();
     assert.equal(new URL(page.url()).searchParams.get('page'), 'sampada');
     await page.goBack();
-    await page.getByRole('heading', { name: 'Rachana — Gitaverse design details', level: 1 }).waitFor();
+    await page.getByRole('heading', { name: 'Rachana — MyGita design details', level: 1 }).waitFor();
     await page.goBack();
     await page.getByRole('heading', { name: 'Welcome to Rachana', level: 1 }).waitFor();
+    console.log('CHECK: Rachana navigation and history verified');
 
     await page.goto(`${base}/docs.html?page=not-a-document`, { waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Document not found', level: 1 }).waitFor();
@@ -112,6 +115,7 @@ async function run() {
       return matches;
     });
     assert.deepEqual(cachedDocumentation, []);
+    console.log('CHECK: Rachana remains outside PWA cache');
 
     const safePage = await context.newPage();
     await safePage.route('**/docs/welcome.md', (route) => route.fulfill({
@@ -137,6 +141,7 @@ async function run() {
     await mobilePage.locator('.docs-nav-link').first().click();
     assert.equal(await menu.getAttribute('aria-expanded'), 'false');
     await mobile.close();
+    console.log('CHECK: Rachana safe rendering and mobile navigation verified');
 
     const fileContext = await browser.newContext();
     const filePage = await fileContext.newPage();
@@ -151,6 +156,7 @@ async function run() {
     assert.match(await filePage.locator('#docs-article').innerText(), /Status:\s*Current/);
     assert.deepEqual(fileErrors, [], 'Rachana file mode console/page errors');
     await fileContext.close();
+    console.log('CHECK: Rachana file mode verified');
 
     assert.deepEqual(errors, [], 'Rachana browser console/page errors');
     console.log('PASS: Rachana Markdown rendering, shared profile and About, HTTP and file modes, direct routing, safe content, error state, history, and mobile navigation');

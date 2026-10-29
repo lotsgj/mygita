@@ -114,13 +114,13 @@ await writeFile(path.join(output, 'player.html'), html);
 await writeFile(path.join(output, 'index.html'), html);
 
 const manifest = {
-  id: '/', name: workspace.app.name, short_name: workspace.app.shortName, description: workspace.app.description,
-  start_url: '/player.html', scope: '/', display: 'standalone', orientation: 'any',
+  id: './', name: workspace.app.name, short_name: workspace.app.shortName, description: workspace.app.description,
+  start_url: './player.html', scope: './', display: 'standalone', orientation: 'any',
   background_color: platformBranding.backgroundColor || '#eee8dc', theme_color: platformBranding.themeColor || '#243c5f',
   icons: [
-    { src: '/' + (platformBranding.icon192 || 'assets/icons/icon-192.png'), sizes: '192x192', type: 'image/png', purpose: 'any' },
-    { src: '/' + (platformBranding.icon512 || 'assets/icons/icon-512.png'), sizes: '512x512', type: 'image/png', purpose: 'any' },
-    { src: '/' + (platformBranding.maskableIcon512 || 'assets/icons/icon-maskable-512.png'), sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+    { src: platformBranding.icon192 || 'assets/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: platformBranding.icon512 || 'assets/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: platformBranding.maskableIcon512 || 'assets/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
   ]
 };
 await writeFile(path.join(output, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2) + '\n');

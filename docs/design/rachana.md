@@ -9,7 +9,7 @@ Rachana is the living product and design handbook for MyGita. It explains the pl
 
 Rachana has three responsibilities:
 
-1. Describe current, implemented MyGita-platform and product behaviour while marking incomplete brand transitions explicitly.
+1. Describe current, implemented MyGita platform and product behaviour while marking incomplete origin migrations explicitly.
 2. Preserve important product and technical decisions.
 3. Make the design understandable to both product collaborators and engineers.
 

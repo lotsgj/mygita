@@ -1,7 +1,10 @@
 # Deployment workflows
 
-GitHub workflows will be added after the local monorepo build and PWA outputs are
-approved. They will build products from `products/<id>` into `dist/<id>` and
-publish only generated output to the corresponding deployment repository.
+`deploy-pages.yml` verifies the shared engine and both initial products, builds
+the unified MyGita distribution, and publishes only `dist/mygita` as the GitHub
+Pages artifact. Pull requests run the same build and regression gates without
+deploying.
 
-No workflow in this folder currently deploys or changes the live Gitaverse PWA.
+The repository's Pages source must be set to **GitHub Actions**. The custom
+domain is configured separately in repository Pages settings; DNS is changed
+only after the default Pages deployment has been verified.

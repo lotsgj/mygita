@@ -79,7 +79,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let r="<p>An error
 const marked = g;
 
 // Source: js/version-history.js
-const DB_NAME = 'gitaverse-version-history';
+const DEFAULT_DB_NAME = 'gitaverse-version-history';
 const DB_VERSION = 1;
 const STORE = 'versions';
 
@@ -90,9 +90,9 @@ function versionHistoryRequestResult(request) {
   });
 }
 
-function openDatabase() {
+function openDatabase(databaseName = DEFAULT_DB_NAME) {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(databaseName, DB_VERSION);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE, { keyPath: 'version' });
     };
@@ -122,12 +122,12 @@ function versionTimestamp(version) {
   return Date.UTC(Number(match[3]), month, Number(match[1]), Number(match[4]), Number(match[5]), Number(match[6]));
 }
 
-function mergeVersionHistory(deployed = [], local = [], currentVersion = '') {
+function mergeVersionHistory(deployed = [], local = [], currentVersion = '', currentMessage = 'Current Gitaverse build') {
   const merged = new Map();
   deployed.forEach((record) => merged.set(record.version, { ...record }));
   local.forEach((record) => merged.set(record.version, { ...(merged.get(record.version) || {}), ...record }));
   if (currentVersion && !merged.has(currentVersion)) {
-    merged.set(currentVersion, { version: currentVersion, date: new Date().toISOString().slice(0, 10), message: 'Current Gitaverse build' });
+    merged.set(currentVersion, { version: currentVersion, date: new Date().toISOString().slice(0, 10), message: currentMessage });
   }
   return Array.from(merged.values()).sort((left, right) => {
     const dateOrder = String(right.date || '').localeCompare(String(left.date || ''));
@@ -136,8 +136,11 @@ function mergeVersionHistory(deployed = [], local = [], currentVersion = '') {
 }
 
 class VersionHistoryStore {
-  constructor() { this.database = null; }
-  async open() { if (!this.database) this.database = await openDatabase(); return this; }
+  constructor({ databaseName = DEFAULT_DB_NAME } = {}) {
+    this.databaseName = databaseName;
+    this.database = null;
+  }
+  async open() { if (!this.database) this.database = await openDatabase(this.databaseName); return this; }
   async recordSeen(version, at = new Date().toISOString()) { return this.record(version, 'dateSeen', at); }
   async recordInstalled(version, at = new Date().toISOString()) { return this.record(version, 'dateInstalled', at); }
   async record(version, field, at) {
@@ -289,6 +292,7 @@ class ProfileStore {
     if (defaultPid && Number(defaultPid.value) === Number(pid)) settings.delete('defaultPid');
     settings.delete(`journeyView:${Number(pid)}`);
     settings.delete(`gitaSaraView:${Number(pid)}`);
+    settings.delete(`selectedProduct:${Number(pid)}`);
     transaction.objectStore(RESUME_STORE).delete(Number(pid));
     const engagement = transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid');
     const engagementCursor = engagement.openKeyCursor(IDBKeyRange.only(Number(pid)));
@@ -308,12 +312,13 @@ class ProfileStore {
     return (await requestResult(transaction.objectStore(RESUME_STORE).get(Number(pid)))) || null;
   }
 
-  async getExperienceResume(pid, experience) {
+  async getExperienceResume(pid, experience, product = '') {
     const record = await this.getResume(pid);
     const experienceId = String(experience || '');
     if (!record || !experienceId) return null;
-    const saved = record.experiences?.[experienceId];
-    if (saved?.sid) return { experience: experienceId, ...saved };
+    const productId = String(product || '');
+    const saved = (productId && record.products?.[productId]?.experiences?.[experienceId]) || record.experiences?.[experienceId];
+    if (saved?.sid) return { product: productId || saved.product, experience: experienceId, ...saved };
     // Records created before per-experience resume points are still usable.
     if (record.view === 'experience' && record.experience === experienceId && record.sid) {
       return {
@@ -339,10 +344,12 @@ class ProfileStore {
       view: resume.view === 'experience' ? 'experience' : 'home',
       language: resume.language === 'kn' ? 'kn' : 'en',
       savedAt: resume.savedAt || new Date().toISOString(),
-      experiences: { ...(existing?.experiences || {}) }
+      experiences: { ...(existing?.experiences || {}) },
+      products: { ...(existing?.products || {}) }
     };
     if (record.view === 'experience') {
       record.experience = String(resume.experience || '');
+      record.product = String(resume.product || '');
       record.sid = String(resume.sid || '');
       if (!record.experience || !record.sid) throw new Error('An experience resume point requires an experience and SID.');
       record.experiences[record.experience] = {
@@ -350,7 +357,18 @@ class ProfileStore {
         language: record.language,
         savedAt: record.savedAt
       };
+      if (record.product) {
+        const productRecord = record.products[record.product] || { experiences: {} };
+        productRecord.experiences = { ...(productRecord.experiences || {}), [record.experience]: {
+          sid: record.sid,
+          language: record.language,
+          savedAt: record.savedAt
+        } };
+        productRecord.lastExperience = { experience: record.experience, sid: record.sid, language: record.language, savedAt: record.savedAt };
+        record.products[record.product] = productRecord;
+      }
       record.lastExperience = {
+        product: record.product,
         experience: record.experience,
         sid: record.sid,
         language: record.language,
@@ -367,6 +385,7 @@ class ProfileStore {
       }
       delete record.experience;
       delete record.sid;
+      delete record.product;
     }
     store.put(record);
     await transactionDone(transaction);
@@ -386,6 +405,22 @@ class ProfileStore {
     const store = transaction.objectStore(SETTINGS_STORE);
     if (pid == null) store.delete('defaultPid');
     else store.put({ key: 'defaultPid', value: Number(pid) });
+    await transactionDone(transaction);
+  }
+
+  async getSelectedProduct(pid) {
+    await this.open();
+    if (!Number.isInteger(Number(pid))) return null;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`selectedProduct:${Number(pid)}`));
+    return typeof setting?.value === 'string' ? setting.value : null;
+  }
+
+  async setSelectedProduct(pid, productId) {
+    await this.open();
+    if (!Number.isInteger(Number(pid)) || !productId) return;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
+    transaction.objectStore(SETTINGS_STORE).put({ key: `selectedProduct:${Number(pid)}`, value: String(productId) });
     await transactionDone(transaction);
   }
 
@@ -608,10 +643,14 @@ class ProfileUI {
   async renderPills(profile) {
     document.querySelectorAll('[data-profile-pill]').forEach((button) => {
       button.textContent = '';
-      button.appendChild(this.avatar(profile, 'profile-pill-avatar'));
+      const avatar = this.avatar(profile, 'profile-pill-avatar');
+      if (button.classList.contains('topbar-profile-pill') && !profile.photo) {
+        avatar.textContent = Array.from(profile.name.trim())[0]?.toUpperCase() || 'ॐ';
+      }
+      button.appendChild(avatar);
       const name = document.createElement('span');
       name.textContent = profile.name;
-      button.appendChild(name);
+      if (!button.classList.contains('topbar-profile-pill')) button.appendChild(name);
       button.dataset.pid = profile.pid;
       button.setAttribute('aria-label', 'Profile: ' + profile.name + '. Open profile options.');
     });
@@ -984,6 +1023,11 @@ class AboutDialog {
     if (flute) flute.src = this.branding.fluteImage || '';
   }
 
+  setBranding(branding = {}) {
+    this.branding = branding;
+    this.refresh();
+  }
+
   ensureHistoryMarkup() {
     const body = this.overlay.querySelector('.about-body');
     let main = body.querySelector('.about-main');
@@ -1022,7 +1066,12 @@ class AboutDialog {
     } catch (_) {}
     let local = [];
     try { local = this.historyStore ? await this.historyStore.list() : []; } catch (_) {}
-    this.renderHistory(mergeVersionHistory(deployed, local, this.version));
+    this.renderHistory(mergeVersionHistory(
+      deployed,
+      local,
+      this.version,
+      this.translate('about.currentBuild', 'Current Gitaverse build')
+    ));
     requestAnimationFrame(() => this.overlay.querySelector('[data-version-history-back]')?.focus());
   }
 

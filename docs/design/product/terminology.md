@@ -6,7 +6,7 @@
 ## Core terms
 
 - **MyGita** — the shared platform and intended user-facing app brand.
-- **Gitaverse** — the current deployed Bhagavad Gita app identity; planned to transition to MyGita through a separate PWA and domain migration.
+- **Gitaverse** — the earlier Bhagavad Gita app identity and origin retained during the deliberate migration to the MyGita PWA and domain.
 - **Rachana** — this living design handbook.
 - **Sampada** — the treasure trove of approved future enhancements.
 - **Product** — an independently buildable configuration with its own identity, collection set, experiences, PWA and local-data boundary.

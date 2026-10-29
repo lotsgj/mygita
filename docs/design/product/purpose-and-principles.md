@@ -7,7 +7,7 @@
 
 MyGita is a personal, verse-centred platform and app for reading, listening, chanting, contemplating and gradually building a meaningful relationship with scriptural teachings. It begins with the Bhagavad Gita and is designed to support Suktas, Advaita compositions and later verse collections without fragmenting the shared experience or engine.
 
-The source repository has adopted the MyGita name. The currently deployed Bhagavad Gita application still uses the Gitaverse name and origin; its app-brand, domain and local-data migration remain a deliberate later transition.
+The source repository and unified application shell use the MyGita name. GitHub Pages deployment automation targets the new MyGita application; the custom-domain/DNS cutover and migration of existing Gitaverse installations and origin-bound data remain deliberate later steps.
 
 ## Product principles
 

@@ -1328,7 +1328,7 @@ class PwaManager {
     if (this.appVersion === 'dev' || !('serviceWorker' in navigator)) return;
     this.completePendingUpdate();
     try {
-      this.registration = await navigator.serviceWorker.register('service-worker.js', { scope: '/', updateViaCache: 'none' });
+      this.registration = await navigator.serviceWorker.register('service-worker.js', { scope: './', updateViaCache: 'none' });
       if (this.registration.waiting && navigator.serviceWorker.controller) this.showUpdate();
       this.registration.addEventListener('updatefound', () => {
         const worker = this.registration.installing;

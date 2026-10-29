@@ -1,0 +1,93 @@
+name: Build and deploy MyGita
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.25.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Locate Chromium
+        run: echo "CHROME_PATH=$(node -e "const { chromium } = require('playwright'); process.stdout.write(chromium.executablePath())")" >> "$GITHUB_ENV"
+
+      - name: Build MyGita
+        env:
+          VERSES_BUILD_ID: ${{ github.run_number }}-${{ github.run_attempt }}
+          CLARITY_PROJECT_ID: ${{ vars.CLARITY_PROJECT_ID }}
+        run: pnpm run build:mygita
+
+      - name: Build regression fixtures
+        run: |
+          pnpm run build:gita
+          pnpm run build:docs
+
+      - name: Run engine and product tests
+        run: |
+          pnpm test
+          pnpm run test:unit
+          pnpm run test:contract
+          pnpm run test:gita
+          pnpm run test:sukta
+
+      - name: Run browser regressions
+        run: |
+          pnpm run test:platform-browser
+          pnpm run test:gita:browser
+          pnpm run test:sukta:browser
+          pnpm run test:docs-browser
+
+      - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/mygita
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

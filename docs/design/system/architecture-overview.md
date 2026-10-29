@@ -11,10 +11,10 @@ MyGita is the shared source repository and platform for independently configurab
 2. `engine/css` supplies the shell, editor, and renderer presentation.
 3. `engine/js/player/player-core.js` coordinates routing, profiles, collections, renderer selection, audio, editing, events, resume, and PWA behavior.
 4. `engine/js/player/renderers` contains experience-specific rendering.
-5. `products/gita` owns the current Bhagavad Gita distribution identity, collections, experience configuration, branding, theme, and product tests. Its technical folder and Gitaverse identity remain until the later MyGita app migration.
+5. `products/gita` owns the Bhagavad Gita collections, experience configuration, product visuals, theme and tests. Its technical folder name remains for compatibility while the shared application identity is MyGita.
 6. `products/sukta` provisionally bundles registered Ganesha Atharvashirsha and Purusha Sukta collections and the first **Sukta Chant** experience. It reuses Player-4 under the public `sukta-chant` experience ID; the configured experience currently opens Ganesha Atharvashirsha. The final bundled-versus-independent product decision remains open.
 7. `products/app.json` plus the language-specific product registries define the platform-visible product set independently of implementation folder names.
-8. The unified build combines `engine` with every enabled registry product and writes `dist/mygita`; the older named-product builder remains available during migration.
+8. The unified build combines `engine` with every enabled registry product and writes `dist/mygita`; GitHub Actions verifies that artifact and publishes it through GitHub Pages. The older named-product builder remains as a regression fixture during migration.
 
 The MyGita repository root owns Rachana and Sampada under `docs`, along with the monorepo package and future `.github` automation. Product builds exclude documentation. The engine owns only reusable Noto Sans font assets; every other visual asset belongs to its product folder.
 

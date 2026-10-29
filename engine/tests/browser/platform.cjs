@@ -17,6 +17,8 @@ const server = http.createServer((request, response) => {
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
 const assetManifest = JSON.parse(fs.readFileSync(path.join(root, 'asset-manifest.json'), 'utf8'));
 assert.equal(manifest.name, 'MyGita');
+assert.equal(manifest.start_url, './player.html');
+assert.equal(manifest.scope, './');
 assert.equal(assetManifest.distribution, 'mygita');
 assert.ok(Object.keys(assetManifest.assets).some((name) => name.startsWith('products/gita/data/')));
 assert.ok(Object.keys(assetManifest.assets).some((name) => name.startsWith('products/sukta/data/')));
