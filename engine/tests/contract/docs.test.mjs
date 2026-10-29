@@ -67,7 +67,7 @@ test('every internal Markdown link resolves to a navigable Rachana document', as
 
 test('the handbook exposes the approved product, experience, system, and future structure', () => {
   const expected = {
-    Product: ['purpose-and-principles', 'experience-model', 'terminology'],
+    Product: ['purpose-and-principles', 'platform-and-product-model', 'experience-model', 'terminology'],
     Experiences: ['profiles-and-first-use', 'home-and-experience-selection', 'shared-player', 'gita-yoga', 'gita-700', 'gita-sara', 'local-content-editing', 'install-offline-and-updates'],
     System: ['architecture-overview', 'collections-and-media', 'catalog-to-player', 'profiles-and-local-storage', 'events-analytics-and-resume', 'pwa-cache-and-updates', 'build-test-and-deployment'],
     'Future possibilities': ['sampada']

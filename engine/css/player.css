@@ -81,6 +81,13 @@
   .diksoochi-journey-empty { margin: auto 0; color: var(--muted); font-size: 15px; line-height: 1.65; }
   .journey-details-link { border: 0; background: transparent; color: var(--saffron); padding: 2px 4px; font: inherit; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
   .diksoochi-experiences { margin-top: 70px; }
+  .product-list { display: flex; gap: 9px; margin: -4px 0 22px; overflow-x: auto; scrollbar-width: none; }
+  .product-list:empty { display: none; }
+  .product-list::-webkit-scrollbar { display: none; }
+  .product-pill { flex: 0 0 auto; border: 1px solid rgba(42,68,91,.22); border-radius: 999px; padding: 10px 18px; background: rgba(255,255,255,.62); color: var(--indigo); font: 650 14px/1 var(--font-sans, sans-serif); cursor: pointer; }
+  .product-pill:hover, .product-pill:focus-visible { border-color: var(--saffron); outline: none; }
+  .product-pill[aria-selected="true"] { border-color: var(--indigo); background: var(--indigo); color: white; }
+  .product-pill:disabled { opacity: .46; cursor: not-allowed; }
   .experience-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
   .experience-link { position: relative; min-height: 270px; overflow: hidden; border: 0; border-radius: 22px; padding: 26px; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; isolation: isolate; color: white; text-decoration: none; text-align: left; box-shadow: 0 16px 38px rgba(40,32,24,.13); transition: transform .25s ease, box-shadow .25s ease; }
   .experience-link::before { content: ''; position: absolute; inset: 0; z-index: -2; background-position: center; background-size: cover; transition: transform .5s ease; }

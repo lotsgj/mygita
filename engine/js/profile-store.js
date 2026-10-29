@@ -129,6 +129,7 @@ export class ProfileStore {
     if (defaultPid && Number(defaultPid.value) === Number(pid)) settings.delete('defaultPid');
     settings.delete(`journeyView:${Number(pid)}`);
     settings.delete(`gitaSaraView:${Number(pid)}`);
+    settings.delete(`selectedProduct:${Number(pid)}`);
     transaction.objectStore(RESUME_STORE).delete(Number(pid));
     const engagement = transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid');
     const engagementCursor = engagement.openKeyCursor(IDBKeyRange.only(Number(pid)));
@@ -148,12 +149,13 @@ export class ProfileStore {
     return (await requestResult(transaction.objectStore(RESUME_STORE).get(Number(pid)))) || null;
   }
 
-  async getExperienceResume(pid, experience) {
+  async getExperienceResume(pid, experience, product = '') {
     const record = await this.getResume(pid);
     const experienceId = String(experience || '');
     if (!record || !experienceId) return null;
-    const saved = record.experiences?.[experienceId];
-    if (saved?.sid) return { experience: experienceId, ...saved };
+    const productId = String(product || '');
+    const saved = (productId && record.products?.[productId]?.experiences?.[experienceId]) || record.experiences?.[experienceId];
+    if (saved?.sid) return { product: productId || saved.product, experience: experienceId, ...saved };
     // Records created before per-experience resume points are still usable.
     if (record.view === 'experience' && record.experience === experienceId && record.sid) {
       return {
@@ -179,10 +181,12 @@ export class ProfileStore {
       view: resume.view === 'experience' ? 'experience' : 'home',
       language: resume.language === 'kn' ? 'kn' : 'en',
       savedAt: resume.savedAt || new Date().toISOString(),
-      experiences: { ...(existing?.experiences || {}) }
+      experiences: { ...(existing?.experiences || {}) },
+      products: { ...(existing?.products || {}) }
     };
     if (record.view === 'experience') {
       record.experience = String(resume.experience || '');
+      record.product = String(resume.product || '');
       record.sid = String(resume.sid || '');
       if (!record.experience || !record.sid) throw new Error('An experience resume point requires an experience and SID.');
       record.experiences[record.experience] = {
@@ -190,7 +194,18 @@ export class ProfileStore {
         language: record.language,
         savedAt: record.savedAt
       };
+      if (record.product) {
+        const productRecord = record.products[record.product] || { experiences: {} };
+        productRecord.experiences = { ...(productRecord.experiences || {}), [record.experience]: {
+          sid: record.sid,
+          language: record.language,
+          savedAt: record.savedAt
+        } };
+        productRecord.lastExperience = { experience: record.experience, sid: record.sid, language: record.language, savedAt: record.savedAt };
+        record.products[record.product] = productRecord;
+      }
       record.lastExperience = {
+        product: record.product,
         experience: record.experience,
         sid: record.sid,
         language: record.language,
@@ -207,6 +222,7 @@ export class ProfileStore {
       }
       delete record.experience;
       delete record.sid;
+      delete record.product;
     }
     store.put(record);
     await transactionDone(transaction);
@@ -226,6 +242,22 @@ export class ProfileStore {
     const store = transaction.objectStore(SETTINGS_STORE);
     if (pid == null) store.delete('defaultPid');
     else store.put({ key: 'defaultPid', value: Number(pid) });
+    await transactionDone(transaction);
+  }
+
+  async getSelectedProduct(pid) {
+    await this.open();
+    if (!Number.isInteger(Number(pid))) return null;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`selectedProduct:${Number(pid)}`));
+    return typeof setting?.value === 'string' ? setting.value : null;
+  }
+
+  async setSelectedProduct(pid, productId) {
+    await this.open();
+    if (!Number.isInteger(Number(pid)) || !productId) return;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
+    transaction.objectStore(SETTINGS_STORE).put({ key: `selectedProduct:${Number(pid)}`, value: String(productId) });
     await transactionDone(transaction);
   }
 

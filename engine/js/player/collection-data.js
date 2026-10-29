@@ -1,5 +1,10 @@
-export const COLLECTION_ROOT = 'data/collections';
-export const EXPERIENCE_ROOT = 'data/experiences';
+export let COLLECTION_ROOT = 'data/collections';
+export let EXPERIENCE_ROOT = 'data/experiences';
+
+export function setCollectionRoot(root = 'data/collections') {
+  COLLECTION_ROOT = String(root || 'data/collections').replace(/\/+$/, '');
+  EXPERIENCE_ROOT = COLLECTION_ROOT.replace(/\/collections$/, '/experiences');
+}
 
 export const AUDIO_REGISTRY_HEADERS = ['collection_id', 'title', 'contributor', 'language', 'catalog_url', 'cue_purpose_url', 'cue_url', 'attribution', 'license', 'source'];
 export const AUDIO_CUE_PURPOSE_HEADERS = ['cue_id', 'language', 'purpose', 'description'];
@@ -64,7 +69,10 @@ export function parseCollectionTable(text, expectedHeaders, label = 'collection 
 }
 
 async function fetchText(url, version) {
-  const request = new URL(url, location.href);
+  const source = String(url || '');
+  const dataPrefix = COLLECTION_ROOT.replace(/collections$/, '');
+  const resolved = source.startsWith('data/') && dataPrefix !== 'data/' ? dataPrefix + source.slice(5) : source;
+  const request = new URL(resolved, location.href);
   if (version) request.searchParams.set('v', version);
   const response = await fetch(request.href);
   if (!response.ok) throw new Error('Could not load ' + url + ' (HTTP ' + response.status + ').');
@@ -655,6 +663,14 @@ function localizedCollectionRows(structural, localizedTables) {
 }
 
 export async function loadCollectionExperience(experienceId, { version = '', collectionId = '' } = {}) {
+  const resolveMediaUrl = (value) => {
+    const remote = remoteMediaUrl(value);
+    if (remote) return remote;
+    const source = String(value || '');
+    const dataPrefix = COLLECTION_ROOT.replace(/collections$/, '');
+    const resolved = source.startsWith('data/') && dataPrefix !== 'data/' ? dataPrefix + source.slice(5) : source;
+    return new URL(resolved, location.href).href;
+  };
   const experienceRegistry = await fetchTable(EXPERIENCE_ROOT + '/collection.csv', null, version);
   const experienceEntry = registryEntry(experienceRegistry, experienceId, 'Experience');
   const experienceCatalog = await fetchTable(experienceEntry.catalog_url, ['content_type', 'content_url'], version);
@@ -712,7 +728,7 @@ export async function loadCollectionExperience(experienceId, { version = '', col
     audioCatalogs: audioCollections.catalogs,
     audioCueIndexes: audioCollections.cueIndexes,
     audioCueErrors: audioCollections.cueErrors,
-    imageCatalogs, deckCatalogs, illustrationCatalogs, contemplationCatalogs, experience,
+    imageCatalogs, deckCatalogs, illustrationCatalogs, contemplationCatalogs, experience, resolveMediaUrl,
     resourceUrls: { sequence: sequenceUrl, audio: audioCompositionUrl, images: imageCompositionUrl, decks: deckCompositionUrl, illustrations: illustrationCompositionUrl, contemplations: contemplationCompositionUrl, media: mediaCompositionUrl }
   });
   dataset.collectionId = activeCollection;

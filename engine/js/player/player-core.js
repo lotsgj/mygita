@@ -1,4 +1,4 @@
-import { openWritableCollectionWorkspace } from './collection-data.js';
+import { openWritableCollectionWorkspace, setCollectionRoot } from './collection-data.js';
 import { CollectionSource, CollectionSourceRequiredError } from './collection-source.js';
 import { ProfileStore } from '../profile-store.js';
 import { ProfileUI } from '../profile-ui.js';
@@ -40,7 +40,8 @@ const state = {
   journeyReturnFocus: 'journey-details-button',
   pendingLocalDestination: null,
   appMetadata: { version: 'dev' }
-  ,collectionId: null
+  ,collectionId: null,
+  activeProductId: null
 };
 
 const params = new URLSearchParams(location.search);
@@ -48,18 +49,38 @@ let play = params.get('play');
 let requestedSid = params.get('sid');
 let requestedLanguage = params.get('lang');
 let requestedCollection = params.get('collection');
-const explicitLocationRequested = params.has('play') || params.has('sid') || params.has('lang');
+let requestedProduct = params.get('product');
+const explicitLocationRequested = params.has('play') || params.has('sid') || params.has('lang') || params.has('product');
 const appVersion = document.querySelector('meta[name="app-version"]')?.content || 'dev';
 const clarityProjectId = document.querySelector('meta[name="clarity-project-id"]')?.content || '';
+let appConfig = globalThis.__MYGITA_APP__ || {};
+let products = Array.isArray(globalThis.__MYGITA_PRODUCTS__) && globalThis.__MYGITA_PRODUCTS__.length
+  ? globalThis.__MYGITA_PRODUCTS__
+  : [{ id: distribution().id, path: '', config: distribution(), data: globalThis.__VERSES_DATA_HANDLE__, files: globalThis.__VERSES_DATA_FILES__, metadata: { en: { name: distribution().name, shortName: distribution().shortName || distribution().name, description: distribution().description || '' } } }];
+const initialProduct = products.find((product) => product.id === requestedProduct && product.config)
+  || products.find((product) => product.id === globalThis.__MYGITA_ACTIVE_PRODUCT__ && product.config)
+  || products.find((product) => product.id === appConfig.defaultProduct && product.config)
+  || products.find((product) => product.config);
+state.activeProductId = initialProduct.id;
+setDistribution(initialProduct.config || distribution());
+setCollectionRoot(initialProduct.collectionRoot || 'data/collections');
 const collectionSource = new CollectionSource({ version: appVersion });
-if (globalThis.__VERSES_DATA_HANDLE__) collectionSource.selectDirectory(globalThis.__VERSES_DATA_HANDLE__);
-else if (globalThis.__VERSES_DATA_FILES__) collectionSource.selectFiles(globalThis.__VERSES_DATA_FILES__);
-const i18n = new I18n('en', distribution().translations);
+if (initialProduct.data || globalThis.__VERSES_DATA_HANDLE__) collectionSource.selectDirectory(initialProduct.data || globalThis.__VERSES_DATA_HANDLE__);
+else if (initialProduct.files || globalThis.__VERSES_DATA_FILES__) collectionSource.selectFiles(initialProduct.files || globalThis.__VERSES_DATA_FILES__);
+function mergedTranslations(productTranslations = {}) {
+  const languages = new Set([...Object.keys(productTranslations || {}), ...Object.keys(appConfig.translations || {})]);
+  return Object.fromEntries([...languages].map((language) => [language, {
+    ...(productTranslations?.[language] || {}),
+    ...(appConfig.translations?.[language] || {})
+  }]));
+}
+const i18n = new I18n('en', mergedTranslations(distribution().translations));
 const translate = (key, fallback, values = {}) => i18n.t(key, values) === key ? fallback : i18n.t(key, values);
 
 configureExperiences(distribution());
-const profileStore = new ProfileStore({ databaseName: distribution().databaseName });
-const versionHistoryStore = new VersionHistoryStore({ databaseName: `${distribution().id}-version-history` });
+const profileStore = new ProfileStore({ databaseName: appConfig.databaseName || distribution().databaseName });
+const platformId = appConfig.id || distribution().id;
+const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformId}-version-history` });
 const eventBus = new EventBus({
   appVersion,
   contextProvider: () => ({
@@ -76,11 +97,11 @@ eventBus.subscribe(new SentryAdapter());
 clarityAdapter.initialize({ appVersion, displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' });
 const pwa = new PwaManager({
   appVersion,
-  namespace: distribution().id,
+  namespace: platformId,
   onEvent: (name, details) => emitEvent(name, { details, profile: state.activeProfile }),
   onInstalled: (version) => versionHistoryStore.recordInstalled(version)
 });
-const aboutDialog = new AboutDialog({ version: appVersion, translate, historyStore: versionHistoryStore, branding: distribution().branding });
+const aboutDialog = new AboutDialog({ version: appVersion, translate, historyStore: versionHistoryStore, branding: appConfig.branding || distribution().branding });
 const profileUI = new ProfileUI({
   store: profileStore,
   onSelected: selectProfile,
@@ -390,13 +411,37 @@ function cssUrl(value) {
   return `url(${JSON.stringify(resolved)})`;
 }
 
-function applyDistributionBranding(config = distribution()) {
+function applyPlatformBranding(config = appConfig) {
   const branding = config.branding || {};
-  document.querySelectorAll('[data-product-name]').forEach((element) => { element.textContent = config.name; });
-  document.querySelectorAll('[data-product-name-aria]').forEach((element) => { element.setAttribute('aria-label', config.name); });
+  const name = config.name || 'MyGita';
+  document.title = name;
+  document.querySelectorAll('[data-app-name]').forEach((element) => { element.textContent = name; });
+  document.querySelectorAll('[data-app-name-aria]').forEach((element) => { element.setAttribute('aria-label', name); });
   document.querySelectorAll('[data-brand-image="flute"]').forEach((image) => { image.src = branding.fluteImage || ''; });
   document.querySelectorAll('[data-brand-icon]').forEach((link) => { link.href = branding.icon192 || ''; });
   document.querySelectorAll('[data-brand-apple-icon]').forEach((link) => { link.href = branding.appleTouchIcon || ''; });
+}
+
+function activeProduct() {
+  return products.find((product) => product.id === state.activeProductId) || products[0];
+}
+
+function renderProductPills() {
+  const list = document.getElementById('product-list');
+  if (!list) return;
+  list.replaceChildren(...products.map((product) => {
+    const button = document.createElement('button');
+    const label = productLabel(product, state.activeProfile?.contentLanguage || state.language);
+    button.type = 'button';
+    button.className = 'product-pill';
+    button.dataset.productId = product.id;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-selected', String(product.id === state.activeProductId));
+    button.disabled = Boolean(product.error || !product.config);
+    button.title = product.error || label.description || label.name;
+    button.textContent = label.name;
+    return button;
+  }));
 }
 
 function renderExperienceCards() {
@@ -405,7 +450,7 @@ function renderExperienceCards() {
     link.className = `experience-link ${experience.cardClass || ''}`.trim();
     link.id = id + '-link';
     link.dataset.experienceCard = id;
-    link.href = `?play=${encodeURIComponent(id)}`;
+    link.href = `?product=${encodeURIComponent(state.activeProductId)}&play=${encodeURIComponent(id)}`;
     link.style.setProperty('--experience-card-image', cssUrl(experience.cardImage));
     const kicker = document.createElement('small');
     kicker.textContent = experienceText(experience, 'kicker');
@@ -423,14 +468,46 @@ function renderExperienceCards() {
 
 function activateDistribution(input) {
   const configured = setDistribution(input);
-  i18n.setOverrides(configured.translations);
+  i18n.setOverrides(mergedTranslations(configured.translations));
   configureExperiences(configured);
-  document.title = configured.name;
-  applyDistributionBranding(configured);
+  applyPlatformBranding();
   i18n.apply();
-  aboutDialog.setBranding(configured.branding);
+  aboutDialog.setBranding(appConfig.branding || {});
   renderExperienceCards();
+  renderProductPills();
   return configured;
+}
+
+function activateProduct(productId, { updateUrl = true } = {}) {
+  const product = products.find((entry) => entry.id === productId);
+  if (!product || !product.config) return null;
+  state.dataset?.release?.();
+  state.dataset = null;
+  state.renderer?.destroy?.();
+  state.renderer = null;
+  collectionSource.clear();
+  state.activeProductId = product.id;
+  globalThis.__MYGITA_ACTIVE_PRODUCT__ = product.id;
+  setCollectionRoot(product.collectionRoot || 'data/collections');
+  if (product.data) collectionSource.selectDirectory(product.data);
+  else if (product.files) collectionSource.selectFiles(product.files);
+  activateDistribution(product.config);
+  play = null;
+  requestedSid = null;
+  requestedCollection = null;
+  requestedProduct = product.id;
+  if (state.activeProfile) profileStore.setSelectedProduct(state.activeProfile.pid, product.id).catch(() => {});
+  if (updateUrl) {
+    const url = new URL(location.href);
+    url.searchParams.set('product', product.id);
+    url.searchParams.delete('play');
+    url.searchParams.delete('sid');
+    url.searchParams.delete('collection');
+    history.replaceState({}, '', url);
+  }
+  syncHomeCollectionSource();
+  closeHomeExperienceDetail();
+  return product;
 }
 
 async function distributionFromDirectory(handle) {
@@ -455,6 +532,8 @@ function requestLocalCollections() {
 function openHomeExperience(link) {
   if (collectionSource.requiresSelection) return requestLocalCollections();
   const destination = new URL(link.href, location.href);
+  const destinationProduct = destination.searchParams.get('product');
+  if (destinationProduct && destinationProduct !== state.activeProductId) activateProduct(destinationProduct, { updateUrl: false });
   play = destination.searchParams.get('play');
   requestedSid = destination.searchParams.get('sid');
   requestedLanguage = destination.searchParams.get('lang');
@@ -471,8 +550,18 @@ async function useSelectedCollections(fileList) {
     const selected = globalThis.__VERSES_OPEN_DISTRIBUTION_FILES__
       ? await globalThis.__VERSES_OPEN_DISTRIBUTION_FILES__(fileList)
       : { config: await distributionFromFiles(fileList), files: fileList };
-    activateDistribution(selected.config);
-    collectionSource.selectFiles(selected.files);
+    if (selected.products) {
+      products = selected.products;
+      globalThis.__MYGITA_APP__ = selected.app;
+      appConfig = selected.app;
+      globalThis.__MYGITA_PRODUCTS__ = selected.products;
+      state.activeProductId = selected.products.some((product) => product.id === state.activeProductId)
+        ? state.activeProductId : selected.app.defaultProduct;
+      activateProduct(state.activeProductId, { updateUrl: false });
+    } else {
+      activateDistribution(selected.config);
+      collectionSource.selectFiles(selected.files);
+    }
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
     syncHomeCollectionSource();
@@ -501,8 +590,18 @@ async function useSelectedCollectionsDirectory(handle) {
     const selected = globalThis.__VERSES_OPEN_DISTRIBUTION_DIRECTORY__
       ? await globalThis.__VERSES_OPEN_DISTRIBUTION_DIRECTORY__(handle)
       : { config: await distributionFromDirectory(handle), data: handle };
-    activateDistribution(selected.config);
-    collectionSource.selectDirectory(selected.data);
+    if (selected.products) {
+      products = selected.products;
+      globalThis.__MYGITA_APP__ = selected.app;
+      appConfig = selected.app;
+      globalThis.__MYGITA_PRODUCTS__ = selected.products;
+      state.activeProductId = selected.products.some((product) => product.id === state.activeProductId)
+        ? state.activeProductId : selected.app.defaultProduct;
+      activateProduct(state.activeProductId, { updateUrl: false });
+    } else {
+      activateDistribution(selected.config);
+      collectionSource.selectDirectory(selected.data);
+    }
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
     syncHomeCollectionSource();
@@ -604,7 +703,7 @@ function goToExperienceSelection(profile = state.activeProfile, { source = 'home
   if (track && profile) {
     emitEvent('home_opened', {
       profile,
-      context: { language: requestedLanguage },
+      context: { product: state.activeProductId, language: requestedLanguage },
       details: { source }
     });
   }
@@ -619,10 +718,15 @@ async function openProfileLocation(profile, { honorExplicit = false } = {}) {
   const resume = await profileStore.getResume(profile.pid);
   requestedLanguage = resume?.language || profile.contentLanguage;
   if (resume?.view === 'experience') {
+    if (resume.product && resume.product !== state.activeProductId) activateProduct(resume.product, { updateUrl: false });
     play = resume.experience;
     requestedSid = resume.sid;
     state.locationSource = 'resume';
     return startRequestedExperience();
+  }
+  const selectedProduct = await profileStore.getSelectedProduct(profile.pid);
+  if (selectedProduct && selectedProduct !== state.activeProductId && products.some((product) => product.id === selectedProduct)) {
+    activateProduct(selectedProduct, { updateUrl: false });
   }
   goToExperienceSelection(profile, { source: resume ? 'resume' : 'profile_selected', track: !resume });
 }
@@ -714,6 +818,7 @@ function showHomeExperienceDetail(link) {
 }
 
 async function startRequestedExperience() {
+  renderProductPills();
   const experienceIds = availableExperiences().map(([id]) => id);
   if (!experienceIds.length && collectionSource.requiresSelection) {
     state.pendingLocalDestination = { play, requestedSid, requestedLanguage };
@@ -723,12 +828,13 @@ async function startRequestedExperience() {
   }
   const resumes = new Map(await Promise.all(experienceIds.map(async (experienceId) => [
     experienceId,
-    state.experienceResumes.get(experienceId) || await profileStore.getExperienceResume(state.activeProfile.pid, experienceId)
+    state.experienceResumes.get(`${state.activeProductId}:${experienceId}`) || await profileStore.getExperienceResume(state.activeProfile.pid, experienceId, state.activeProductId)
   ])));
   const chooserUrls = new Map(experienceIds.map((experienceId) => {
     const resume = resumes.get(experienceId);
     const chooserUrl = new URL(location.href);
     chooserUrl.searchParams.set('play', experienceId);
+    chooserUrl.searchParams.set('product', state.activeProductId);
     chooserUrl.searchParams.delete('view');
     if (resume?.sid) chooserUrl.searchParams.set('sid', resume.sid);
     else chooserUrl.searchParams.delete('sid');
@@ -740,25 +846,36 @@ async function startRequestedExperience() {
     return [experienceId, chooserUrl];
   }));
   const latest = await profileStore.getResume(state.activeProfile.pid);
-  const lastExperienceId = latest?.lastExperience?.experience || (latest?.view === 'experience' ? latest.experience : null);
-  const continueExperience = getExperience(lastExperienceId)?.available
-    ? lastExperienceId
-    : distribution().defaultExperience;
-  const continueResume = resumes.get(continueExperience);
-  const chooserUrl = chooserUrls.get(continueExperience);
+  const latestPoint = latest?.lastExperience || (latest?.view === 'experience' ? latest : null);
+  const continueProductId = latestPoint?.product && products.some((product) => product.id === latestPoint.product)
+    ? latestPoint.product : state.activeProductId;
+  const continueProduct = products.find((product) => product.id === continueProductId) || activeProduct();
+  const continueExperience = (continueProduct.config.experiences || []).some((experience) => experience.id === latestPoint?.experience && experience.available !== false)
+    ? latestPoint.experience : continueProduct.config.defaultExperience;
+  const continueDefinition = (continueProduct.config.experiences || []).find((experience) => experience.id === continueExperience) || { label: continueExperience };
+  const continueResume = continueProductId === state.activeProductId
+    ? resumes.get(continueExperience)
+    : await profileStore.getExperienceResume(state.activeProfile.pid, continueExperience, continueProductId);
+  const chooserUrl = new URL(location.href);
+  chooserUrl.searchParams.set('product', continueProductId);
+  chooserUrl.searchParams.set('play', continueExperience);
+  chooserUrl.searchParams.delete('view');
+  if (continueResume?.sid) chooserUrl.searchParams.set('sid', continueResume.sid);
+  else chooserUrl.searchParams.delete('sid');
+  chooserUrl.searchParams.set('pid', state.activeProfile.pid);
   const continueLink = document.getElementById('continue-journey-link');
   continueLink.href = chooserUrl.href;
   continueLink.dataset.experience = continueExperience;
-  continueLink.style.setProperty('--experience-card-image', cssUrl(getExperience(continueExperience).cardImage));
+  continueLink.style.setProperty('--experience-card-image', cssUrl(continueDefinition.cardImage));
   continueLink.setAttribute('aria-label', continueResume?.sid
-    ? i18n.t('diksoochi.resumeExperience', { experience: getExperience(continueExperience).label, sid: continueResume.sid })
-    : i18n.t('diksoochi.beginExperience', { experience: getExperience(continueExperience).label }));
+    ? i18n.t('diksoochi.resumeExperience', { experience: continueDefinition.label, sid: continueResume.sid })
+    : i18n.t('diksoochi.beginExperience', { experience: continueDefinition.label }));
   document.getElementById('continue-journey-kicker').textContent = continueResume?.sid
-    ? i18n.t('diksoochi.resumeLabel', { experience: getExperience(continueExperience).label })
+    ? i18n.t('diksoochi.resumeLabel', { experience: continueDefinition.label })
     : i18n.t('diksoochi.beginLabel');
   document.getElementById('continue-journey-title').textContent = continueResume?.sid
     ? i18n.t('diksoochi.shlokaLabel', { sid: continueResume.sid })
-    : getExperience(continueExperience).label;
+    : continueDefinition.label;
   if (!play) {
     const summary = await profileStore.getDiksoochiSummary(state.activeProfile.pid);
     document.getElementById('diksoochi-greeting').textContent = i18n.t('diksoochi.greeting', { name: state.activeProfile.name });
@@ -946,7 +1063,8 @@ function render(options = {}) {
   state.renderer.render(row, state.language);
   syncQuestionsMenu();
   document.getElementById('renderer-root').scrollTop = 0;
-  state.experienceResumes.set(play, {
+  state.experienceResumes.set(`${state.activeProductId}:${play}`, {
+    product: state.activeProductId,
     experience: play,
     sid: row.sid,
     language: state.language,
@@ -962,6 +1080,7 @@ function render(options = {}) {
     state.locationSource = null;
     emitEvent('location_changed', {
       context: {
+        product: state.activeProductId,
         experience: play,
         sid: row.sid,
         chapter: row.cid,
@@ -1003,6 +1122,7 @@ function trackVerseEngagement(row) {
 
 function updateUrl() {
   const next = new URL(location.href);
+  next.searchParams.set('product', state.activeProductId);
   next.searchParams.set('play', play);
   next.searchParams.set('sid', currentRow().sid);
   if (state.collectionId) next.searchParams.set('collection', state.collectionId);
@@ -1056,10 +1176,11 @@ function setLanguage(language) {
     profileUI.renderPills(profile);
   }).catch(() => {});
   emitEvent('language_changed', {
-    context: { experience: play, sid: currentRow().sid, chapter: currentRow().cid, language: state.language },
+    context: { product: state.activeProductId, experience: play, sid: currentRow().sid, chapter: currentRow().cid, language: state.language },
     details: { source: 'language_menu' }
   });
   buildCollectionList();
+  renderProductPills();
   render({ source: 'language_change' });
 }
 
@@ -1406,6 +1527,13 @@ function bindEvents() {
     event.preventDefault();
     showHomeExperienceDetail(link);
   });
+  document.getElementById('product-list').addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-product-id]');
+    if (!button || button.dataset.productId === state.activeProductId) return;
+    activateProduct(button.dataset.productId);
+    if (state.activeProfile) await profileStore.setSelectedProduct(state.activeProfile.pid, button.dataset.productId);
+    await startRequestedExperience();
+  });
   document.getElementById('experience-detail-close').addEventListener('click', () => closeHomeExperienceDetail({ focus: true }));
   updateDeviceLayout();
   document.getElementById('menu-button').addEventListener('click', (event) => { event.stopPropagation(); toggleMenu(); });
@@ -1583,9 +1711,10 @@ function bindEvents() {
   });
 }
 
-applyDistributionBranding();
+applyPlatformBranding();
 i18n.apply();
 renderExperienceCards();
+renderProductPills();
 bindEvents();
 versionHistoryStore.recordSeen(appVersion).catch(() => {});
 pwa.start();

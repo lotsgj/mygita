@@ -14,6 +14,7 @@ export class ResumeAdapter {
       language: event.context.language === 'kn' ? 'kn' : 'en',
       savedAt: event.occurredAt
     };
+    if (event.context.product) base.product = event.context.product;
     if (event.event === 'home_opened') {
       return this.store.saveResume({ ...base, view: 'home' });
     }

@@ -32,6 +32,7 @@ test('every declarative player translation key exists and Rachana stays outside 
   const keys = [...player.matchAll(/data-i18n(?:-aria|-title)?="([^"]+)"/g)].map((match) => match[1]);
   keys.forEach((key) => assert.ok(Object.hasOwn(EN_MESSAGES, key), `missing interface translation ${key}`));
   assert.match(core, /profile\.contentLanguage/);
-  assert.match(core, /new I18n\('en', distribution\(\)\.translations\)/);
+  assert.match(core, /new I18n\('en', mergedTranslations\(distribution\(\)\.translations\)\)/);
+  assert.match(core, /appConfig\.translations/);
   assert.doesNotMatch(docs, /js\/i18n|data-i18n=/);
 });

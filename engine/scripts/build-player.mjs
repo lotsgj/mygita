@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const sources = [
+  'js/products.js',
   'js/distribution.js',
   'js/i18n/en.js',
   'js/i18n/kn.js',
@@ -36,7 +37,7 @@ for (const source of sources) {
   let code = await readFile(source, 'utf8');
   code = code
     .replace(/^import\s+[^;]+;\s*$/gm, '')
-    .replace(/^export\s+(?=(const|class|function|async\s+function)\b)/gm, '');
+    .replace(/^export\s+(?=(const|let|class|function|async\s+function)\b)/gm, '');
   parts.push('// Source: ' + source + '\n' + code.trim());
 }
 

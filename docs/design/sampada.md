@@ -1,7 +1,7 @@
-# Sampada — Treasure trove of Gitaverse enhancements
+# Sampada — Treasure trove of MyGita enhancements
 
 **Status:** Current  
-**Last updated:** 13 October 2026
+**Last updated:** 29 October 2026
 
 Sampada keeps both future possibilities and completed enhancements. Items retain their number after completion so decisions and delivery history remain traceable.
 
@@ -11,6 +11,18 @@ Sampada keeps both future possibilities and completed enhancements. Items retain
 | **Done** | Enhancements that have been implemented, documented and regression-tested. |
 
 ## To unfold
+
+### 17. MyGita app-brand and product transition
+
+**Status:** To unfold
+
+**Tag:** Major
+
+Complete the transition from the current Gitaverse Bhagavad Gita application to the MyGita app brand without treating a hostname change as an automatic PWA migration. Design the `mygita.gitajyoti.org` release, keep the existing Gitaverse origin available during beta-user migration, provide clear install guidance, and preserve or explicitly migrate profile, journey and other origin-bound local data.
+
+The multi-product application foundation is delivered: MyGita has a source-controlled, localized product registry; Home presents product pills and product-specific experience cards; product-aware URLs and resume points preserve the actual journey; product choice persists per profile; `file://` mode selects the `products` folder once and isolates an unavailable product; and the unified build produces `dist/mygita` with Bhagavad Gita and Sukta products. MyGita remains the shell identity across Home, About and PWA surfaces when products change. The remaining work in this item is the public brand/domain/PWA migration and the still-open product grouping decisions below.
+
+Rename the technical `products/gita` identifier only as a separate contract-tested change. Decide whether Suktas remain collections in one product or become independent products, and apply the same collection-first rule to the future Advaita Chants product. Product separation should follow a real need for distinct branding, audience, navigation, release cadence, ownership or storage—not merely the existence of another scripture.
 
 ### 1. Diksoochi — Able · Use
 

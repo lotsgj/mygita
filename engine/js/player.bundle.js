@@ -4,6 +4,58 @@
 (() => {
 'use strict';
 
+// Source: js/products.js
+function parseProductTable(text) {
+  const rows = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.trim());
+  if (!rows.length) return [];
+  const headers = rows.shift().split('#').map((value) => value.trim());
+  return rows.map((line) => Object.fromEntries(line.split('#').map((value, index) => [headers[index], value.trim()])));
+}
+
+function safeProductPath(value) {
+  const path = String(value || '').trim();
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(path)) throw new Error(`Invalid product path: ${path || '(empty)'}.`);
+  return path;
+}
+
+function normalizeProductWorkspace({ app = {}, registry = [], localized = {}, products = [] } = {}) {
+  const byId = new Map(products.map((product) => [String(product.id), product]));
+  const normalizedRegistry = registry
+    .filter((row) => String(row.enabled).toLowerCase() !== 'false')
+    .map((row, index) => {
+      const id = String(row.product_id || '').trim();
+      if (!id) throw new Error('Every product registry row requires product_id.');
+      const path = safeProductPath(row.path);
+      const metadata = Object.fromEntries(Object.entries(localized).map(([language, rows]) => {
+        const match = rows.find((entry) => entry.product_id === id) || {};
+        return [language, {
+          name: match.name || id,
+          shortName: match.short_name || match.name || id,
+          description: match.description || ''
+        }];
+      }));
+      return {
+        id,
+        path,
+        order: Number(row.order) || index + 1,
+        metadata,
+        ...(byId.get(id) || {})
+      };
+    })
+    .sort((left, right) => left.order - right.order);
+  if (!normalizedRegistry.length) throw new Error('The products folder does not contain any enabled products.');
+  const defaultProduct = normalizedRegistry.some((product) => product.id === app.defaultProduct)
+    ? app.defaultProduct
+    : normalizedRegistry[0].id;
+  return { app: { ...app, defaultProduct }, products: normalizedRegistry };
+}
+
+function productLabel(product, language = 'en') {
+  return product?.metadata?.[language] || product?.metadata?.en || {
+    name: product?.id || '', shortName: product?.id || '', description: ''
+  };
+}
+
 // Source: js/distribution.js
 const FALLBACK_DISTRIBUTION = Object.freeze({
   schemaVersion: 1,
@@ -477,6 +529,7 @@ class ProfileStore {
     if (defaultPid && Number(defaultPid.value) === Number(pid)) settings.delete('defaultPid');
     settings.delete(`journeyView:${Number(pid)}`);
     settings.delete(`gitaSaraView:${Number(pid)}`);
+    settings.delete(`selectedProduct:${Number(pid)}`);
     transaction.objectStore(RESUME_STORE).delete(Number(pid));
     const engagement = transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid');
     const engagementCursor = engagement.openKeyCursor(IDBKeyRange.only(Number(pid)));
@@ -496,12 +549,13 @@ class ProfileStore {
     return (await requestResult(transaction.objectStore(RESUME_STORE).get(Number(pid)))) || null;
   }
 
-  async getExperienceResume(pid, experience) {
+  async getExperienceResume(pid, experience, product = '') {
     const record = await this.getResume(pid);
     const experienceId = String(experience || '');
     if (!record || !experienceId) return null;
-    const saved = record.experiences?.[experienceId];
-    if (saved?.sid) return { experience: experienceId, ...saved };
+    const productId = String(product || '');
+    const saved = (productId && record.products?.[productId]?.experiences?.[experienceId]) || record.experiences?.[experienceId];
+    if (saved?.sid) return { product: productId || saved.product, experience: experienceId, ...saved };
     // Records created before per-experience resume points are still usable.
     if (record.view === 'experience' && record.experience === experienceId && record.sid) {
       return {
@@ -527,10 +581,12 @@ class ProfileStore {
       view: resume.view === 'experience' ? 'experience' : 'home',
       language: resume.language === 'kn' ? 'kn' : 'en',
       savedAt: resume.savedAt || new Date().toISOString(),
-      experiences: { ...(existing?.experiences || {}) }
+      experiences: { ...(existing?.experiences || {}) },
+      products: { ...(existing?.products || {}) }
     };
     if (record.view === 'experience') {
       record.experience = String(resume.experience || '');
+      record.product = String(resume.product || '');
       record.sid = String(resume.sid || '');
       if (!record.experience || !record.sid) throw new Error('An experience resume point requires an experience and SID.');
       record.experiences[record.experience] = {
@@ -538,7 +594,18 @@ class ProfileStore {
         language: record.language,
         savedAt: record.savedAt
       };
+      if (record.product) {
+        const productRecord = record.products[record.product] || { experiences: {} };
+        productRecord.experiences = { ...(productRecord.experiences || {}), [record.experience]: {
+          sid: record.sid,
+          language: record.language,
+          savedAt: record.savedAt
+        } };
+        productRecord.lastExperience = { experience: record.experience, sid: record.sid, language: record.language, savedAt: record.savedAt };
+        record.products[record.product] = productRecord;
+      }
       record.lastExperience = {
+        product: record.product,
         experience: record.experience,
         sid: record.sid,
         language: record.language,
@@ -555,6 +622,7 @@ class ProfileStore {
       }
       delete record.experience;
       delete record.sid;
+      delete record.product;
     }
     store.put(record);
     await transactionDone(transaction);
@@ -574,6 +642,22 @@ class ProfileStore {
     const store = transaction.objectStore(SETTINGS_STORE);
     if (pid == null) store.delete('defaultPid');
     else store.put({ key: 'defaultPid', value: Number(pid) });
+    await transactionDone(transaction);
+  }
+
+  async getSelectedProduct(pid) {
+    await this.open();
+    if (!Number.isInteger(Number(pid))) return null;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`selectedProduct:${Number(pid)}`));
+    return typeof setting?.value === 'string' ? setting.value : null;
+  }
+
+  async setSelectedProduct(pid, productId) {
+    await this.open();
+    if (!Number.isInteger(Number(pid)) || !productId) return;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
+    transaction.objectStore(SETTINGS_STORE).put({ key: `selectedProduct:${Number(pid)}`, value: String(productId) });
     await transactionDone(transaction);
   }
 
@@ -1063,6 +1147,7 @@ class ResumeAdapter {
       language: event.context.language === 'kn' ? 'kn' : 'en',
       savedAt: event.occurredAt
     };
+    if (event.context.product) base.product = event.context.product;
     if (event.event === 'home_opened') {
       return this.store.saveResume({ ...base, view: 'home' });
     }
@@ -1490,8 +1575,13 @@ class AboutDialog {
 }
 
 // Source: js/player/collection-data.js
-const COLLECTION_ROOT = 'data/collections';
-const EXPERIENCE_ROOT = 'data/experiences';
+let COLLECTION_ROOT = 'data/collections';
+let EXPERIENCE_ROOT = 'data/experiences';
+
+function setCollectionRoot(root = 'data/collections') {
+  COLLECTION_ROOT = String(root || 'data/collections').replace(/\/+$/, '');
+  EXPERIENCE_ROOT = COLLECTION_ROOT.replace(/\/collections$/, '/experiences');
+}
 
 const AUDIO_REGISTRY_HEADERS = ['collection_id', 'title', 'contributor', 'language', 'catalog_url', 'cue_purpose_url', 'cue_url', 'attribution', 'license', 'source'];
 const AUDIO_CUE_PURPOSE_HEADERS = ['cue_id', 'language', 'purpose', 'description'];
@@ -1556,7 +1646,10 @@ function parseCollectionTable(text, expectedHeaders, label = 'collection data') 
 }
 
 async function fetchText(url, version) {
-  const request = new URL(url, location.href);
+  const source = String(url || '');
+  const dataPrefix = COLLECTION_ROOT.replace(/collections$/, '');
+  const resolved = source.startsWith('data/') && dataPrefix !== 'data/' ? dataPrefix + source.slice(5) : source;
+  const request = new URL(resolved, location.href);
   if (version) request.searchParams.set('v', version);
   const response = await fetch(request.href);
   if (!response.ok) throw new Error('Could not load ' + url + ' (HTTP ' + response.status + ').');
@@ -2147,6 +2240,14 @@ function localizedCollectionRows(structural, localizedTables) {
 }
 
 async function loadCollectionExperience(experienceId, { version = '', collectionId = '' } = {}) {
+  const resolveMediaUrl = (value) => {
+    const remote = remoteMediaUrl(value);
+    if (remote) return remote;
+    const source = String(value || '');
+    const dataPrefix = COLLECTION_ROOT.replace(/collections$/, '');
+    const resolved = source.startsWith('data/') && dataPrefix !== 'data/' ? dataPrefix + source.slice(5) : source;
+    return new URL(resolved, location.href).href;
+  };
   const experienceRegistry = await fetchTable(EXPERIENCE_ROOT + '/collection.csv', null, version);
   const experienceEntry = registryEntry(experienceRegistry, experienceId, 'Experience');
   const experienceCatalog = await fetchTable(experienceEntry.catalog_url, ['content_type', 'content_url'], version);
@@ -2204,7 +2305,7 @@ async function loadCollectionExperience(experienceId, { version = '', collection
     audioCatalogs: audioCollections.catalogs,
     audioCueIndexes: audioCollections.cueIndexes,
     audioCueErrors: audioCollections.cueErrors,
-    imageCatalogs, deckCatalogs, illustrationCatalogs, contemplationCatalogs, experience,
+    imageCatalogs, deckCatalogs, illustrationCatalogs, contemplationCatalogs, experience, resolveMediaUrl,
     resourceUrls: { sequence: sequenceUrl, audio: audioCompositionUrl, images: imageCompositionUrl, decks: deckCompositionUrl, illustrations: illustrationCompositionUrl, contemplations: contemplationCompositionUrl, media: mediaCompositionUrl }
   });
   dataset.collectionId = activeCollection;
@@ -4100,7 +4201,8 @@ const state = {
   journeyReturnFocus: 'journey-details-button',
   pendingLocalDestination: null,
   appMetadata: { version: 'dev' }
-  ,collectionId: null
+  ,collectionId: null,
+  activeProductId: null
 };
 
 const params = new URLSearchParams(location.search);
@@ -4108,18 +4210,38 @@ let play = params.get('play');
 let requestedSid = params.get('sid');
 let requestedLanguage = params.get('lang');
 let requestedCollection = params.get('collection');
-const explicitLocationRequested = params.has('play') || params.has('sid') || params.has('lang');
+let requestedProduct = params.get('product');
+const explicitLocationRequested = params.has('play') || params.has('sid') || params.has('lang') || params.has('product');
 const appVersion = document.querySelector('meta[name="app-version"]')?.content || 'dev';
 const clarityProjectId = document.querySelector('meta[name="clarity-project-id"]')?.content || '';
+let appConfig = globalThis.__MYGITA_APP__ || {};
+let products = Array.isArray(globalThis.__MYGITA_PRODUCTS__) && globalThis.__MYGITA_PRODUCTS__.length
+  ? globalThis.__MYGITA_PRODUCTS__
+  : [{ id: distribution().id, path: '', config: distribution(), data: globalThis.__VERSES_DATA_HANDLE__, files: globalThis.__VERSES_DATA_FILES__, metadata: { en: { name: distribution().name, shortName: distribution().shortName || distribution().name, description: distribution().description || '' } } }];
+const initialProduct = products.find((product) => product.id === requestedProduct && product.config)
+  || products.find((product) => product.id === globalThis.__MYGITA_ACTIVE_PRODUCT__ && product.config)
+  || products.find((product) => product.id === appConfig.defaultProduct && product.config)
+  || products.find((product) => product.config);
+state.activeProductId = initialProduct.id;
+setDistribution(initialProduct.config || distribution());
+setCollectionRoot(initialProduct.collectionRoot || 'data/collections');
 const collectionSource = new CollectionSource({ version: appVersion });
-if (globalThis.__VERSES_DATA_HANDLE__) collectionSource.selectDirectory(globalThis.__VERSES_DATA_HANDLE__);
-else if (globalThis.__VERSES_DATA_FILES__) collectionSource.selectFiles(globalThis.__VERSES_DATA_FILES__);
-const i18n = new I18n('en', distribution().translations);
+if (initialProduct.data || globalThis.__VERSES_DATA_HANDLE__) collectionSource.selectDirectory(initialProduct.data || globalThis.__VERSES_DATA_HANDLE__);
+else if (initialProduct.files || globalThis.__VERSES_DATA_FILES__) collectionSource.selectFiles(initialProduct.files || globalThis.__VERSES_DATA_FILES__);
+function mergedTranslations(productTranslations = {}) {
+  const languages = new Set([...Object.keys(productTranslations || {}), ...Object.keys(appConfig.translations || {})]);
+  return Object.fromEntries([...languages].map((language) => [language, {
+    ...(productTranslations?.[language] || {}),
+    ...(appConfig.translations?.[language] || {})
+  }]));
+}
+const i18n = new I18n('en', mergedTranslations(distribution().translations));
 const translate = (key, fallback, values = {}) => i18n.t(key, values) === key ? fallback : i18n.t(key, values);
 
 configureExperiences(distribution());
-const profileStore = new ProfileStore({ databaseName: distribution().databaseName });
-const versionHistoryStore = new VersionHistoryStore({ databaseName: `${distribution().id}-version-history` });
+const profileStore = new ProfileStore({ databaseName: appConfig.databaseName || distribution().databaseName });
+const platformId = appConfig.id || distribution().id;
+const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformId}-version-history` });
 const eventBus = new EventBus({
   appVersion,
   contextProvider: () => ({
@@ -4136,11 +4258,11 @@ eventBus.subscribe(new SentryAdapter());
 clarityAdapter.initialize({ appVersion, displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' });
 const pwa = new PwaManager({
   appVersion,
-  namespace: distribution().id,
+  namespace: platformId,
   onEvent: (name, details) => emitEvent(name, { details, profile: state.activeProfile }),
   onInstalled: (version) => versionHistoryStore.recordInstalled(version)
 });
-const aboutDialog = new AboutDialog({ version: appVersion, translate, historyStore: versionHistoryStore, branding: distribution().branding });
+const aboutDialog = new AboutDialog({ version: appVersion, translate, historyStore: versionHistoryStore, branding: appConfig.branding || distribution().branding });
 const profileUI = new ProfileUI({
   store: profileStore,
   onSelected: selectProfile,
@@ -4450,13 +4572,37 @@ function cssUrl(value) {
   return `url(${JSON.stringify(resolved)})`;
 }
 
-function applyDistributionBranding(config = distribution()) {
+function applyPlatformBranding(config = appConfig) {
   const branding = config.branding || {};
-  document.querySelectorAll('[data-product-name]').forEach((element) => { element.textContent = config.name; });
-  document.querySelectorAll('[data-product-name-aria]').forEach((element) => { element.setAttribute('aria-label', config.name); });
+  const name = config.name || 'MyGita';
+  document.title = name;
+  document.querySelectorAll('[data-app-name]').forEach((element) => { element.textContent = name; });
+  document.querySelectorAll('[data-app-name-aria]').forEach((element) => { element.setAttribute('aria-label', name); });
   document.querySelectorAll('[data-brand-image="flute"]').forEach((image) => { image.src = branding.fluteImage || ''; });
   document.querySelectorAll('[data-brand-icon]').forEach((link) => { link.href = branding.icon192 || ''; });
   document.querySelectorAll('[data-brand-apple-icon]').forEach((link) => { link.href = branding.appleTouchIcon || ''; });
+}
+
+function activeProduct() {
+  return products.find((product) => product.id === state.activeProductId) || products[0];
+}
+
+function renderProductPills() {
+  const list = document.getElementById('product-list');
+  if (!list) return;
+  list.replaceChildren(...products.map((product) => {
+    const button = document.createElement('button');
+    const label = productLabel(product, state.activeProfile?.contentLanguage || state.language);
+    button.type = 'button';
+    button.className = 'product-pill';
+    button.dataset.productId = product.id;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-selected', String(product.id === state.activeProductId));
+    button.disabled = Boolean(product.error || !product.config);
+    button.title = product.error || label.description || label.name;
+    button.textContent = label.name;
+    return button;
+  }));
 }
 
 function renderExperienceCards() {
@@ -4465,7 +4611,7 @@ function renderExperienceCards() {
     link.className = `experience-link ${experience.cardClass || ''}`.trim();
     link.id = id + '-link';
     link.dataset.experienceCard = id;
-    link.href = `?play=${encodeURIComponent(id)}`;
+    link.href = `?product=${encodeURIComponent(state.activeProductId)}&play=${encodeURIComponent(id)}`;
     link.style.setProperty('--experience-card-image', cssUrl(experience.cardImage));
     const kicker = document.createElement('small');
     kicker.textContent = experienceText(experience, 'kicker');
@@ -4483,14 +4629,46 @@ function renderExperienceCards() {
 
 function activateDistribution(input) {
   const configured = setDistribution(input);
-  i18n.setOverrides(configured.translations);
+  i18n.setOverrides(mergedTranslations(configured.translations));
   configureExperiences(configured);
-  document.title = configured.name;
-  applyDistributionBranding(configured);
+  applyPlatformBranding();
   i18n.apply();
-  aboutDialog.setBranding(configured.branding);
+  aboutDialog.setBranding(appConfig.branding || {});
   renderExperienceCards();
+  renderProductPills();
   return configured;
+}
+
+function activateProduct(productId, { updateUrl = true } = {}) {
+  const product = products.find((entry) => entry.id === productId);
+  if (!product || !product.config) return null;
+  state.dataset?.release?.();
+  state.dataset = null;
+  state.renderer?.destroy?.();
+  state.renderer = null;
+  collectionSource.clear();
+  state.activeProductId = product.id;
+  globalThis.__MYGITA_ACTIVE_PRODUCT__ = product.id;
+  setCollectionRoot(product.collectionRoot || 'data/collections');
+  if (product.data) collectionSource.selectDirectory(product.data);
+  else if (product.files) collectionSource.selectFiles(product.files);
+  activateDistribution(product.config);
+  play = null;
+  requestedSid = null;
+  requestedCollection = null;
+  requestedProduct = product.id;
+  if (state.activeProfile) profileStore.setSelectedProduct(state.activeProfile.pid, product.id).catch(() => {});
+  if (updateUrl) {
+    const url = new URL(location.href);
+    url.searchParams.set('product', product.id);
+    url.searchParams.delete('play');
+    url.searchParams.delete('sid');
+    url.searchParams.delete('collection');
+    history.replaceState({}, '', url);
+  }
+  syncHomeCollectionSource();
+  closeHomeExperienceDetail();
+  return product;
 }
 
 async function distributionFromDirectory(handle) {
@@ -4515,6 +4693,8 @@ function requestLocalCollections() {
 function openHomeExperience(link) {
   if (collectionSource.requiresSelection) return requestLocalCollections();
   const destination = new URL(link.href, location.href);
+  const destinationProduct = destination.searchParams.get('product');
+  if (destinationProduct && destinationProduct !== state.activeProductId) activateProduct(destinationProduct, { updateUrl: false });
   play = destination.searchParams.get('play');
   requestedSid = destination.searchParams.get('sid');
   requestedLanguage = destination.searchParams.get('lang');
@@ -4531,8 +4711,18 @@ async function useSelectedCollections(fileList) {
     const selected = globalThis.__VERSES_OPEN_DISTRIBUTION_FILES__
       ? await globalThis.__VERSES_OPEN_DISTRIBUTION_FILES__(fileList)
       : { config: await distributionFromFiles(fileList), files: fileList };
-    activateDistribution(selected.config);
-    collectionSource.selectFiles(selected.files);
+    if (selected.products) {
+      products = selected.products;
+      globalThis.__MYGITA_APP__ = selected.app;
+      appConfig = selected.app;
+      globalThis.__MYGITA_PRODUCTS__ = selected.products;
+      state.activeProductId = selected.products.some((product) => product.id === state.activeProductId)
+        ? state.activeProductId : selected.app.defaultProduct;
+      activateProduct(state.activeProductId, { updateUrl: false });
+    } else {
+      activateDistribution(selected.config);
+      collectionSource.selectFiles(selected.files);
+    }
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
     syncHomeCollectionSource();
@@ -4561,8 +4751,18 @@ async function useSelectedCollectionsDirectory(handle) {
     const selected = globalThis.__VERSES_OPEN_DISTRIBUTION_DIRECTORY__
       ? await globalThis.__VERSES_OPEN_DISTRIBUTION_DIRECTORY__(handle)
       : { config: await distributionFromDirectory(handle), data: handle };
-    activateDistribution(selected.config);
-    collectionSource.selectDirectory(selected.data);
+    if (selected.products) {
+      products = selected.products;
+      globalThis.__MYGITA_APP__ = selected.app;
+      appConfig = selected.app;
+      globalThis.__MYGITA_PRODUCTS__ = selected.products;
+      state.activeProductId = selected.products.some((product) => product.id === state.activeProductId)
+        ? state.activeProductId : selected.app.defaultProduct;
+      activateProduct(state.activeProductId, { updateUrl: false });
+    } else {
+      activateDistribution(selected.config);
+      collectionSource.selectDirectory(selected.data);
+    }
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
     syncHomeCollectionSource();
@@ -4664,7 +4864,7 @@ function goToExperienceSelection(profile = state.activeProfile, { source = 'home
   if (track && profile) {
     emitEvent('home_opened', {
       profile,
-      context: { language: requestedLanguage },
+      context: { product: state.activeProductId, language: requestedLanguage },
       details: { source }
     });
   }
@@ -4679,10 +4879,15 @@ async function openProfileLocation(profile, { honorExplicit = false } = {}) {
   const resume = await profileStore.getResume(profile.pid);
   requestedLanguage = resume?.language || profile.contentLanguage;
   if (resume?.view === 'experience') {
+    if (resume.product && resume.product !== state.activeProductId) activateProduct(resume.product, { updateUrl: false });
     play = resume.experience;
     requestedSid = resume.sid;
     state.locationSource = 'resume';
     return startRequestedExperience();
+  }
+  const selectedProduct = await profileStore.getSelectedProduct(profile.pid);
+  if (selectedProduct && selectedProduct !== state.activeProductId && products.some((product) => product.id === selectedProduct)) {
+    activateProduct(selectedProduct, { updateUrl: false });
   }
   goToExperienceSelection(profile, { source: resume ? 'resume' : 'profile_selected', track: !resume });
 }
@@ -4774,6 +4979,7 @@ function showHomeExperienceDetail(link) {
 }
 
 async function startRequestedExperience() {
+  renderProductPills();
   const experienceIds = availableExperiences().map(([id]) => id);
   if (!experienceIds.length && collectionSource.requiresSelection) {
     state.pendingLocalDestination = { play, requestedSid, requestedLanguage };
@@ -4783,12 +4989,13 @@ async function startRequestedExperience() {
   }
   const resumes = new Map(await Promise.all(experienceIds.map(async (experienceId) => [
     experienceId,
-    state.experienceResumes.get(experienceId) || await profileStore.getExperienceResume(state.activeProfile.pid, experienceId)
+    state.experienceResumes.get(`${state.activeProductId}:${experienceId}`) || await profileStore.getExperienceResume(state.activeProfile.pid, experienceId, state.activeProductId)
   ])));
   const chooserUrls = new Map(experienceIds.map((experienceId) => {
     const resume = resumes.get(experienceId);
     const chooserUrl = new URL(location.href);
     chooserUrl.searchParams.set('play', experienceId);
+    chooserUrl.searchParams.set('product', state.activeProductId);
     chooserUrl.searchParams.delete('view');
     if (resume?.sid) chooserUrl.searchParams.set('sid', resume.sid);
     else chooserUrl.searchParams.delete('sid');
@@ -4800,25 +5007,36 @@ async function startRequestedExperience() {
     return [experienceId, chooserUrl];
   }));
   const latest = await profileStore.getResume(state.activeProfile.pid);
-  const lastExperienceId = latest?.lastExperience?.experience || (latest?.view === 'experience' ? latest.experience : null);
-  const continueExperience = getExperience(lastExperienceId)?.available
-    ? lastExperienceId
-    : distribution().defaultExperience;
-  const continueResume = resumes.get(continueExperience);
-  const chooserUrl = chooserUrls.get(continueExperience);
+  const latestPoint = latest?.lastExperience || (latest?.view === 'experience' ? latest : null);
+  const continueProductId = latestPoint?.product && products.some((product) => product.id === latestPoint.product)
+    ? latestPoint.product : state.activeProductId;
+  const continueProduct = products.find((product) => product.id === continueProductId) || activeProduct();
+  const continueExperience = (continueProduct.config.experiences || []).some((experience) => experience.id === latestPoint?.experience && experience.available !== false)
+    ? latestPoint.experience : continueProduct.config.defaultExperience;
+  const continueDefinition = (continueProduct.config.experiences || []).find((experience) => experience.id === continueExperience) || { label: continueExperience };
+  const continueResume = continueProductId === state.activeProductId
+    ? resumes.get(continueExperience)
+    : await profileStore.getExperienceResume(state.activeProfile.pid, continueExperience, continueProductId);
+  const chooserUrl = new URL(location.href);
+  chooserUrl.searchParams.set('product', continueProductId);
+  chooserUrl.searchParams.set('play', continueExperience);
+  chooserUrl.searchParams.delete('view');
+  if (continueResume?.sid) chooserUrl.searchParams.set('sid', continueResume.sid);
+  else chooserUrl.searchParams.delete('sid');
+  chooserUrl.searchParams.set('pid', state.activeProfile.pid);
   const continueLink = document.getElementById('continue-journey-link');
   continueLink.href = chooserUrl.href;
   continueLink.dataset.experience = continueExperience;
-  continueLink.style.setProperty('--experience-card-image', cssUrl(getExperience(continueExperience).cardImage));
+  continueLink.style.setProperty('--experience-card-image', cssUrl(continueDefinition.cardImage));
   continueLink.setAttribute('aria-label', continueResume?.sid
-    ? i18n.t('diksoochi.resumeExperience', { experience: getExperience(continueExperience).label, sid: continueResume.sid })
-    : i18n.t('diksoochi.beginExperience', { experience: getExperience(continueExperience).label }));
+    ? i18n.t('diksoochi.resumeExperience', { experience: continueDefinition.label, sid: continueResume.sid })
+    : i18n.t('diksoochi.beginExperience', { experience: continueDefinition.label }));
   document.getElementById('continue-journey-kicker').textContent = continueResume?.sid
-    ? i18n.t('diksoochi.resumeLabel', { experience: getExperience(continueExperience).label })
+    ? i18n.t('diksoochi.resumeLabel', { experience: continueDefinition.label })
     : i18n.t('diksoochi.beginLabel');
   document.getElementById('continue-journey-title').textContent = continueResume?.sid
     ? i18n.t('diksoochi.shlokaLabel', { sid: continueResume.sid })
-    : getExperience(continueExperience).label;
+    : continueDefinition.label;
   if (!play) {
     const summary = await profileStore.getDiksoochiSummary(state.activeProfile.pid);
     document.getElementById('diksoochi-greeting').textContent = i18n.t('diksoochi.greeting', { name: state.activeProfile.name });
@@ -5006,7 +5224,8 @@ function render(options = {}) {
   state.renderer.render(row, state.language);
   syncQuestionsMenu();
   document.getElementById('renderer-root').scrollTop = 0;
-  state.experienceResumes.set(play, {
+  state.experienceResumes.set(`${state.activeProductId}:${play}`, {
+    product: state.activeProductId,
     experience: play,
     sid: row.sid,
     language: state.language,
@@ -5022,6 +5241,7 @@ function render(options = {}) {
     state.locationSource = null;
     emitEvent('location_changed', {
       context: {
+        product: state.activeProductId,
         experience: play,
         sid: row.sid,
         chapter: row.cid,
@@ -5063,6 +5283,7 @@ function trackVerseEngagement(row) {
 
 function updateUrl() {
   const next = new URL(location.href);
+  next.searchParams.set('product', state.activeProductId);
   next.searchParams.set('play', play);
   next.searchParams.set('sid', currentRow().sid);
   if (state.collectionId) next.searchParams.set('collection', state.collectionId);
@@ -5116,10 +5337,11 @@ function setLanguage(language) {
     profileUI.renderPills(profile);
   }).catch(() => {});
   emitEvent('language_changed', {
-    context: { experience: play, sid: currentRow().sid, chapter: currentRow().cid, language: state.language },
+    context: { product: state.activeProductId, experience: play, sid: currentRow().sid, chapter: currentRow().cid, language: state.language },
     details: { source: 'language_menu' }
   });
   buildCollectionList();
+  renderProductPills();
   render({ source: 'language_change' });
 }
 
@@ -5466,6 +5688,13 @@ function bindEvents() {
     event.preventDefault();
     showHomeExperienceDetail(link);
   });
+  document.getElementById('product-list').addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-product-id]');
+    if (!button || button.dataset.productId === state.activeProductId) return;
+    activateProduct(button.dataset.productId);
+    if (state.activeProfile) await profileStore.setSelectedProduct(state.activeProfile.pid, button.dataset.productId);
+    await startRequestedExperience();
+  });
   document.getElementById('experience-detail-close').addEventListener('click', () => closeHomeExperienceDetail({ focus: true }));
   updateDeviceLayout();
   document.getElementById('menu-button').addEventListener('click', (event) => { event.stopPropagation(); toggleMenu(); });
@@ -5643,9 +5872,10 @@ function bindEvents() {
   });
 }
 
-applyDistributionBranding();
+applyPlatformBranding();
 i18n.apply();
 renderExperienceCards();
+renderProductPills();
 bindEvents();
 versionHistoryStore.recordSeen(appVersion).catch(() => {});
 pwa.start();

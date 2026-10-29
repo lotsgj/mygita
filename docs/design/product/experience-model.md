@@ -1,13 +1,13 @@
 # Experience model
 
 **Status:** Current  
-**Last updated:** 10 October 2026
+**Last updated:** 29 October 2026
 
 ## Model
 
-Gitaverse separates the shared application shell from individual learning experiences. The shell owns profiles, experience selection, common navigation, language, fullscreen, help, editing entry, audio controls, installation, updates, analytics, and resume. A registered renderer owns the panels and presentation rules of an experience.
+MyGita separates the shared application shell from product configuration, reusable collections and individual experiences. The shell owns profiles, experience selection, common navigation, language, fullscreen, help, editing entry, audio controls, installation, updates, analytics, and resume. A registered renderer owns the panels and presentation rules of an experience. A product decides which collections and experiences are available in its distribution.
 
-## Current experiences
+## Current Bhagavad Gita experiences
 
 **Gita 700** is live. It presents four panels for the Sanskrit shloka, transliteration, meaning, and word-by-word meaning.
 
@@ -30,4 +30,4 @@ An explicit URL location takes precedence over a saved resume location. Otherwis
 
 ## Extending the model
 
-A new experience supplies configuration and composition data under `data/collections/experiences`, then registers a renderer. Reusable text and media remain in their type-specific collections. See [Collections and media](../system/collections-and-media.md).
+A new experience supplies configuration and composition data under its product data root, then selects a registered renderer. Reusable text and media remain in their type-specific collections. The same renderer can support public experience names in different products. See [Platform and product model](platform-and-product-model.md) and [Collections and media](../system/collections-and-media.md).

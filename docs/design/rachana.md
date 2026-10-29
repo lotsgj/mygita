@@ -1,15 +1,15 @@
-# Rachana — Gitaverse design details
+# Rachana — MyGita design details
 
 **Status:** Current  
-**Last updated:** 9 October 2026
+**Last updated:** 29 October 2026
 
 ## Purpose
 
-Rachana is the living product and design handbook for Gitaverse. It explains the application as a user experiences it and connects that experience to the data, architecture and operational decisions that make it work.
+Rachana is the living product and design handbook for MyGita. It explains the platform, its products and the application experience, then connects them to the data, architecture and operational decisions that make them work.
 
 Rachana has three responsibilities:
 
-1. Describe current, implemented Gitaverse behaviour.
+1. Describe current, implemented MyGita-platform and product behaviour while marking incomplete brand transitions explicitly.
 2. Preserve important product and technical decisions.
 3. Make the design understandable to both product collaborators and engineers.
 
@@ -30,14 +30,14 @@ Rachana is available through `docs.html`. It uses a responsive reading layout:
 
 - Desktop displays persistent navigation beside the document.
 - Mobile uses a navigation drawer that closes after a page is selected.
-- The header provides a direct route back to Gitaverse.
-- The header shares the active Gitaverse profile and passes it through the Open Gitaverse route.
-- About Gitaverse remains available at the bottom of the navigation.
+- The header provides a direct route back to the active product application.
+- The header shares the active local profile and passes it through the Open application route.
+- About for the active distribution remains available at the bottom of the navigation.
 - The selected page is represented in the URL as `docs.html?page=<route>`.
 - Browser Back and Forward move through previously opened documents.
 - Missing or unlisted routes show a friendly Document not found state.
 
-Rachana is not linked from the Gitaverse application interface yet. Until that decision is made, it is available through its direct URL.
+Rachana is not linked from the deployed application interface yet. Until that decision is made, it is available through its direct URL.
 
 ## Source organization
 
@@ -121,7 +121,7 @@ The deployment includes:
 
 Documentation files are deliberately excluded from the PWA’s initial precache. The service worker also bypasses Rachana pages, Markdown, styles and scripts instead of handling them through the application cache. Browser navigation therefore loads Rachana through normal browser networking and caching without increasing the installed PWA cache. Rachana remains available through its direct browser URL and local-folder mode; the installed application does not currently provide a route to it.
 
-Rachana reuses Gitaverse’s local profile store, profile UI, About dialog, event bus, and Clarity adapter. Profile surfaces are masked. Documentation events contain the stable Rachana route and grouped profile context, never the profile name, exact birth date, photo, PID, anonymous profile ID, or Markdown content.
+Rachana reuses the shared platform’s local profile store, profile UI, About dialog, event bus, and Clarity adapter. Profile surfaces are masked. Documentation events contain the stable Rachana route and grouped profile context, never the profile name, exact birth date, photo, PID, anonymous profile ID, or Markdown content.
 
 ## Maintenance rules
 

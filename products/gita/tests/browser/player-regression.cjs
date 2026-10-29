@@ -6,6 +6,7 @@ const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
 
 const root = path.resolve(__dirname, '../..');
+const productsRoot = path.resolve(root, '..');
 const dist = path.resolve(root, '../../dist/gita');
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const mime = {
@@ -813,7 +814,7 @@ async function run() {
     assert.equal(await filePage.evaluate(() => document.fonts.check('16px "Gitaverse Noto Sans"', 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ')), true, 'file mode must load bundled Noto Sans');
     assert.equal(await filePage.locator('#distribution-chooser').isVisible(), true, 'the local engine asks for distribution data before profile setup');
     assert.equal(await filePage.locator('#profile-setup').isHidden(), true, 'profile setup is unavailable before a distribution is selected');
-    await filePage.locator('#distribution-folder-input').setInputFiles(root);
+    await filePage.locator('#distribution-folder-input').setInputFiles(productsRoot);
     await createProfile(filePage, 'File Regression', { expectHome: false });
     console.log('CHECK: file-mode distribution selected and profile created');
     await filePage.locator('#sid-label').waitFor();
@@ -838,8 +839,8 @@ async function run() {
     }));
     console.log('CHECK: file-mode journey fixture stored');
     await filePage.keyboard.press('a');
-    await filePage.waitForFunction(() => document.querySelector('#home-collections-title')?.textContent === 'Local collections ready');
-    assert.equal(await filePage.locator('#home-collections-title').innerText(), 'Local collections ready');
+    await filePage.waitForFunction(() => document.querySelector('#home-collections-title')?.textContent === 'Local products ready');
+    assert.equal(await filePage.locator('#home-collections-title').innerText(), 'Local products ready');
     await filePage.getByRole('button', { name: 'Details' }).click();
     await filePage.locator('#journey-table-body tr').first().waitFor();
     console.log('CHECK: file-mode journey opened');
@@ -847,7 +848,7 @@ async function run() {
     await filePage.getByRole('button', { name: '← Back' }).click();
     await filePage.keyboard.press('e');
     assert.equal(await filePage.locator('#workspace-overlay').isVisible(), false, 'edit shortcut is inactive on Home');
-    await filePage.locator('#home-collections-input').setInputFiles(root);
+    await filePage.locator('#home-collections-input').setInputFiles(productsRoot);
     console.log('CHECK: file-mode data reselected');
     await filePage.locator('#home-collections').waitFor();
     await filePage.waitForFunction(() => document.querySelector('#home-collections')?.getAttribute('aria-busy') === 'false');

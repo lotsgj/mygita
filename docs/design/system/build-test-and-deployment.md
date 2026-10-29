@@ -1,7 +1,7 @@
 # Build, test and deployment
 
 **Status:** Partial  
-**Last updated:** 16 October 2026
+**Last updated:** 29 October 2026
 
 ## Source and generated files
 
@@ -23,7 +23,7 @@ The build copies an explicit allowlist and fails if archived `x` content enters 
 
 ## Repository deployment — pending
 
-After local verification, the Verses repository will become the single development repository. Its GitHub workflow will build affected products and publish generated output to dedicated deployment repositories such as `lotsgj/gita` and `lotsgj/sukta`. Cross-repository credentials, target branches, Pages settings, and production cutover have intentionally not been changed yet.
+`lotsgj/mygita` is the single development repository. The intended deployment model is to build affected products here and publish generated output to dedicated deployment repositories such as `lotsgj/gita` and `lotsgj/sukta`. Source products may move to separate repositories later without changing their data contracts. Cross-repository credentials, target branches, Pages settings, production cutover and replacement workflows are intentionally pending; the earlier uncommitted workflow prototypes were removed.
 
 ## Regression layers
 
@@ -34,14 +34,14 @@ After local verification, the Verses repository will become the single developme
 
 ## How tests are triggered
 
-Tests run automatically only in GitHub Actions. On a development machine nothing runs by itself: there is no Git hook, file watcher, or pre-commit step, so every local run is started by hand.
+Tests currently run only when started manually. There is no Git hook, file watcher, pre-commit step or committed GitHub Actions workflow in `lotsgj/mygita` yet.
 
 | Layer | Local command | Runs inside `npm run build` | Runs in GitHub Actions |
 | --- | --- | --- | --- |
-| Unit tests | `npm test` or `npm run test:unit` | Yes | Yes, through the build |
-| Contract tests | `npm test` or `npm run test:contract` | Yes | Yes, through the build |
-| Player browser regression | `npm run test:browser` | No | Yes, after the build |
-| Rachana browser regression | `npm run test:docs-browser` | No | Yes, after the build |
+| Unit tests | `npm test` or `npm run test:unit` | Yes | Not currently configured |
+| Contract tests | `npm test` or `npm run test:contract` | Yes | Not currently configured |
+| Player browser regression | `npm run test:browser` | No | Not currently configured |
+| Rachana browser regression | `npm run test:docs-browser` | No | Not currently configured |
 | Manual checks in `tests/PARITY.md` | By hand on a device | No | No |
 
 ### On a development machine
@@ -53,15 +53,9 @@ Tests run automatically only in GitHub Actions. On a development machine nothing
 
 Before pushing to `main`, run `npm test`, `npm run build`, `npm run test:browser`, and `npm run test:docs-browser`.
 
-### In GitHub Actions
+### Planned GitHub automation
 
-The `Build and deploy Gitaverse` workflow starts on three events:
-
-- A push to `main`.
-- Any pull request.
-- A manual start from the Actions tab (`workflow_dispatch`).
-
-Each run installs dependencies and Chromium, runs the deployment build (which includes the unit and contract tests), then the player browser regression, then the Rachana browser regression. Any failure stops the run, so nothing is deployed. A pull-request run stops after the tests; it does not record version history or deploy. Pushes to other branches without a pull request are not tested.
+A future workflow should run engine and affected-product checks for pull requests and protected-branch changes, then keep deployment as an explicitly controlled stage. Test and live publishing, version-history persistence, credentials, environment approvals and rollback must be redesigned and reviewed before that workflow is committed.
 
 ### Checks that stay manual
 

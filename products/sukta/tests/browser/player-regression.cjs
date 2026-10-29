@@ -6,27 +6,39 @@ const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
 
 const productRoot = path.resolve(__dirname, '../..');
+const productsRoot = path.resolve(productRoot, '..');
 const engineRoot = process.env.VERSES_ENGINE_ROOT || path.resolve(productRoot, '../../engine');
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const forbiddenIndicMarks = /[\u0900-\u097f\u1cd0-\u1cff\ua8e0-\ua8ff]/u;
 const latinSvaraMarks = /[\u030d\u030e\u0331]/u;
 
 function productForCollection(collection) {
-  if (collection === 'ganesha-atharva') return { root: productRoot, dispose() {} };
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'suktaverse-browser-'));
-  fs.cpSync(productRoot, temporaryRoot, { recursive: true });
-  const experiencePath = path.join(temporaryRoot, 'data/experiences/sukta-chant/experience.json');
+  const temporaryBase = fs.mkdtempSync(path.join(os.tmpdir(), 'suktaverse-browser-'));
+  const temporaryRoot = path.join(temporaryBase, 'products');
+  fs.mkdirSync(temporaryRoot, { recursive: true });
+  fs.cpSync(productRoot, path.join(temporaryRoot, 'sukta'), { recursive: true });
+  fs.mkdirSync(path.join(temporaryRoot, 'gita'), { recursive: true });
+  fs.cpSync(path.join(productsRoot, 'gita/assets'), path.join(temporaryRoot, 'gita/assets'), { recursive: true });
+  fs.cpSync(path.join(productsRoot, 'gita/css'), path.join(temporaryRoot, 'gita/css'), { recursive: true });
+  for (const filename of ['collection_en.csv', 'collection_kn.csv']) fs.copyFileSync(path.join(productsRoot, filename), path.join(temporaryRoot, filename));
+  fs.writeFileSync(path.join(temporaryRoot, 'collection.csv'), 'product_id#path#enabled#order\nsukta#sukta#true#1\n');
+  const app = JSON.parse(fs.readFileSync(path.join(productsRoot, 'app.json'), 'utf8'));
+  app.defaultProduct = 'sukta';
+  fs.writeFileSync(path.join(temporaryRoot, 'app.json'), JSON.stringify(app, null, 2) + '\n');
+  if (collection === 'ganesha-atharva') return { root: temporaryRoot, dispose() { fs.rmSync(temporaryBase, { recursive: true, force: true }); } };
+  const suktaRoot = path.join(temporaryRoot, 'sukta');
+  const experiencePath = path.join(suktaRoot, 'data/experiences/sukta-chant/experience.json');
   const experience = JSON.parse(fs.readFileSync(experiencePath, 'utf8'));
   experience.verseCollection = collection;
   experience.verseCollections = [collection];
   fs.writeFileSync(experiencePath, JSON.stringify(experience, null, 2) + '\n');
-  const master = fs.readFileSync(path.join(temporaryRoot, `data/collections/verses/${collection}/master_sa.csv`), 'utf8').trimEnd().split(/\r?\n/);
+  const master = fs.readFileSync(path.join(suktaRoot, `data/collections/verses/${collection}/master_sa.csv`), 'utf8').trimEnd().split(/\r?\n/);
   const identity = master.slice(1).map((line) => line.split('#').slice(0, 3));
-  fs.writeFileSync(path.join(temporaryRoot, 'data/experiences/sukta-chant/audio.csv'),
+  fs.writeFileSync(path.join(suktaRoot, 'data/experiences/sukta-chant/audio.csv'),
     ['cid#snum#sid#chant_full_sa_collection#chant_full_sa_order', ...identity.map((parts) => parts.join('#') + '##')].join('\n') + '\n');
-  fs.writeFileSync(path.join(temporaryRoot, 'data/experiences/sukta-chant/images.csv'),
+  fs.writeFileSync(path.join(suktaRoot, 'data/experiences/sukta-chant/images.csv'),
     ['cid#snum#sid#chapter_icon_collection#chapter_icon_order', ...identity.map((parts) => parts.join('#') + '##')].join('\n') + '\n');
-  return { root: temporaryRoot, dispose() { fs.rmSync(temporaryRoot, { recursive: true, force: true }); } };
+  return { root: temporaryRoot, dispose() { fs.rmSync(temporaryBase, { recursive: true, force: true }); } };
 }
 
 async function createProfile(page) {
@@ -124,14 +136,21 @@ async function runCollection(browser, collection, sids) {
   try {
     await page.goto(pathToFileURL(path.join(engineRoot, 'index.html')).href + `?play=sukta-chant&sid=${encodeURIComponent(sids[0])}&lang=en`, { waitUntil: 'domcontentloaded' });
     await page.locator('#distribution-folder-input').setInputFiles(product.root);
-    await createProfile(page);
+    try {
+      await page.waitForFunction(() => !document.querySelector('#profile-setup')?.hidden
+        || Boolean(document.querySelector('.verse-chant-panels')));
+    } catch (error) {
+      const visible = await page.locator('body > section:not([hidden]), body > main:not([hidden]), #app:not([hidden]), #distribution-chooser:not([hidden]), #profile-setup:not([hidden]), #diksoochi:not([hidden]), #error-view:not([hidden])').evaluateAll((elements) => elements.map((element) => `${element.id || element.tagName}:${element.textContent.trim().slice(0, 240)}`));
+      throw new Error(`${collection} did not reach profile setup or player: ${visible.join(' | ')}; runtime errors: ${runtimeErrors.join(' | ')}`, { cause: error });
+    }
+    if (await page.locator('#profile-setup').isVisible()) await createProfile(page);
     try {
       await page.locator('.verse-chant-panels').waitFor();
     } catch (error) {
       const visible = await page.locator('body > section:not([hidden]), body > main:not([hidden]), #app:not([hidden]), #profile-setup:not([hidden]), #diksoochi:not([hidden]), #error-view:not([hidden])').evaluateAll((elements) => elements.map((element) => `${element.id || element.tagName}:${element.textContent.trim().slice(0, 160)}`));
       throw new Error(`${collection} did not open: ${visible.join(' | ')}; runtime errors: ${runtimeErrors.join(' | ')}`, { cause: error });
     }
-    assert.equal(await page.locator('[data-product-name]').first().innerText(), 'Suktaverse');
+    assert.equal(await page.locator('[data-app-name]').first().innerText(), 'MyGita');
     if (collection === 'ganesha-atharva') {
       assert.equal(await page.locator('#collection-trigger').isVisible(), true, 'multiple collections expose the shared collection pill');
       assert.equal(await page.locator('#chapter-trigger').isVisible(), false, 'a single-chapter collection hides the chapter pill');

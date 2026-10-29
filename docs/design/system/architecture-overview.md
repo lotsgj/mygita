@@ -1,33 +1,34 @@
 # Architecture overview
 
 **Status:** Current  
-**Last updated:** 16 October 2026
+**Last updated:** 29 October 2026
 
 ## Layers
 
-Verses is the shared source tree for independently branded static verse applications:
+MyGita is the shared source repository and platform for independently configurable static verse products:
 
 1. `engine/player.html` supplies the reusable application and dialog structure.
 2. `engine/css` supplies the shell, editor, and renderer presentation.
 3. `engine/js/player/player-core.js` coordinates routing, profiles, collections, renderer selection, audio, editing, events, resume, and PWA behavior.
 4. `engine/js/player/renderers` contains experience-specific rendering.
-5. `products/gita` owns Gitaverse identity, collections, experience configuration, branding, theme, and product tests.
-6. `products/sukta` defines Suktaverse identity, registered Ganesha Atharvashirsha and Purusha Sukta collections, and the first **Sukta Chant** experience. It reuses Player-4 under the public `sukta-chant` experience ID; the configured experience currently opens Ganesha Atharvashirsha. Product artwork and PWA assets remain a later tranche, so a deployable Suktaverse build is not produced yet.
-7. Build scripts combine `engine` with one named product and write generated output to `dist/<product>`.
+5. `products/gita` owns the current Bhagavad Gita distribution identity, collections, experience configuration, branding, theme, and product tests. Its technical folder and Gitaverse identity remain until the later MyGita app migration.
+6. `products/sukta` provisionally bundles registered Ganesha Atharvashirsha and Purusha Sukta collections and the first **Sukta Chant** experience. It reuses Player-4 under the public `sukta-chant` experience ID; the configured experience currently opens Ganesha Atharvashirsha. The final bundled-versus-independent product decision remains open.
+7. `products/app.json` plus the language-specific product registries define the platform-visible product set independently of implementation folder names.
+8. The unified build combines `engine` with every enabled registry product and writes `dist/mygita`; the older named-product builder remains available during migration.
 
-The repository root owns Rachana and Sampada under `docs`, along with the monorepo package and future `.github` automation. Product builds exclude documentation. The engine owns only reusable Noto Sans font assets; every other visual asset belongs to its product folder.
+The MyGita repository root owns Rachana and Sampada under `docs`, along with the monorepo package and future `.github` automation. Product builds exclude documentation. The engine owns only reusable Noto Sans font assets; every other visual asset belongs to its product folder.
 
 ## Runtime flow
 
-The active profile establishes language and resume context. The requested experience is loaded through registries and catalogs, normalized by SID, and passed to the registered renderer. Experience configuration can declare generic audio-binding field names, allowing each composition to select a reusable collection and asset order without provider-specific renderer code. Shared controls update location, audio, or shell state. Events fan out to independent adapters.
+The active profile establishes global interface-language and content-language preferences and remembers its selected product. Home selects a product, then an experience within that product. The requested experience is loaded through product-relative registries and catalogs, normalized by SID, and passed to the registered renderer. Product identity participates in URLs and resume keys; profile identity, language preferences and MyGita shell branding remain platform-wide. Explicit product deep links override the remembered choice for that navigation. Experience configuration can declare generic audio-binding field names, allowing each composition to select a reusable collection and asset order without provider-specific renderer code. Shared controls update location, audio, or shell state. Events fan out to independent adapters.
 
-Distribution configuration also overlays product-specific interface language on the shared dictionaries. Gitaverse therefore retains Gita wording while Suktaverse can name its own product, content language, loading, storage, installation and About surfaces without forking the shell.
+Distribution configuration also overlays product-specific interface language on the shared dictionaries. The current Bhagavad Gita and provisional Sukta definitions can therefore name their own content language, loading, storage, installation and About surfaces without forking the shell.
 
 Renderers create one DOM element per semantic content field. Responsive CSS places those elements into desktop or mobile layouts rather than maintaining duplicated hidden views. Presentation-only layers may supply panel backgrounds without owning content or edit state.
 
 ## Isolation
 
-The active application has no dependency on the archived `x` directory. Deployment explicitly rejects `x`. Rachana remains available from the Verses source surface and is not copied into a product PWA.
+The active application has no dependency on the archived `x` directory. Deployment explicitly rejects `x`. Rachana remains available from the MyGita source surface and is not copied into a product PWA.
 
 ## Typography
 

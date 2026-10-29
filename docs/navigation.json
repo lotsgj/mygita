@@ -1,6 +1,6 @@
 {
   "title": "Rachana",
-  "subtitle": "Gitaverse design details",
+  "subtitle": "MyGita design details",
   "defaultPage": "welcome",
   "sections": [
     {
@@ -22,6 +22,7 @@
       "title": "Product",
       "pages": [
         { "title": "Purpose and principles", "route": "purpose-and-principles", "path": "design/product/purpose-and-principles.md" },
+        { "title": "Platform and product model", "route": "platform-and-product-model", "path": "design/product/platform-and-product-model.md" },
         { "title": "Experience model", "route": "experience-model", "path": "design/product/experience-model.md" },
         { "title": "Terminology", "route": "terminology", "path": "design/product/terminology.md" }
       ]
