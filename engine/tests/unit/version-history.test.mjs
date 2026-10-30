@@ -22,9 +22,30 @@ test('display history merges device dates and sorts newest first', () => {
   assert.equal(merged[1].dateInstalled, '2026-10-01T08:06:00Z');
 });
 
+test('current run-attempt versions sort newest first within the same day', () => {
+  const merged = mergeVersionHistory([
+    { version: '1.18-1', date: '2026-10-30', message: 'Earlier run' },
+    { version: '1.19-1', date: '2026-10-30', message: 'Later run' },
+    { version: '1.19-2', date: '2026-10-30', message: 'Later attempt' }
+  ]);
+  assert.deepEqual(merged.map((record) => record.version), ['1.19-2', '1.19-1', '1.18-1']);
+});
+
 test('current build message can be supplied by the active distribution', () => {
   const merged = mergeVersionHistory([], [], '1.16Oct2026-120000', 'Current Suktaverse build');
   assert.equal(merged[0].message, 'Current Suktaverse build');
+});
+
+test('a locally seen current build receives display metadata and remains first', () => {
+  const merged = mergeVersionHistory(
+    [{ version: '1.18-1', date: '2026-10-29', message: 'Earlier build' }],
+    [{ version: '1.19-1', dateSeen: '2026-10-30T08:00:00Z' }],
+    '1.19-1',
+    'Current MyGita build'
+  );
+  assert.equal(merged[0].version, '1.19-1');
+  assert.match(merged[0].date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(merged[0].message, 'Current MyGita build');
 });
 
 test('version history can use a distribution-specific database namespace', () => {

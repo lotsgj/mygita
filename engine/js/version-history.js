@@ -41,16 +41,34 @@ function versionTimestamp(version) {
   return Date.UTC(Number(match[3]), month, Number(match[1]), Number(match[4]), Number(match[5]), Number(match[6]));
 }
 
+function releaseOrder(record) {
+  const precise = [record.releasedAt, record.dateInstalled, record.dateSeen]
+    .map((value) => Date.parse(value || ''))
+    .find(Number.isFinite);
+  if (Number.isFinite(precise)) return precise;
+  const embedded = versionTimestamp(record.version);
+  if (embedded) return embedded;
+  const run = String(record.version || '').match(/^(\d+)\.(\d+)-(\d+)$/);
+  if (run) return Number(run[1]) * 1e12 + Number(run[2]) * 1e4 + Number(run[3]);
+  return Date.parse(`${record.date || '1970-01-01'}T00:00:00Z`) || 0;
+}
+
 export function mergeVersionHistory(deployed = [], local = [], currentVersion = '', currentMessage = 'Current Gitaverse build') {
   const merged = new Map();
   deployed.forEach((record) => merged.set(record.version, { ...record }));
   local.forEach((record) => merged.set(record.version, { ...(merged.get(record.version) || {}), ...record }));
-  if (currentVersion && !merged.has(currentVersion)) {
-    merged.set(currentVersion, { version: currentVersion, date: new Date().toISOString().slice(0, 10), message: currentMessage });
+  if (currentVersion) {
+    const current = merged.get(currentVersion) || {};
+    merged.set(currentVersion, {
+      version: currentVersion,
+      date: current.date || new Date().toISOString().slice(0, 10),
+      message: current.message || currentMessage,
+      ...current
+    });
   }
   return Array.from(merged.values()).sort((left, right) => {
     const dateOrder = String(right.date || '').localeCompare(String(left.date || ''));
-    return dateOrder || versionTimestamp(right.version) - versionTimestamp(left.version);
+    return dateOrder || releaseOrder(right) - releaseOrder(left);
   });
 }
 

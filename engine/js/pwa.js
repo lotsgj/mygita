@@ -1,5 +1,7 @@
+const UPDATE_CHECK_INTERVAL_MS = 60_000;
+
 export class PwaManager {
-  constructor({ appVersion, namespace = 'verses', onEvent = () => {}, onInstalled = () => {} }) {
+  constructor({ appVersion, namespace = 'verses', onEvent = () => {}, onInstalled = () => {}, now = () => Date.now(), updateCheckInterval = UPDATE_CHECK_INTERVAL_MS }) {
     this.appVersion = appVersion;
     this.registration = null;
     this.installPrompt = null;
@@ -9,6 +11,10 @@ export class PwaManager {
     this.namespace = namespace;
     this.waitingVersion = '';
     this.notifiedVersion = '';
+    this.now = now;
+    this.updateCheckInterval = updateCheckInterval;
+    this.lastUpdateCheckAt = 0;
+    this.updateCheckPromise = null;
     this.updateNotice = document.getElementById('pwa-update-notice');
     this.statusNotice = document.getElementById('pwa-status-notice');
     this.installButtons = Array.from(document.querySelectorAll('[data-install]'));
@@ -24,6 +30,11 @@ export class PwaManager {
     window.addEventListener('appinstalled', () => {
       this.installPrompt = null;
       this.installButtons.forEach((button) => { button.hidden = true; });
+    });
+    window.addEventListener('pageshow', () => this.checkForUpdate());
+    window.addEventListener('online', () => this.checkForUpdate({ force: true }));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.checkForUpdate();
     });
     this.installButtons.forEach((button) => button.addEventListener('click', () => this.install()));
     document.getElementById('pwa-update-action').addEventListener('click', () => this.applyUpdate());
@@ -51,11 +62,34 @@ export class PwaManager {
         this.reloading = true;
         location.reload();
       });
-      await this.registration.update();
+      await this.checkForUpdate({ force: true });
     } catch (error) {
       this.onEvent('pwa_update_failed', { fromVersion: this.appVersion, stage: 'registration', reason: error?.name || 'error' });
       // The regular online player remains available if PWA setup is unsupported or interrupted.
     }
+  }
+
+  async checkForUpdate({ force = false } = {}) {
+    if (!this.registration || !navigator.onLine) return;
+    if (this.registration.waiting && navigator.serviceWorker.controller) {
+      await this.showUpdate();
+      return;
+    }
+    const checkedAt = this.now();
+    if (!force && this.lastUpdateCheckAt && checkedAt - this.lastUpdateCheckAt < this.updateCheckInterval) return;
+    if (this.updateCheckPromise) return this.updateCheckPromise;
+    this.lastUpdateCheckAt = checkedAt;
+    this.updateCheckPromise = (async () => {
+      try {
+        await this.registration.update();
+        if (this.registration.waiting && navigator.serviceWorker.controller) await this.showUpdate();
+      } catch (error) {
+        this.onEvent('pwa_update_failed', { fromVersion: this.appVersion, stage: 'update-check', reason: error?.name || 'error' });
+      } finally {
+        this.updateCheckPromise = null;
+      }
+    })();
+    return this.updateCheckPromise;
   }
 
   async resolveWaitingVersion() {

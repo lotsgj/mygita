@@ -368,16 +368,34 @@ function versionTimestamp(version) {
   return Date.UTC(Number(match[3]), month, Number(match[1]), Number(match[4]), Number(match[5]), Number(match[6]));
 }
 
+function releaseOrder(record) {
+  const precise = [record.releasedAt, record.dateInstalled, record.dateSeen]
+    .map((value) => Date.parse(value || ''))
+    .find(Number.isFinite);
+  if (Number.isFinite(precise)) return precise;
+  const embedded = versionTimestamp(record.version);
+  if (embedded) return embedded;
+  const run = String(record.version || '').match(/^(\d+)\.(\d+)-(\d+)$/);
+  if (run) return Number(run[1]) * 1e12 + Number(run[2]) * 1e4 + Number(run[3]);
+  return Date.parse(`${record.date || '1970-01-01'}T00:00:00Z`) || 0;
+}
+
 function mergeVersionHistory(deployed = [], local = [], currentVersion = '', currentMessage = 'Current Gitaverse build') {
   const merged = new Map();
   deployed.forEach((record) => merged.set(record.version, { ...record }));
   local.forEach((record) => merged.set(record.version, { ...(merged.get(record.version) || {}), ...record }));
-  if (currentVersion && !merged.has(currentVersion)) {
-    merged.set(currentVersion, { version: currentVersion, date: new Date().toISOString().slice(0, 10), message: currentMessage });
+  if (currentVersion) {
+    const current = merged.get(currentVersion) || {};
+    merged.set(currentVersion, {
+      version: currentVersion,
+      date: current.date || new Date().toISOString().slice(0, 10),
+      message: current.message || currentMessage,
+      ...current
+    });
   }
   return Array.from(merged.values()).sort((left, right) => {
     const dateOrder = String(right.date || '').localeCompare(String(left.date || ''));
-    return dateOrder || versionTimestamp(right.version) - versionTimestamp(left.version);
+    return dateOrder || releaseOrder(right) - releaseOrder(left);
   });
 }
 
@@ -1404,8 +1422,10 @@ class SentryAdapter {
 }
 
 // Source: js/pwa.js
+const UPDATE_CHECK_INTERVAL_MS = 60_000;
+
 class PwaManager {
-  constructor({ appVersion, namespace = 'verses', onEvent = () => {}, onInstalled = () => {} }) {
+  constructor({ appVersion, namespace = 'verses', onEvent = () => {}, onInstalled = () => {}, now = () => Date.now(), updateCheckInterval = UPDATE_CHECK_INTERVAL_MS }) {
     this.appVersion = appVersion;
     this.registration = null;
     this.installPrompt = null;
@@ -1415,6 +1435,10 @@ class PwaManager {
     this.namespace = namespace;
     this.waitingVersion = '';
     this.notifiedVersion = '';
+    this.now = now;
+    this.updateCheckInterval = updateCheckInterval;
+    this.lastUpdateCheckAt = 0;
+    this.updateCheckPromise = null;
     this.updateNotice = document.getElementById('pwa-update-notice');
     this.statusNotice = document.getElementById('pwa-status-notice');
     this.installButtons = Array.from(document.querySelectorAll('[data-install]'));
@@ -1430,6 +1454,11 @@ class PwaManager {
     window.addEventListener('appinstalled', () => {
       this.installPrompt = null;
       this.installButtons.forEach((button) => { button.hidden = true; });
+    });
+    window.addEventListener('pageshow', () => this.checkForUpdate());
+    window.addEventListener('online', () => this.checkForUpdate({ force: true }));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.checkForUpdate();
     });
     this.installButtons.forEach((button) => button.addEventListener('click', () => this.install()));
     document.getElementById('pwa-update-action').addEventListener('click', () => this.applyUpdate());
@@ -1457,11 +1486,34 @@ class PwaManager {
         this.reloading = true;
         location.reload();
       });
-      await this.registration.update();
+      await this.checkForUpdate({ force: true });
     } catch (error) {
       this.onEvent('pwa_update_failed', { fromVersion: this.appVersion, stage: 'registration', reason: error?.name || 'error' });
       // The regular online player remains available if PWA setup is unsupported or interrupted.
     }
+  }
+
+  async checkForUpdate({ force = false } = {}) {
+    if (!this.registration || !navigator.onLine) return;
+    if (this.registration.waiting && navigator.serviceWorker.controller) {
+      await this.showUpdate();
+      return;
+    }
+    const checkedAt = this.now();
+    if (!force && this.lastUpdateCheckAt && checkedAt - this.lastUpdateCheckAt < this.updateCheckInterval) return;
+    if (this.updateCheckPromise) return this.updateCheckPromise;
+    this.lastUpdateCheckAt = checkedAt;
+    this.updateCheckPromise = (async () => {
+      try {
+        await this.registration.update();
+        if (this.registration.waiting && navigator.serviceWorker.controller) await this.showUpdate();
+      } catch (error) {
+        this.onEvent('pwa_update_failed', { fromVersion: this.appVersion, stage: 'update-check', reason: error?.name || 'error' });
+      } finally {
+        this.updateCheckPromise = null;
+      }
+    })();
+    return this.updateCheckPromise;
   }
 
   async resolveWaitingVersion() {

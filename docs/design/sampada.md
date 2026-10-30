@@ -1,7 +1,7 @@
 # Sampada — Treasure trove of MyGita enhancements
 
 **Status:** Current  
-**Last updated:** 29 October 2026
+**Last updated:** 30 October 2026
 
 Sampada keeps both future possibilities and completed enhancements. Items retain their number after completion so decisions and delivery history remain traceable.
 
@@ -208,6 +208,14 @@ Persist note metadata and voice blobs locally in IndexedDB, separately from cano
 The reviewed visual direction is retained in `x/notes/`: it demonstrates both direct Notes-library navigation and the contextual `N` editor, including responsive mobile treatment. Revisit storage limits, recording formats, export packaging, accessibility, localization and optional future synchronization when implementation is scheduled.
 
 ## Done
+
+### 18. Installed-PWA foreground update check
+
+**Status:** Done
+
+**Tag:** Minor
+
+An installed mobile PWA now checks its service-worker registration when a suspended page returns to the foreground, is shown again through `pageshow`, or regains connectivity. A waiting worker is surfaced immediately, ordinary foreground checks are throttled, and automated tests cover resume, throttling, reconnection and waiting-worker behaviour.
 
 ### 15. Gita Sara focused two-panel view
 
