@@ -33,6 +33,7 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
   page.on('response', (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
   const base = `http://127.0.0.1:${server.address().port}/`;
   await page.goto(base, { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('.analytics-notice').count(), 0, 'analytics information must not interrupt profile creation');
   await page.getByLabel('Name', { exact: true }).fill('Product Regression');
   await page.getByLabel('Date of birth', { exact: true }).fill('1990-01-01');
   await page.getByLabel('App language', { exact: true }).selectOption('en');
@@ -42,6 +43,11 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
   assert.equal(await page.locator('[data-product-id="bhagavad-gita"]').getAttribute('aria-selected'), 'true');
   assert.equal(await page.locator('[data-app-name]').innerText(), 'MyGita');
   assert.equal(await page.title(), 'MyGita');
+  await page.locator('#diksoochi [data-analytics-info]').click();
+  assert.equal(await page.locator('#analytics-info-overlay').isVisible(), true, 'anonymous usage details open from the landing footer');
+  assert.match(await page.locator('#analytics-info-overlay').innerText(), /Microsoft Clarity/);
+  assert.match(await page.locator('#analytics-info-overlay').innerText(), /Google Analytics/);
+  await page.locator('#analytics-info-overlay .close-dialog').click();
   await page.locator('[data-product-id="sukta"]').click();
   await page.locator('#diksoochi').waitFor();
   assert.equal(await page.locator('[data-product-id="sukta"]').getAttribute('aria-selected'), 'true');

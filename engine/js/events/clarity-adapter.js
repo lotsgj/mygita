@@ -1,3 +1,5 @@
+import { analyticsParameters, clarityEventName } from './analytics-event-map.js';
+
 export class ClarityAdapter {
   constructor({ projectId = '', target = globalThis, documentRef = globalThis.document } = {}) {
     this.id = 'clarity';
@@ -42,16 +44,13 @@ export class ClarityAdapter {
 
   handle(event) {
     this.start();
+    const projected = analyticsParameters(event);
     const tags = {
-      age_band: event.context.ageBand,
-      gender_group: event.context.genderGroup,
-      profile_language: event.context.profileLanguage,
-      experience: event.context.experience,
-      content_language: event.context.language,
-      app_version: event.context.appVersion,
-      display_mode: event.context.displayMode,
-      surface: event.context.surface,
-      rachana_page: event.context.documentationPage
+      age_band: projected.age_band, gender_group: projected.gender_group,
+      profile_language: projected.interface_language, experience: projected.experience,
+      content_language: projected.content_language, app_version: projected.app_version,
+      display_mode: projected.display_mode, surface: projected.surface,
+      rachana_page: projected.documentation_page
     };
     Object.entries(tags).forEach(([key, value]) => this.setTag(key, value));
     if (event.event.startsWith('pwa_update_')) {
@@ -66,21 +65,6 @@ export class ClarityAdapter {
   }
 
   eventName(event) {
-    if (event.event === 'location_changed') {
-      const sourceEvents = { next: 'next_verse', previous: 'previous_verse', swipe: 'verse_swiped', goto: 'goto_verse', chapter: 'chapter_selected', resume: 'experience_resumed' };
-      return sourceEvents[event.details.source] || null;
-    }
-    const allowed = new Set([
-      'app_opened', 'profile_created', 'profile_selected', 'profile_updated', 'profile_switched',
-      'experience_selected', 'language_changed', 'home_opened', 'data_load_failed', 'profile_storage_failed',
-      'pwa_update_available', 'pwa_update_accepted', 'pwa_update_dismissed', 'pwa_update_completed', 'pwa_update_failed',
-      'verse_viewed', 'verse_engaged_10s', 'verse_engaged_30s', 'verse_engaged_60s',
-      'audio_started', 'audio_resumed', 'audio_paused', 'audio_seeked', 'audio_25', 'audio_50',
-      'audio_75', 'audio_completed', 'audio_failed',
-      'gita_sara_view_changed',
-      'rachana_opened', 'rachana_page_viewed', 'rachana_navigation_opened', 'rachana_profile_selected',
-      'rachana_about_opened', 'rachana_gitaverse_opened', 'rachana_document_failed'
-    ]);
-    return allowed.has(event.event) ? event.event : null;
+    return clarityEventName(event);
   }
 }

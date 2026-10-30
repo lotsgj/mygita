@@ -133,7 +133,11 @@ const EN_MESSAGES = {
   'profile.gender': 'Gender', 'profile.optional': '(optional)', 'profile.notSaid': 'Prefer not to say',
   'profile.female': 'Female', 'profile.male': 'Male', 'profile.nonbinary': 'Non-binary', 'profile.selfDescribed': 'Self-described',
   'profile.choosePhoto': 'Choose photo', 'profile.remove': 'Remove', 'profile.photoNote': 'Optional. Stored only on this device.',
-  'profile.default': 'Use this profile automatically on this device', 'profile.analytics': 'We collect anonymised information to improve the product experience.',
+  'profile.default': 'Use this profile automatically on this device',
+  'analytics.link': 'Anonymous usage', 'analytics.title': 'Anonymous usage information',
+  'analytics.summary': 'MyGita collects anonymous usage information to understand product adoption and improve the experience.',
+  'analytics.services': 'Microsoft Clarity helps identify interface difficulties. Google Analytics helps understand aggregated usage and journeys.',
+  'analytics.private': 'Profile names, exact dates of birth, photos, verse text, notes and voice content are not sent.',
   'profile.cancel': 'Cancel', 'profile.save': 'Save profile', 'profile.title': 'Profile', 'profile.switch': 'Switch profile', 'profile.manage': 'Manage profiles',
   'profile.preferences': 'My preferences', 'profile.details': 'Profile details', 'profile.viewEdit': 'View / edit profile', 'profile.switchManage': 'Switch / manage profiles',
   'profile.who': 'Who is using Gitaverse?', 'profile.choose': 'Choose a profile to continue.', 'profile.add': '＋ Add another profile', 'profile.back': 'Back',
@@ -214,7 +218,11 @@ const KN_MESSAGES = {
   'profile.gender': 'ಲಿಂಗ', 'profile.optional': '(ಐಚ್ಛಿಕ)', 'profile.notSaid': 'ಹೇಳಲು ಬಯಸುವುದಿಲ್ಲ',
   'profile.female': 'ಮಹಿಳೆ', 'profile.male': 'ಪುರುಷ', 'profile.nonbinary': 'ದ್ವಿಲಿಂಗೇತರ', 'profile.selfDescribed': 'ಸ್ವಯಂ ವಿವರಣೆ',
   'profile.choosePhoto': 'ಚಿತ್ರ ಆಯ್ಕೆಮಾಡಿ', 'profile.remove': 'ತೆಗೆದುಹಾಕಿ', 'profile.photoNote': 'ಐಚ್ಛಿಕ. ಈ ಸಾಧನದಲ್ಲೇ ಉಳಿಯುತ್ತದೆ.',
-  'profile.default': 'ಈ ಸಾಧನದಲ್ಲಿ ಈ ಪ್ರೊಫೈಲ್ ಅನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಬಳಸಿ', 'profile.analytics': 'ಉತ್ಪನ್ನ ಅನುಭವವನ್ನು ಉತ್ತಮಗೊಳಿಸಲು ನಾವು ಅನಾಮಧೇಯ ಮಾಹಿತಿಯನ್ನು ಸಂಗ್ರಹಿಸುತ್ತೇವೆ.',
+  'profile.default': 'ಈ ಸಾಧನದಲ್ಲಿ ಈ ಪ್ರೊಫೈಲ್ ಅನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಬಳಸಿ',
+  'analytics.link': 'ಅನಾಮಧೇಯ ಬಳಕೆ', 'analytics.title': 'ಅನಾಮಧೇಯ ಬಳಕೆಯ ಮಾಹಿತಿ',
+  'analytics.summary': 'ಉತ್ಪನ್ನದ ಬಳಕೆಯನ್ನು ಅರ್ಥಮಾಡಿಕೊಳ್ಳಲು ಮತ್ತು ಅನುಭವವನ್ನು ಉತ್ತಮಗೊಳಿಸಲು MyGita ಅನಾಮಧೇಯ ಬಳಕೆಯ ಮಾಹಿತಿಯನ್ನು ಸಂಗ್ರಹಿಸುತ್ತದೆ.',
+  'analytics.services': 'ಇಂಟರ್ಫೇಸ್ ತೊಂದರೆಗಳನ್ನು ಗುರುತಿಸಲು Microsoft Clarity ಸಹಾಯ ಮಾಡುತ್ತದೆ. ಒಟ್ಟಾರೆ ಬಳಕೆ ಮತ್ತು ಪ್ರಯಾಣಗಳನ್ನು ಅರ್ಥಮಾಡಿಕೊಳ್ಳಲು Google Analytics ಸಹಾಯ ಮಾಡುತ್ತದೆ.',
+  'analytics.private': 'ಪ್ರೊಫೈಲ್ ಹೆಸರು, ನಿಖರ ಜನ್ಮ ದಿನಾಂಕ, ಚಿತ್ರ, ಶ್ಲೋಕ ಪಠ್ಯ, ಟಿಪ್ಪಣಿಗಳು ಮತ್ತು ಧ್ವನಿ ವಿಷಯವನ್ನು ಕಳುಹಿಸಲಾಗುವುದಿಲ್ಲ.',
   'profile.cancel': 'ರದ್ದುಮಾಡಿ', 'profile.save': 'ಪ್ರೊಫೈಲ್ ಉಳಿಸಿ', 'profile.title': 'ಪ್ರೊಫೈಲ್', 'profile.switch': 'ಪ್ರೊಫೈಲ್ ಬದಲಿಸಿ', 'profile.manage': 'ಪ್ರೊಫೈಲ್‌ಗಳನ್ನು ನಿರ್ವಹಿಸಿ',
   'profile.preferences': 'ನನ್ನ ಆದ್ಯತೆಗಳು', 'profile.details': 'ಪ್ರೊಫೈಲ್ ವಿವರಗಳು', 'profile.viewEdit': 'ಪ್ರೊಫೈಲ್ ನೋಡಿ / ಸಂಪಾದಿಸಿ', 'profile.switchManage': 'ಪ್ರೊಫೈಲ್ ಬದಲಿಸಿ / ನಿರ್ವಹಿಸಿ',
   'profile.who': 'Gitaverse ಅನ್ನು ಯಾರು ಬಳಸುತ್ತಿದ್ದಾರೆ?', 'profile.choose': 'ಮುಂದುವರಿಸಲು ಪ್ರೊಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ.', 'profile.add': '＋ ಮತ್ತೊಂದು ಪ್ರೊಫೈಲ್ ಸೇರಿಸಿ', 'profile.back': 'ಹಿಂದೆ',
@@ -1130,6 +1138,79 @@ class EventBus {
   }
 }
 
+// Source: js/events/analytics-event-map.js
+const DIRECT_EVENTS = new Set([
+  'app_opened', 'profile_created', 'profile_selected', 'profile_updated', 'profile_switched',
+  'experience_selected', 'language_changed', 'home_opened', 'data_load_failed', 'profile_storage_failed',
+  'pwa_update_available', 'pwa_update_accepted', 'pwa_update_dismissed', 'pwa_update_completed', 'pwa_update_failed',
+  'verse_viewed', 'verse_engaged_10s', 'verse_engaged_30s', 'verse_engaged_60s',
+  'audio_started', 'audio_resumed', 'audio_paused', 'audio_seeked', 'audio_25', 'audio_50',
+  'audio_75', 'audio_completed', 'audio_failed', 'gita_sara_view_changed',
+  'rachana_opened', 'rachana_page_viewed', 'rachana_navigation_opened', 'rachana_profile_selected',
+  'rachana_about_opened', 'rachana_gitaverse_opened', 'rachana_document_failed'
+]);
+
+const LOCATION_EVENTS = {
+  next: 'next_verse', previous: 'previous_verse', swipe: 'verse_swiped', goto: 'goto_verse',
+  chapter: 'chapter_selected', resume: 'experience_resumed'
+};
+
+function present(value) { return value == null || value === '' ? undefined : value; }
+function compact(values) { return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)); }
+
+function clarityEventName(event) {
+  if (event.event === 'location_changed') return LOCATION_EVENTS[event.details.source] || null;
+  return DIRECT_EVENTS.has(event.event) ? event.event : null;
+}
+
+function analyticsParameters(event) {
+  const parameters = {
+    age_band: present(event.context.ageBand), gender_group: present(event.context.genderGroup),
+    interface_language: present(event.context.profileLanguage), content_language: present(event.context.language),
+    product: present(event.context.distribution), experience: present(event.context.experience),
+    collection: present(event.context.collection), verse_id: present(event.context.sid), chapter_id: present(event.context.chapter),
+    app_version: present(event.context.appVersion), display_mode: present(event.context.displayMode),
+    surface: present(event.context.surface), documentation_page: present(event.context.documentationPage)
+  };
+  if (event.event === 'location_changed') parameters.navigation_source = present(event.details.source);
+  if (event.event.startsWith('pwa_update_')) {
+    parameters.update_from_version = present(event.details.fromVersion);
+    parameters.update_to_version = present(event.details.toVersion);
+    parameters.update_result = present(event.details.result || event.details.stage);
+  }
+  if (event.event === 'gita_sara_view_changed') parameters.view = present(event.details.view);
+  const engagement = event.event.match(/^verse_engaged_(10|30|60)s$/);
+  if (engagement) parameters.engagement_seconds = Number(engagement[1]);
+  const audioProgress = event.event.match(/^audio_(25|50|75)$/);
+  if (audioProgress) parameters.progress_percent = Number(audioProgress[1]);
+  if (event.event.startsWith('profile_') || event.event === 'rachana_profile_selected') parameters.profile_action = event.event;
+  if (['data_load_failed', 'profile_storage_failed', 'audio_failed', 'rachana_document_failed'].includes(event.event)) parameters.error_type = event.event;
+  return compact(parameters);
+}
+
+function googleAnalyticsParameters(event) {
+  const { age_band, gender_group, ...parameters } = analyticsParameters(event);
+  return parameters;
+}
+
+function googleAnalyticsEventName(event) {
+  if (event.event === 'location_changed') return 'verse_navigated';
+  if (event.event.startsWith('profile_') || event.event === 'rachana_profile_selected') return 'profile_action';
+  if (event.event.startsWith('pwa_update_')) return 'pwa_update';
+  if (/^verse_engaged_(10|30|60)s$/.test(event.event)) return 'verse_engaged';
+  if (/^audio_(25|50|75)$/.test(event.event)) return 'audio_progress';
+  if (['data_load_failed', 'profile_storage_failed', 'audio_failed', 'rachana_document_failed'].includes(event.event)) return 'app_error';
+  if (event.event === 'rachana_page_viewed') return null;
+  return DIRECT_EVENTS.has(event.event) ? event.event : null;
+}
+
+function analyticsPage(event) {
+  if (event.event === 'home_opened') return { path: '/home', title: 'MyGita Home' };
+  if (event.event === 'experience_selected' && event.context.experience) return { path: `/experience/${encodeURIComponent(event.context.experience)}`, title: `MyGita · ${event.context.experience}` };
+  if (event.event === 'rachana_page_viewed' && event.context.documentationPage) return { path: `/rachana/${encodeURIComponent(event.context.documentationPage)}`, title: `Rachana · ${event.context.documentationPage}` };
+  return null;
+}
+
 // Source: js/events/resume-adapter.js
 class ResumeAdapter {
   constructor({ store }) {
@@ -1229,16 +1310,13 @@ class ClarityAdapter {
 
   handle(event) {
     this.start();
+    const projected = analyticsParameters(event);
     const tags = {
-      age_band: event.context.ageBand,
-      gender_group: event.context.genderGroup,
-      profile_language: event.context.profileLanguage,
-      experience: event.context.experience,
-      content_language: event.context.language,
-      app_version: event.context.appVersion,
-      display_mode: event.context.displayMode,
-      surface: event.context.surface,
-      rachana_page: event.context.documentationPage
+      age_band: projected.age_band, gender_group: projected.gender_group,
+      profile_language: projected.interface_language, experience: projected.experience,
+      content_language: projected.content_language, app_version: projected.app_version,
+      display_mode: projected.display_mode, surface: projected.surface,
+      rachana_page: projected.documentation_page
     };
     Object.entries(tags).forEach(([key, value]) => this.setTag(key, value));
     if (event.event.startsWith('pwa_update_')) {
@@ -1253,22 +1331,59 @@ class ClarityAdapter {
   }
 
   eventName(event) {
-    if (event.event === 'location_changed') {
-      const sourceEvents = { next: 'next_verse', previous: 'previous_verse', swipe: 'verse_swiped', goto: 'goto_verse', chapter: 'chapter_selected', resume: 'experience_resumed' };
-      return sourceEvents[event.details.source] || null;
+    return clarityEventName(event);
+  }
+}
+
+// Source: js/events/google-analytics-adapter.js
+class GoogleAnalyticsAdapter {
+  constructor({ measurementId = '', target = globalThis, documentRef = globalThis.document, locationRef = globalThis.location } = {}) {
+    this.id = 'google-analytics';
+    this.measurementId = String(measurementId || '').trim();
+    this.target = target;
+    this.document = documentRef;
+    this.location = locationRef;
+    this.enabled = /^G-[A-Z0-9]+$/i.test(this.measurementId);
+    this.started = false;
+  }
+
+  accepts(event) {
+    return this.enabled && Boolean(googleAnalyticsEventName(event) || analyticsPage(event));
+  }
+
+  initialize({ appVersion, displayMode }) {
+    if (!this.enabled || this.started) return;
+    this.started = true;
+    const dataLayer = this.target.dataLayer = this.target.dataLayer || [];
+    this.target.gtag = this.target.gtag || function googleTagQueue() { dataLayer.push(arguments); };
+    this.target.gtag('js', new Date());
+    this.target.gtag('config', this.measurementId, {
+      send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false,
+      app_version: appVersion, display_mode: displayMode
+    });
+    if (!this.document?.querySelector(`script[data-ga-measurement-id="${this.measurementId}"]`)) {
+      const script = this.document.createElement('script');
+      script.async = true;
+      script.dataset.gaMeasurementId = this.measurementId;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(this.measurementId)}`;
+      this.document.head.appendChild(script);
     }
-    const allowed = new Set([
-      'app_opened', 'profile_created', 'profile_selected', 'profile_updated', 'profile_switched',
-      'experience_selected', 'language_changed', 'home_opened', 'data_load_failed', 'profile_storage_failed',
-      'pwa_update_available', 'pwa_update_accepted', 'pwa_update_dismissed', 'pwa_update_completed', 'pwa_update_failed',
-      'verse_viewed', 'verse_engaged_10s', 'verse_engaged_30s', 'verse_engaged_60s',
-      'audio_started', 'audio_resumed', 'audio_paused', 'audio_seeked', 'audio_25', 'audio_50',
-      'audio_75', 'audio_completed', 'audio_failed',
-      'gita_sara_view_changed',
-      'rachana_opened', 'rachana_page_viewed', 'rachana_navigation_opened', 'rachana_profile_selected',
-      'rachana_about_opened', 'rachana_gitaverse_opened', 'rachana_document_failed'
-    ]);
-    return allowed.has(event.event) ? event.event : null;
+  }
+
+  handle(event) {
+    this.initialize({ appVersion: event.context.appVersion, displayMode: event.context.displayMode });
+    const parameters = googleAnalyticsParameters(event);
+    const eventName = googleAnalyticsEventName(event);
+    if (eventName) this.target.gtag('event', eventName, parameters);
+    const page = analyticsPage(event);
+    if (page) this.target.gtag('event', 'page_view', {
+      ...parameters, page_title: page.title, page_location: this.pageLocation(page.path)
+    });
+  }
+
+  pageLocation(path) {
+    const origin = /^https?:$/.test(this.location?.protocol || '') ? this.location.origin : 'https://mygita.gitajyoti.org';
+    return new URL(path, origin).href;
   }
 }
 
@@ -4214,6 +4329,7 @@ let requestedProduct = params.get('product');
 const explicitLocationRequested = params.has('play') || params.has('sid') || params.has('lang') || params.has('product');
 const appVersion = document.querySelector('meta[name="app-version"]')?.content || 'dev';
 const clarityProjectId = document.querySelector('meta[name="clarity-project-id"]')?.content || '';
+const gaMeasurementId = document.querySelector('meta[name="ga-measurement-id"]')?.content || '';
 let appConfig = globalThis.__MYGITA_APP__ || {};
 let products = Array.isArray(globalThis.__MYGITA_PRODUCTS__) && globalThis.__MYGITA_PRODUCTS__.length
   ? globalThis.__MYGITA_PRODUCTS__
@@ -4253,9 +4369,12 @@ const eventBus = new EventBus({
 eventBus.subscribe(new ResumeAdapter({ store: profileStore }));
 eventBus.subscribe(new DiksoochiAdapter({ store: profileStore }));
 const clarityAdapter = new ClarityAdapter({ projectId: clarityProjectId });
+const googleAnalyticsAdapter = new GoogleAnalyticsAdapter({ measurementId: gaMeasurementId });
 eventBus.subscribe(clarityAdapter);
+eventBus.subscribe(googleAnalyticsAdapter);
 eventBus.subscribe(new SentryAdapter());
 clarityAdapter.initialize({ appVersion, displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' });
+googleAnalyticsAdapter.initialize({ appVersion, displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' });
 const pwa = new PwaManager({
   appVersion,
   namespace: platformId,
@@ -5377,7 +5496,7 @@ function openOverlay(id) {
 
 function closeOverlays({ restoreFocus = true } = {}) {
   let closed = false;
-  ['workspace-overlay', 'goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
+  ['workspace-overlay', 'goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
     const overlay = document.getElementById(id);
     if (!overlay.hidden) { overlay.hidden = true; closed = true; }
   });
@@ -5707,6 +5826,7 @@ function bindEvents() {
   document.getElementById('help-button').addEventListener('click', () => openOverlay('help-overlay'));
   document.getElementById('about-button').addEventListener('click', (event) => aboutDialog.open(event.currentTarget));
   document.querySelectorAll('[data-about]').forEach((button) => button.addEventListener('click', (event) => aboutDialog.open(event.currentTarget)));
+  document.querySelectorAll('[data-analytics-info]').forEach((button) => button.addEventListener('click', () => openOverlay('analytics-info-overlay')));
   document.getElementById('language-button').addEventListener('click', () => openOverlay('language-overlay'));
   document.getElementById('questions-button').addEventListener('click', toggleQuestions);
   document.getElementById('home-button').addEventListener('click', goHome);

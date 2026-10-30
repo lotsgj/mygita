@@ -20,6 +20,8 @@ const buildId = process.env.VERSES_BUILD_ID || new Date().toISOString().replace(
 const major = String(process.env.VERSES_MAJOR_VERSION || (await readFile(path.join(engineRoot, 'APP_MAJOR_VERSION'), 'utf8')).trim());
 const version = `${major}.${buildId}`;
 const clarityProjectId = String(process.env.CLARITY_PROJECT_ID || '').trim();
+const gaMeasurementId = String(process.env.GA_MEASUREMENT_ID || '').trim();
+if (gaMeasurementId && !/^G-[A-Z0-9]+$/i.test(gaMeasurementId)) throw new Error('GA_MEASUREMENT_ID must be a GA4 measurement ID beginning with G-.');
 const branding = config.branding || {};
 
 function run(script) { execFileSync(process.execPath, [script], { cwd: engineRoot, stdio: 'inherit' }); }
@@ -39,6 +41,7 @@ function brandedHtml(source) {
   return source
     .replace('<meta name="app-version" content="dev">', `<meta name="app-version" content="${version}">`)
     .replace('<meta name="clarity-project-id" content="">', `<meta name="clarity-project-id" content="${clarityProjectId}">`)
+    .replace('<meta name="ga-measurement-id" content="">', `<meta name="ga-measurement-id" content="${gaMeasurementId}">`)
     .replace('<title>Verses</title>', `<title>${config.name}</title>`)
     .replaceAll('content="Explore and chant the verses of the Bhagavad Gita with Gitaverse."', `content="${config.description}"`)
     .replaceAll('<meta property="og:site_name" content="Gitaverse">', `<meta property="og:site_name" content="${config.name}">`)

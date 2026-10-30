@@ -3,6 +3,7 @@ import { ProfileStore } from '../profile-store.js';
 import { ProfileUI } from '../profile-ui.js';
 import { EventBus } from '../events/event-bus.js';
 import { ClarityAdapter } from '../events/clarity-adapter.js';
+import { GoogleAnalyticsAdapter } from '../events/google-analytics-adapter.js';
 import { profileAnalyticsContext } from '../events/profile-analytics.js';
 import { AboutDialog } from '../shared/about-dialog.js';
 import { VersionHistoryStore } from '../version-history.js';
@@ -15,6 +16,7 @@ const scrim = document.getElementById('docs-nav-scrim');
 const folderInput = document.getElementById('docs-folder-input');
 const appVersion = document.querySelector('meta[name="app-version"]')?.content || 'dev';
 const clarityProjectId = document.querySelector('meta[name="clarity-project-id"]')?.content || '';
+const gaMeasurementId = document.querySelector('meta[name="ga-measurement-id"]')?.content || '';
 let manifest;
 let entries = [];
 let activeRoute = '';
@@ -29,8 +31,11 @@ const eventBus = new EventBus({
   contextProvider: () => ({ surface: 'rachana', documentationPage: activeRoute || 'unavailable', displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' })
 });
 const clarityAdapter = new ClarityAdapter({ projectId: clarityProjectId });
+const googleAnalyticsAdapter = new GoogleAnalyticsAdapter({ measurementId: gaMeasurementId });
 eventBus.subscribe(clarityAdapter);
+eventBus.subscribe(googleAnalyticsAdapter);
 clarityAdapter.initialize({ appVersion, displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' });
+googleAnalyticsAdapter.initialize({ appVersion, displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' });
 
 function emitRachanaEvent(name, details = {}) {
   return eventBus.emit(name, {

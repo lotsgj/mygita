@@ -4,6 +4,7 @@ import { EventBus } from '../../js/events/event-bus.js';
 import { ResumeAdapter } from '../../js/events/resume-adapter.js';
 import { DiksoochiAdapter } from '../../js/events/diksoochi-adapter.js';
 import { ClarityAdapter } from '../../js/events/clarity-adapter.js';
+import { GoogleAnalyticsAdapter } from '../../js/events/google-analytics-adapter.js';
 import { SentryAdapter } from '../../js/events/sentry-adapter.js';
 import { ageBand, profileAnalyticsContext } from '../../js/events/profile-analytics.js';
 
@@ -149,4 +150,53 @@ test('Rachana events use the shared Clarity adapter without profile identifiers'
   assert.ok(calls.some((call) => call[0] === 'set' && call[1] === 'rachana_page' && call[2] === 'gita-700'));
   assert.ok(calls.some((call) => call[0] === 'event' && call[1] === 'rachana_page_viewed'));
   assert.equal(JSON.stringify(calls).includes('private-id'), false);
+});
+
+test('Google Analytics is disabled without a valid GA4 measurement ID', () => {
+  const target = {};
+  const adapter = new GoogleAnalyticsAdapter({ measurementId: 'not-ga4', target });
+  assert.equal(adapter.enabled, false);
+  adapter.initialize({ appVersion: '1.test', displayMode: 'browser' });
+  assert.equal(target.gtag, undefined);
+});
+
+test('Google Analytics receives only the shared privacy-safe projection', () => {
+  const scripts = [];
+  const target = {};
+  const adapter = new GoogleAnalyticsAdapter({
+    measurementId: 'G-TEST123', target,
+    locationRef: { protocol: 'https:', origin: 'https://mygita.gitajyoti.org', href: 'https://mygita.gitajyoti.org/?pid=99&name=Private' },
+    documentRef: { head: { appendChild: (script) => scripts.push(script) }, createElement: () => ({ dataset: {} }), querySelector: () => null }
+  });
+  adapter.initialize({ appVersion: '1.test', displayMode: 'standalone' });
+  adapter.handle({
+    event: 'location_changed',
+    context: { ageBand: '25-34', genderGroup: 'female', profileLanguage: 'kn', language: 'kn', distribution: 'sukta', experience: 'sukta-chant', sid: '1.B', chapter: '1', appVersion: '1.test', displayMode: 'standalone' },
+    details: { source: 'next', privateNote: 'must-not-be-sent' }, profileId: 99, anonymousProfileId: 'must-not-be-sent'
+  });
+  const calls = target.dataLayer.map((args) => Array.from(args));
+  assert.equal(scripts[0].src, 'https://www.googletagmanager.com/gtag/js?id=G-TEST123');
+  assert.ok(calls.some((call) => call[0] === 'config' && call[1] === 'G-TEST123' && call[2].send_page_view === false));
+  const navigation = calls.find((call) => call[0] === 'event' && call[1] === 'verse_navigated');
+  assert.equal(navigation[2].navigation_source, 'next');
+  assert.equal(navigation[2].verse_id, '1.B');
+  assert.equal('age_band' in navigation[2], false);
+  assert.equal('gender_group' in navigation[2], false);
+  assert.equal(JSON.stringify(calls).includes('must-not-be-sent'), false);
+  assert.equal(JSON.stringify(calls).includes('Private'), false);
+  assert.equal(JSON.stringify(calls).includes('99'), false);
+});
+
+test('Google Analytics emits sanitized manual SPA page views without query parameters', () => {
+  const target = {};
+  const adapter = new GoogleAnalyticsAdapter({
+    measurementId: 'G-TEST123', target,
+    locationRef: { protocol: 'https:', origin: 'https://mygita.gitajyoti.org', href: 'https://mygita.gitajyoti.org/?pid=99' },
+    documentRef: { head: { appendChild() {} }, createElement: () => ({ dataset: {} }), querySelector: () => null }
+  });
+  adapter.handle({ event: 'experience_selected', context: { experience: 'gita-yoga', appVersion: '1.test', displayMode: 'browser' }, details: {} });
+  const calls = target.dataLayer.map((args) => Array.from(args));
+  const pageView = calls.find((call) => call[0] === 'event' && call[1] === 'page_view');
+  assert.equal(pageView[2].page_location, 'https://mygita.gitajyoti.org/experience/gita-yoga');
+  assert.equal(pageView[2].page_location.includes('?'), false);
 });

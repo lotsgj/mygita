@@ -81,6 +81,8 @@ const runId = process.env.GITHUB_RUN_ID || 'local';
 const builtAt = new Date().toISOString();
 const clarityProjectId = String(process.env.CLARITY_PROJECT_ID || '').trim();
 if (clarityProjectId && !/^[a-z0-9]+$/i.test(clarityProjectId)) throw new Error('CLARITY_PROJECT_ID must be alphanumeric.');
+const gaMeasurementId = String(process.env.GA_MEASUREMENT_ID || '').trim();
+if (gaMeasurementId && !/^G-[A-Z0-9]+$/i.test(gaMeasurementId)) throw new Error('GA_MEASUREMENT_ID must be a GA4 measurement ID beginning with G-.');
 const historySource = process.env.VERSION_HISTORY_FILE || path.join(root, 'version-history.json');
 let versionHistory = validateVersionHistory(JSON.parse(await readFile(historySource, 'utf8')));
 if (versionHistory.some((record) => record.version === version)) throw new Error(`Version history already contains ${version}.`);
@@ -113,6 +115,7 @@ const sourceHtml = await readFile(path.join(root, 'player.html'), 'utf8');
 const deployedHtml = sourceHtml
   .replace('<meta name="app-version" content="dev">', `<meta name="app-version" content="${version}">`)
   .replace('<meta name="clarity-project-id" content="">', `<meta name="clarity-project-id" content="${clarityProjectId}">`)
+  .replace('<meta name="ga-measurement-id" content="">', `<meta name="ga-measurement-id" content="${gaMeasurementId}">`)
   .replaceAll('?v=dev', `?v=${encodeURIComponent(version)}`);
 if (deployedHtml === sourceHtml || deployedHtml.includes('?v=dev') || deployedHtml.includes('content="dev"')) {
   throw new Error('player.html does not contain the expected development version markers.');
@@ -120,17 +123,20 @@ if (deployedHtml === sourceHtml || deployedHtml.includes('?v=dev') || deployedHt
 if (!deployedHtml.includes(`<meta name="clarity-project-id" content="${clarityProjectId}">`)) {
   throw new Error('player.html does not contain the expected Clarity project marker.');
 }
+if (!deployedHtml.includes(`<meta name="ga-measurement-id" content="${gaMeasurementId}">`)) throw new Error('player.html does not contain the expected Google Analytics marker.');
 
 await writeFile(path.join(output, 'player.html'), deployedHtml);
 const docsSourceHtml = await readFile(path.join(root, 'docs.html'), 'utf8');
 const deployedDocsHtml = docsSourceHtml
   .replace('<meta name="app-version" content="dev">', `<meta name="app-version" content="${version}">`)
   .replace('<meta name="clarity-project-id" content="">', `<meta name="clarity-project-id" content="${clarityProjectId}">`)
+  .replace('<meta name="ga-measurement-id" content="">', `<meta name="ga-measurement-id" content="${gaMeasurementId}">`)
   .replaceAll('?v=dev', `?v=${encodeURIComponent(version)}`);
 if (deployedDocsHtml === docsSourceHtml || deployedDocsHtml.includes('?v=dev') || deployedDocsHtml.includes('content="dev"')) {
   throw new Error('docs.html does not contain the expected development version markers.');
 }
 if (!deployedDocsHtml.includes(`<meta name="clarity-project-id" content="${clarityProjectId}">`)) throw new Error('docs.html does not contain the expected Clarity project marker.');
+if (!deployedDocsHtml.includes(`<meta name="ga-measurement-id" content="${gaMeasurementId}">`)) throw new Error('docs.html does not contain the expected Google Analytics marker.');
 await writeFile(path.join(output, 'docs.html'), deployedDocsHtml);
 await cp(path.join(root, 'index.html'), path.join(output, 'index.html'));
 await cp(path.join(root, 'CNAME'), path.join(output, 'CNAME'));

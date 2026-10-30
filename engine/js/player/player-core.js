@@ -6,6 +6,7 @@ import { EventBus } from '../events/event-bus.js';
 import { ResumeAdapter } from '../events/resume-adapter.js';
 import { DiksoochiAdapter } from '../events/diksoochi-adapter.js';
 import { ClarityAdapter } from '../events/clarity-adapter.js';
+import { GoogleAnalyticsAdapter } from '../events/google-analytics-adapter.js';
 import { SentryAdapter } from '../events/sentry-adapter.js';
 import { profileAnalyticsContext } from '../events/profile-analytics.js';
 import { PwaManager } from '../pwa.js';
@@ -53,6 +54,7 @@ let requestedProduct = params.get('product');
 const explicitLocationRequested = params.has('play') || params.has('sid') || params.has('lang') || params.has('product');
 const appVersion = document.querySelector('meta[name="app-version"]')?.content || 'dev';
 const clarityProjectId = document.querySelector('meta[name="clarity-project-id"]')?.content || '';
+const gaMeasurementId = document.querySelector('meta[name="ga-measurement-id"]')?.content || '';
 let appConfig = globalThis.__MYGITA_APP__ || {};
 let products = Array.isArray(globalThis.__MYGITA_PRODUCTS__) && globalThis.__MYGITA_PRODUCTS__.length
   ? globalThis.__MYGITA_PRODUCTS__
@@ -92,9 +94,12 @@ const eventBus = new EventBus({
 eventBus.subscribe(new ResumeAdapter({ store: profileStore }));
 eventBus.subscribe(new DiksoochiAdapter({ store: profileStore }));
 const clarityAdapter = new ClarityAdapter({ projectId: clarityProjectId });
+const googleAnalyticsAdapter = new GoogleAnalyticsAdapter({ measurementId: gaMeasurementId });
 eventBus.subscribe(clarityAdapter);
+eventBus.subscribe(googleAnalyticsAdapter);
 eventBus.subscribe(new SentryAdapter());
 clarityAdapter.initialize({ appVersion, displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' });
+googleAnalyticsAdapter.initialize({ appVersion, displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' });
 const pwa = new PwaManager({
   appVersion,
   namespace: platformId,
@@ -1216,7 +1221,7 @@ function openOverlay(id) {
 
 function closeOverlays({ restoreFocus = true } = {}) {
   let closed = false;
-  ['workspace-overlay', 'goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
+  ['workspace-overlay', 'goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
     const overlay = document.getElementById(id);
     if (!overlay.hidden) { overlay.hidden = true; closed = true; }
   });
@@ -1546,6 +1551,7 @@ function bindEvents() {
   document.getElementById('help-button').addEventListener('click', () => openOverlay('help-overlay'));
   document.getElementById('about-button').addEventListener('click', (event) => aboutDialog.open(event.currentTarget));
   document.querySelectorAll('[data-about]').forEach((button) => button.addEventListener('click', (event) => aboutDialog.open(event.currentTarget)));
+  document.querySelectorAll('[data-analytics-info]').forEach((button) => button.addEventListener('click', () => openOverlay('analytics-info-overlay')));
   document.getElementById('language-button').addEventListener('click', () => openOverlay('language-overlay'));
   document.getElementById('questions-button').addEventListener('click', toggleQuestions);
   document.getElementById('home-button').addEventListener('click', goHome);

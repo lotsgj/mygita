@@ -11,6 +11,7 @@ const engineRoot = process.env.VERSES_ENGINE_ROOT || path.resolve(productRoot, '
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const forbiddenIndicMarks = /[\u0900-\u097f\u1cd0-\u1cff\ua8e0-\ua8ff]/u;
 const latinSvaraMarks = /[\u030d\u030e\u0331]/u;
+const indicSvaraMarks = /[\u0951\u0952\u1cda]/u;
 
 function productForCollection(collection) {
   const temporaryBase = fs.mkdtempSync(path.join(os.tmpdir(), 'suktaverse-browser-'));
@@ -66,6 +67,13 @@ async function assertSid(page, sid) {
     lineHeight: Number.parseFloat(getComputedStyle(element).lineHeight)
   }));
   assert.ok(type.lineHeight / type.fontSize >= 1.65, `${sid} tone marks need generous line height`);
+  const kannada = page.locator('.verse-chant-text[lang="kn"]');
+  const kannadaText = await kannada.innerText();
+  assert.equal(indicSvaraMarks.test(kannadaText), true, `${sid} Kannada must retain Vedic svara marks`);
+  assert.match(await kannada.evaluate((element) => getComputedStyle(element).fontFamily), /^"?Gitaverse Noto Sans Kannada"?/, `${sid} Kannada and its Vedic marks must use the same primary face`);
+  const kannadaVedicSample = 'ಕ॑ಕ॒ಕ᳚';
+  await page.evaluate((text) => document.fonts.load('16px "Gitaverse Noto Sans Kannada"', text), kannadaVedicSample);
+  assert.equal(await page.evaluate((text) => document.fonts.check('16px "Gitaverse Noto Sans Kannada"', text), kannadaVedicSample), true, `${sid} Kannada face must cover Kannada letters and Vedic marks`);
   const geometry = await page.locator('.verse-chant-panel').evaluateAll((panels) => panels.map((panel) => ({
     scrollWidth: panel.scrollWidth, clientWidth: panel.clientWidth,
     scrollHeight: panel.scrollHeight, clientHeight: panel.clientHeight

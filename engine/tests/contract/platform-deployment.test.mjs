@@ -16,6 +16,9 @@ test('MyGita Pages deployment publishes only the verified unified distribution',
   assert.match(workflow, /pnpm run test:gita:browser/);
   assert.match(workflow, /pnpm run test:sukta:browser/);
   assert.match(workflow, /pnpm run test:docs-browser/);
+  assert.match(workflow, /GA_MEASUREMENT_ID: \$\{\{ vars\.GA_MEASUREMENT_ID \}\}/);
+  assert.match(builder, /GA_MEASUREMENT_ID/);
+  assert.match(builder, /ga-measurement-id/);
   assert.match(workflow, /path: dist\/mygita/);
   assert.match(workflow, /actions\/deploy-pages@v4/);
   assert.match(workflow, /github\.event_name != 'pull_request'/);

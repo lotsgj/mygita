@@ -1,7 +1,7 @@
 # Build, test and deployment
 
 **Status:** Current
-**Last updated:** 29 October 2026
+**Last updated:** 30 October 2026
 
 ## Source and generated files
 
@@ -9,7 +9,7 @@ Maintainable shared JavaScript lives under `engine/js/player`, `engine/js/events
 
 ## Versioning
 
-The application version is `major.build`. The major value is repository-controlled. GitHub Actions supplies `<run-number>-<run-attempt>` as the build identifier and injects deployment configuration such as the optional `CLARITY_PROJECT_ID` repository variable. Source pages retain development placeholders; the deployment build writes production values into the generated output.
+The application version is `major.build`. The major value is repository-controlled. GitHub Actions supplies `<run-number>-<run-attempt>` as the build identifier and injects optional analytics configuration through the `CLARITY_PROJECT_ID` and `GA_MEASUREMENT_ID` repository variables. Source pages retain development placeholders; the deployment build validates and writes production values into the generated output. An absent variable keeps that provider disabled.
 
 `version-history.json` remains the compact, source-controlled release narrative shown in About. Git history and the immutable Pages deployment record provide the detailed troubleshooting trail. Automating release-message additions is a separate enhancement; the deployment workflow does not modify the source branch.
 

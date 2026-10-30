@@ -13,7 +13,9 @@ const sources = [
   'js/events/event-schema.js',
   'js/events/profile-analytics.js',
   'js/events/event-bus.js',
+  'js/events/analytics-event-map.js',
   'js/events/clarity-adapter.js',
+  'js/events/google-analytics-adapter.js',
   'js/shared/about-dialog.js',
   'js/docs/viewer.js'
 ];

@@ -1,13 +1,13 @@
 # Profiles and first use
 
 **Status:** Current  
-**Last updated:** 1 October 2026
+**Last updated:** 30 October 2026
 
 ## First visit
 
 Gitaverse requires a profile; there is no guest route. On first use, the person enters a name, exact date of birth, optional gender, mandatory app language, preferred Gita content language, optional profile photo, and whether the profile should open automatically on this device. App language has no preselected value. Choosing it initially suggests the same content language, but the two choices remain independent.
 
-The form states: “We collect anonymised information to improve the product experience.” It is informational, not an analytics opt-in. Names, dates of birth, and photos remain local and are masked from Clarity.
+Analytics is informational rather than an opt-in and no notice interrupts profile creation. An **Anonymous usage** link in the landing footer lets the person read what Microsoft Clarity and Google Analytics measure and what is excluded. Names, exact dates of birth, photos and private content remain local; profile surfaces are masked from Clarity.
 
 ## Returning visits
 
@@ -19,6 +19,6 @@ After profile selection, Gitaverse either resumes the saved location or opens ex
 
 ## Profile identity
 
-Each device assigns an incremental numeric `pid`. Analytics uses an anonymous device/profile-derived identifier rather than the person’s name. Age is converted to a band at analytics time; under-13 ages are reported as unknown, and invalid or missing dates use the missing band.
+Each device assigns an incremental numeric `pid`. The event bus may use local identity to update resume and Diksoochi state, but analytics adapters do not transmit the local PID or anonymous profile identifier. Clarity receives age only as a band; Google Analytics does not receive age or gender. Under-13 ages become unknown, and invalid or missing dates use the missing band.
 
 See [Profiles and local storage](../system/profiles-and-local-storage.md) and [Events, analytics and resume](../system/events-analytics-and-resume.md).

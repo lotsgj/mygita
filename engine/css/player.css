@@ -186,10 +186,9 @@
   .profile-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
   .check-row { display: flex; align-items: flex-start; gap: 10px; margin-top: 15px; color: var(--muted); font-size: 11px; line-height: 1.45; }
   .check-row input { margin-top: 2px; accent-color: var(--saffron); }
-  .analytics-notice {
-    margin: 15px 0 0; padding: 11px 13px; border-radius: 11px;
-    background: var(--indigo-soft); color: var(--muted); font-size: 11px; line-height: 1.45;
-  }
+  .analytics-info-copy { color: var(--muted); font-size: 13px; line-height: 1.65; }
+  .analytics-info-copy p { margin: 0 0 14px; }
+  .analytics-info-copy p:last-child { margin-bottom: 0; }
   .form-error { min-height: 20px; margin-top: 10px; color: #a64032; font-size: 12px; }
   .profile-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
   .primary-button, .secondary-button, .quiet-button, .add-profile-button {

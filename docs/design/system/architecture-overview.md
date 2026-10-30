@@ -32,7 +32,7 @@ The active application has no dependency on the archived `x` directory. Deployme
 
 ## Typography
 
-The player bundles variable Noto Sans fonts for Latin, Devanagari and Kannada. One CSS family selects the appropriate script face by Unicode range, and rendered verse fields carry `sa`, `en` or `kn` language metadata. All player surfaces use this family; Rachana retains its independent documentation typography. A build script embeds the font data in the player font stylesheet so HTTPS, installed PWA and `file://` mode render identically. The generated stylesheet is part of the offline shell; source fonts and SIL Open Font License notices remain deployment assets without being cached a second time.
+The player bundles variable Noto Sans fonts for Latin, Devanagari and Kannada. Each script has a distinct CSS family, and rendered verse fields carry `sa`, `en` or `kn` language metadata that orders the appropriate family first. Kannada Vedic accent marks are deliberately assigned to the Kannada face so Android and installed PWAs shape each base letter and its combining marks together; the Devanagari face remains the fallback for Vedic signs absent from the Kannada font. All player surfaces use these Noto Sans stacks; Rachana retains its independent documentation typography. A build script embeds the font data in the player font stylesheet so HTTPS, installed PWA and `file://` mode render identically. The generated stylesheet is part of the offline shell; source fonts and SIL Open Font License notices remain deployment assets without being cached a second time.
 
 ## Extension points
 

@@ -45,6 +45,7 @@ jobs:
         env:
           VERSES_BUILD_ID: ${{ github.run_number }}-${{ github.run_attempt }}
           CLARITY_PROJECT_ID: ${{ vars.CLARITY_PROJECT_ID }}
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
         run: pnpm run build:mygita
 
       - name: Build regression fixtures

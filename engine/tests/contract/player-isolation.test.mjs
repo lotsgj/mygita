@@ -15,6 +15,8 @@ const yogaRendererStyles = await readFile(new URL('../../css/renderers/gita-yoga
 const saraRendererStyles = await readFile(new URL('../../css/renderers/gita-sara.css', import.meta.url), 'utf8');
 const fontBuilder = await readFile(new URL('../../scripts/build-font-css.mjs', import.meta.url), 'utf8');
 const serviceWorker = await readFile(new URL('../../service-worker.js', import.meta.url), 'utf8');
+const analyticsMap = await readFile(new URL('../../js/events/analytics-event-map.js', import.meta.url), 'utf8');
+const googleAnalytics = await readFile(new URL('../../js/events/google-analytics-adapter.js', import.meta.url), 'utf8');
 
 test('the collection player is isolated from the legacy master and legacy media paths', () => {
   const combined = player + '\n' + core;
@@ -74,10 +76,26 @@ test('the player uses the bundled Noto Sans family for every supported script', 
   assert.doesNotMatch(playerStyles + editorStyles + rendererStyles + yogaRendererStyles + saraRendererStyles, namedLegacyFonts);
   assert.equal((fonts.match(/data:font\/ttf;base64,/g) || []).length, 3);
   assert.match(fontBuilder, /U\+0000-024F, U\+0300-036F, U\+1E00-1EFF/);
+  assert.match(fontBuilder, /Gitaverse Noto Sans Kannada/);
+  assert.match(fontBuilder, /U\+0C80-0CFF, U\+0951-0952, U\+1CDA/);
   assert.match(fonts, /unicode-range: U\+0000-024F, U\+0300-036F, U\+1E00-1EFF/);
+  assert.match(fonts, /font-family: "Gitaverse Noto Sans Kannada"/);
+  assert.match(fonts, /unicode-range: U\+0C80-0CFF, U\+0951-0952, U\+1CDA/);
+  assert.match(fonts, /:lang\(kn\)[\s\S]*font-family: var\(--font-sans-kannada\)/);
   assert.match(playerStyles, /var\(--font-sans, sans-serif\)/);
   assert.match(rendererStyles, /var\(--font-sans, sans-serif\)/);
   assert.match(yogaRendererStyles, /gita-yoga/);
   assert.match(saraRendererStyles, /gita-sara/);
   assert.match(deployment, /scripts\/build-font-css\.mjs/);
+});
+
+test('Clarity and Google Analytics share one privacy projection and GA uses manual page views', () => {
+  assert.match(core, /GoogleAnalyticsAdapter/);
+  assert.match(player, /meta name="ga-measurement-id" content=""/);
+  assert.match(googleAnalytics, /googleAnalyticsParameters/);
+  assert.match(googleAnalytics, /send_page_view:\s*false/);
+  assert.match(googleAnalytics, /allow_google_signals:\s*false/);
+  assert.match(googleAnalytics, /allow_ad_personalization_signals:\s*false/);
+  assert.match(analyticsMap, /const \{ age_band, gender_group, \.\.\.parameters \}/);
+  assert.doesNotMatch(googleAnalytics, /anonymousProfileId|profileId|privateNote/);
 });

@@ -900,7 +900,82 @@ class EventBus {
 }
 
 
+// Source: js/events/analytics-event-map.js
+const DIRECT_EVENTS = new Set([
+  'app_opened', 'profile_created', 'profile_selected', 'profile_updated', 'profile_switched',
+  'experience_selected', 'language_changed', 'home_opened', 'data_load_failed', 'profile_storage_failed',
+  'pwa_update_available', 'pwa_update_accepted', 'pwa_update_dismissed', 'pwa_update_completed', 'pwa_update_failed',
+  'verse_viewed', 'verse_engaged_10s', 'verse_engaged_30s', 'verse_engaged_60s',
+  'audio_started', 'audio_resumed', 'audio_paused', 'audio_seeked', 'audio_25', 'audio_50',
+  'audio_75', 'audio_completed', 'audio_failed', 'gita_sara_view_changed',
+  'rachana_opened', 'rachana_page_viewed', 'rachana_navigation_opened', 'rachana_profile_selected',
+  'rachana_about_opened', 'rachana_gitaverse_opened', 'rachana_document_failed'
+]);
+
+const LOCATION_EVENTS = {
+  next: 'next_verse', previous: 'previous_verse', swipe: 'verse_swiped', goto: 'goto_verse',
+  chapter: 'chapter_selected', resume: 'experience_resumed'
+};
+
+function present(value) { return value == null || value === '' ? undefined : value; }
+function compact(values) { return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)); }
+
+function clarityEventName(event) {
+  if (event.event === 'location_changed') return LOCATION_EVENTS[event.details.source] || null;
+  return DIRECT_EVENTS.has(event.event) ? event.event : null;
+}
+
+function analyticsParameters(event) {
+  const parameters = {
+    age_band: present(event.context.ageBand), gender_group: present(event.context.genderGroup),
+    interface_language: present(event.context.profileLanguage), content_language: present(event.context.language),
+    product: present(event.context.distribution), experience: present(event.context.experience),
+    collection: present(event.context.collection), verse_id: present(event.context.sid), chapter_id: present(event.context.chapter),
+    app_version: present(event.context.appVersion), display_mode: present(event.context.displayMode),
+    surface: present(event.context.surface), documentation_page: present(event.context.documentationPage)
+  };
+  if (event.event === 'location_changed') parameters.navigation_source = present(event.details.source);
+  if (event.event.startsWith('pwa_update_')) {
+    parameters.update_from_version = present(event.details.fromVersion);
+    parameters.update_to_version = present(event.details.toVersion);
+    parameters.update_result = present(event.details.result || event.details.stage);
+  }
+  if (event.event === 'gita_sara_view_changed') parameters.view = present(event.details.view);
+  const engagement = event.event.match(/^verse_engaged_(10|30|60)s$/);
+  if (engagement) parameters.engagement_seconds = Number(engagement[1]);
+  const audioProgress = event.event.match(/^audio_(25|50|75)$/);
+  if (audioProgress) parameters.progress_percent = Number(audioProgress[1]);
+  if (event.event.startsWith('profile_') || event.event === 'rachana_profile_selected') parameters.profile_action = event.event;
+  if (['data_load_failed', 'profile_storage_failed', 'audio_failed', 'rachana_document_failed'].includes(event.event)) parameters.error_type = event.event;
+  return compact(parameters);
+}
+
+function googleAnalyticsParameters(event) {
+  const { age_band, gender_group, ...parameters } = analyticsParameters(event);
+  return parameters;
+}
+
+function googleAnalyticsEventName(event) {
+  if (event.event === 'location_changed') return 'verse_navigated';
+  if (event.event.startsWith('profile_') || event.event === 'rachana_profile_selected') return 'profile_action';
+  if (event.event.startsWith('pwa_update_')) return 'pwa_update';
+  if (/^verse_engaged_(10|30|60)s$/.test(event.event)) return 'verse_engaged';
+  if (/^audio_(25|50|75)$/.test(event.event)) return 'audio_progress';
+  if (['data_load_failed', 'profile_storage_failed', 'audio_failed', 'rachana_document_failed'].includes(event.event)) return 'app_error';
+  if (event.event === 'rachana_page_viewed') return null;
+  return DIRECT_EVENTS.has(event.event) ? event.event : null;
+}
+
+function analyticsPage(event) {
+  if (event.event === 'home_opened') return { path: '/home', title: 'MyGita Home' };
+  if (event.event === 'experience_selected' && event.context.experience) return { path: `/experience/${encodeURIComponent(event.context.experience)}`, title: `MyGita · ${event.context.experience}` };
+  if (event.event === 'rachana_page_viewed' && event.context.documentationPage) return { path: `/rachana/${encodeURIComponent(event.context.documentationPage)}`, title: `Rachana · ${event.context.documentationPage}` };
+  return null;
+}
+
+
 // Source: js/events/clarity-adapter.js
+
 class ClarityAdapter {
   constructor({ projectId = '', target = globalThis, documentRef = globalThis.document } = {}) {
     this.id = 'clarity';
@@ -945,16 +1020,13 @@ class ClarityAdapter {
 
   handle(event) {
     this.start();
+    const projected = analyticsParameters(event);
     const tags = {
-      age_band: event.context.ageBand,
-      gender_group: event.context.genderGroup,
-      profile_language: event.context.profileLanguage,
-      experience: event.context.experience,
-      content_language: event.context.language,
-      app_version: event.context.appVersion,
-      display_mode: event.context.displayMode,
-      surface: event.context.surface,
-      rachana_page: event.context.documentationPage
+      age_band: projected.age_band, gender_group: projected.gender_group,
+      profile_language: projected.interface_language, experience: projected.experience,
+      content_language: projected.content_language, app_version: projected.app_version,
+      display_mode: projected.display_mode, surface: projected.surface,
+      rachana_page: projected.documentation_page
     };
     Object.entries(tags).forEach(([key, value]) => this.setTag(key, value));
     if (event.event.startsWith('pwa_update_')) {
@@ -969,22 +1041,61 @@ class ClarityAdapter {
   }
 
   eventName(event) {
-    if (event.event === 'location_changed') {
-      const sourceEvents = { next: 'next_verse', previous: 'previous_verse', swipe: 'verse_swiped', goto: 'goto_verse', chapter: 'chapter_selected', resume: 'experience_resumed' };
-      return sourceEvents[event.details.source] || null;
+    return clarityEventName(event);
+  }
+}
+
+
+// Source: js/events/google-analytics-adapter.js
+
+class GoogleAnalyticsAdapter {
+  constructor({ measurementId = '', target = globalThis, documentRef = globalThis.document, locationRef = globalThis.location } = {}) {
+    this.id = 'google-analytics';
+    this.measurementId = String(measurementId || '').trim();
+    this.target = target;
+    this.document = documentRef;
+    this.location = locationRef;
+    this.enabled = /^G-[A-Z0-9]+$/i.test(this.measurementId);
+    this.started = false;
+  }
+
+  accepts(event) {
+    return this.enabled && Boolean(googleAnalyticsEventName(event) || analyticsPage(event));
+  }
+
+  initialize({ appVersion, displayMode }) {
+    if (!this.enabled || this.started) return;
+    this.started = true;
+    const dataLayer = this.target.dataLayer = this.target.dataLayer || [];
+    this.target.gtag = this.target.gtag || function googleTagQueue() { dataLayer.push(arguments); };
+    this.target.gtag('js', new Date());
+    this.target.gtag('config', this.measurementId, {
+      send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false,
+      app_version: appVersion, display_mode: displayMode
+    });
+    if (!this.document?.querySelector(`script[data-ga-measurement-id="${this.measurementId}"]`)) {
+      const script = this.document.createElement('script');
+      script.async = true;
+      script.dataset.gaMeasurementId = this.measurementId;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(this.measurementId)}`;
+      this.document.head.appendChild(script);
     }
-    const allowed = new Set([
-      'app_opened', 'profile_created', 'profile_selected', 'profile_updated', 'profile_switched',
-      'experience_selected', 'language_changed', 'home_opened', 'data_load_failed', 'profile_storage_failed',
-      'pwa_update_available', 'pwa_update_accepted', 'pwa_update_dismissed', 'pwa_update_completed', 'pwa_update_failed',
-      'verse_viewed', 'verse_engaged_10s', 'verse_engaged_30s', 'verse_engaged_60s',
-      'audio_started', 'audio_resumed', 'audio_paused', 'audio_seeked', 'audio_25', 'audio_50',
-      'audio_75', 'audio_completed', 'audio_failed',
-      'gita_sara_view_changed',
-      'rachana_opened', 'rachana_page_viewed', 'rachana_navigation_opened', 'rachana_profile_selected',
-      'rachana_about_opened', 'rachana_gitaverse_opened', 'rachana_document_failed'
-    ]);
-    return allowed.has(event.event) ? event.event : null;
+  }
+
+  handle(event) {
+    this.initialize({ appVersion: event.context.appVersion, displayMode: event.context.displayMode });
+    const parameters = googleAnalyticsParameters(event);
+    const eventName = googleAnalyticsEventName(event);
+    if (eventName) this.target.gtag('event', eventName, parameters);
+    const page = analyticsPage(event);
+    if (page) this.target.gtag('event', 'page_view', {
+      ...parameters, page_title: page.title, page_location: this.pageLocation(page.path)
+    });
+  }
+
+  pageLocation(path) {
+    const origin = /^https?:$/.test(this.location?.protocol || '') ? this.location.origin : 'https://mygita.gitajyoti.org';
+    return new URL(path, origin).href;
   }
 }
 
@@ -1165,6 +1276,7 @@ class AboutDialog {
 
 
 
+
 const DOCUMENT_ROOT = 'docs/';
 const article = document.getElementById('docs-article');
 const nav = document.getElementById('docs-nav');
@@ -1173,6 +1285,7 @@ const scrim = document.getElementById('docs-nav-scrim');
 const folderInput = document.getElementById('docs-folder-input');
 const appVersion = document.querySelector('meta[name="app-version"]')?.content || 'dev';
 const clarityProjectId = document.querySelector('meta[name="clarity-project-id"]')?.content || '';
+const gaMeasurementId = document.querySelector('meta[name="ga-measurement-id"]')?.content || '';
 let manifest;
 let entries = [];
 let activeRoute = '';
@@ -1187,8 +1300,11 @@ const eventBus = new EventBus({
   contextProvider: () => ({ surface: 'rachana', documentationPage: activeRoute || 'unavailable', displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' })
 });
 const clarityAdapter = new ClarityAdapter({ projectId: clarityProjectId });
+const googleAnalyticsAdapter = new GoogleAnalyticsAdapter({ measurementId: gaMeasurementId });
 eventBus.subscribe(clarityAdapter);
+eventBus.subscribe(googleAnalyticsAdapter);
 clarityAdapter.initialize({ appVersion, displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' });
+googleAnalyticsAdapter.initialize({ appVersion, displayMode: matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser' });
 
 function emitRachanaEvent(name, details = {}) {
   return eventBus.emit(name, {

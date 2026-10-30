@@ -411,9 +411,13 @@ async function run() {
 
     await page.goto(`${base}/player.html?play=gita-700&sid=6.7&lang=kn&pid=1`, { waitUntil: 'networkidle' });
     await page.evaluate(() => document.fonts.ready);
-    for (const sample of ['Gitaverse', 'श्रीमद्भगवद्गीता', 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ']) {
-      await page.evaluate((text) => document.fonts.load('16px "Gitaverse Noto Sans"', text), sample);
-      assert.equal(await page.evaluate((text) => document.fonts.check('16px "Gitaverse Noto Sans"', text), sample), true, `Noto Sans must load for ${sample}`);
+    for (const { family, sample } of [
+      { family: 'Gitaverse Noto Sans Latin', sample: 'Gitaverse' },
+      { family: 'Gitaverse Noto Sans Devanagari', sample: 'श्रीमद्भगवद्गीता' },
+      { family: 'Gitaverse Noto Sans Kannada', sample: 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ' }
+    ]) {
+      await page.evaluate(({ family, sample }) => document.fonts.load(`16px "${family}"`, sample), { family, sample });
+      assert.equal(await page.evaluate(({ family, sample }) => document.fonts.check(`16px "${family}"`, sample), { family, sample }), true, `Noto Sans must load for ${sample}`);
     }
     assert.match(await page.locator('body').evaluate((element) => getComputedStyle(element).fontFamily), /Gitaverse Noto Sans/);
     assert.equal(await page.locator('#sid-label').innerText(), '6.7');
@@ -806,15 +810,25 @@ async function run() {
     fileContext.setDefaultTimeout(15000);
     fileContext.setDefaultNavigationTimeout(20000);
     const filePage = await fileContext.newPage();
+    const fileRuntimeErrors = [];
+    filePage.on('pageerror', (error) => fileRuntimeErrors.push(error.stack || error.message));
+    filePage.on('console', (message) => { if (message.type() === 'error') fileRuntimeErrors.push(message.text()); });
     console.log('CHECK: file-mode harness');
     const fileUrl = pathToFileURL(path.join(process.env.VERSES_ENGINE_ROOT || path.resolve(root, '../../engine'), 'index.html')).href + '?play=gita-700&sid=6.7';
     await filePage.goto(fileUrl, { waitUntil: 'domcontentloaded' });
     await filePage.evaluate(() => document.fonts.ready);
-    await filePage.evaluate(() => document.fonts.load('16px "Gitaverse Noto Sans"', 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ'));
-    assert.equal(await filePage.evaluate(() => document.fonts.check('16px "Gitaverse Noto Sans"', 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ')), true, 'file mode must load bundled Noto Sans');
+    await filePage.evaluate(() => document.fonts.load('16px "Gitaverse Noto Sans Kannada"', 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ'));
+    assert.equal(await filePage.evaluate(() => document.fonts.check('16px "Gitaverse Noto Sans Kannada"', 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ')), true, 'file mode must load bundled Noto Sans Kannada');
     assert.equal(await filePage.locator('#distribution-chooser').isVisible(), true, 'the local engine asks for distribution data before profile setup');
     assert.equal(await filePage.locator('#profile-setup').isHidden(), true, 'profile setup is unavailable before a distribution is selected');
     await filePage.locator('#distribution-folder-input').setInputFiles(productsRoot);
+    try {
+      await filePage.waitForFunction(() => !document.querySelector('#profile-setup')?.hidden || Boolean(document.querySelector('#distribution-folder-error')?.textContent));
+    } catch (error) {
+      const visible = await filePage.locator('body > section:not([hidden]), body > main:not([hidden]), #app:not([hidden]), #error-view:not([hidden])').evaluateAll((elements) => elements.map((element) => `${element.id || element.tagName}:${element.textContent.trim().slice(0, 180)}`));
+      throw new Error(`file mode did not reach profile setup: ${visible.join(' | ')}; runtime errors: ${fileRuntimeErrors.join(' | ')}`, { cause: error });
+    }
+    assert.equal(await filePage.locator('#distribution-folder-error').innerText(), '', `file-mode products must load without an error: ${fileRuntimeErrors.join(' | ')}`);
     await createProfile(filePage, 'File Regression', { expectHome: false });
     console.log('CHECK: file-mode distribution selected and profile created');
     await filePage.locator('#sid-label').waitFor();
