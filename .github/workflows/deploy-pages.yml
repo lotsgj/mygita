@@ -21,6 +21,9 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7
 
+      - name: Check out media
+        run: git clone --depth 1 https://github.com/lotsgj/media.git ../media
+
       - name: Install pnpm
         uses: pnpm/action-setup@v6
         with:
