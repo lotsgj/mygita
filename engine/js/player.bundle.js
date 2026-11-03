@@ -1741,26 +1741,51 @@ class AboutDialog {
   }
 }
 
-// Source: js/media-source.js
-const MEDIA_SCHEMA_VERSION = 1;
+// Source: js/media-contract.js
+const MEDIA_NAMESPACES = Object.freeze(['book', 'audio', 'image', 'video', 'deck', 'docs']);
+const CURRENT_MEDIA_SCHEMA_VERSION = 2;
+
+const NAMESPACE_SET = new Set(MEDIA_NAMESPACES);
 
 function safeMediaPath(value) {
-  const path = String(value || '').trim().replace(/\\/g, '/');
-  if (!path || path.startsWith('/') || path.includes('://')) throw new Error(`Invalid media path: ${path || '(empty)'}.`);
+  const path = String(value || '').trim();
+  if (!path || path.startsWith('/') || path.includes('://') || path.includes('\\')) {
+    throw new Error(`Invalid logical media path: ${path || '(empty)'}.`);
+  }
   const parts = path.split('/');
-  if (parts.some((part) => !part || part === '.' || part === '..')) throw new Error(`Invalid media path: ${path}.`);
+  if (parts.some((part) => !part || part === '.' || part === '..')) throw new Error(`Invalid logical media path: ${path}.`);
+  if (!NAMESPACE_SET.has(parts[0])) throw new Error(`Unsupported media namespace in ${path}.`);
   return parts.join('/');
 }
 
-function validateSchema(record, label) {
-  if (!record || Number(record.schema_version) !== MEDIA_SCHEMA_VERSION) {
-    throw new Error(`${label} requires schema_version ${MEDIA_SCHEMA_VERSION}.`);
-  }
-  return record;
+function isLogicalMediaPath(value) {
+  try { safeMediaPath(value); return true; } catch { return false; }
 }
 
-function validateMediaCatalog(catalog) {
-  validateSchema(catalog, 'Media catalog');
+function normalizedRemoteRoot(value, label = 'Media mount') {
+  const url = new URL(String(value || ''));
+  const localhost = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && localhost)) {
+    throw new Error(`${label} remote must use HTTPS (HTTP is allowed only for localhost).`);
+  }
+  return url.href.endsWith('/') ? url.href : `${url.href}/`;
+}
+
+function validatePrefix(value) {
+  const prefix = String(value || '').trim();
+  if (!prefix || !prefix.endsWith('/')) throw new Error('Media mount prefix must be non-empty and end with /.');
+  safeMediaPath(prefix.slice(0, -1));
+  return prefix;
+}
+
+function validateLocalFolder(value) {
+  const local = String(value || '').trim();
+  if (!/^[^/\\.][^/\\]*$/.test(local) || local === '..') throw new Error(`Media mount local must name one folder: ${local || '(empty)'}.`);
+  return local;
+}
+
+function normalizeMediaCatalog(catalog, { catalogRoot = '' } = {}) {
+  if (!catalog || ![1, 2].includes(Number(catalog.schema_version))) throw new Error('Media catalog requires schema_version 1 or 2.');
   if (!String(catalog.content_version || '').trim()) throw new Error('Media catalog requires content_version.');
   if (!Array.isArray(catalog.books) || !catalog.books.length) throw new Error('Media catalog requires at least one book.');
   const ids = new Set();
@@ -1770,19 +1795,52 @@ function validateMediaCatalog(catalog) {
     ids.add(id);
     safeMediaPath(book.manifest);
   });
-  return catalog;
+  let mounts;
+  if (Number(catalog.schema_version) === 1) {
+    if (!catalogRoot) throw new Error('Schema 1 media catalogs require a catalog root.');
+    mounts = MEDIA_NAMESPACES.map((namespace) => ({ prefix: `${namespace}/`, remote: normalizedRemoteRoot(catalogRoot, 'Schema 1 catalog root'), local: 'media' }));
+  } else {
+    if (!Array.isArray(catalog.mounts) || !catalog.mounts.length) throw new Error('Schema 2 media catalog requires mounts.');
+    const prefixes = new Set();
+    mounts = catalog.mounts.map((mount) => {
+      const prefix = validatePrefix(mount?.prefix);
+      if (prefixes.has(prefix)) throw new Error(`Duplicate media mount prefix: ${prefix}.`);
+      prefixes.add(prefix);
+      return { prefix, remote: normalizedRemoteRoot(mount?.remote, `Media mount ${prefix}`), local: validateLocalFolder(mount?.local) };
+    });
+  }
+  return Object.freeze({ ...catalog, mounts: Object.freeze(mounts.sort((a, b) => b.prefix.length - a.prefix.length)) });
+}
+
+function selectMediaMount(catalog, logicalPath) {
+  const path = safeMediaPath(logicalPath);
+  const mount = catalog?.mounts?.find((candidate) => path.startsWith(candidate.prefix));
+  if (!mount) throw new Error(`No media mount resolves ${path}.`);
+  return mount;
+}
+
+function resolveRemoteMediaUrl(catalog, logicalPath, contentVersion = catalog?.content_version) {
+  const path = safeMediaPath(logicalPath);
+  const url = new URL(path, selectMediaMount(catalog, path).remote);
+  url.searchParams.set('v', String(contentVersion || ''));
+  url.searchParams.set('mgp', path);
+  return url.href;
+}
+
+function mediaCacheKey(logicalPath, contentVersion) {
+  return `${String(contentVersion || '').trim()}:${safeMediaPath(logicalPath)}`;
 }
 
 function validateBookManifest(manifest, expectedBookId = '') {
-  validateSchema(manifest, 'Book manifest');
+  if (!manifest || ![1, 2].includes(Number(manifest.schema_version))) throw new Error('Book manifest requires schema_version 1 or 2.');
   const id = String(manifest.book_id || '').trim();
   if (!id) throw new Error('Book manifest requires book_id.');
   if (expectedBookId && id !== expectedBookId) throw new Error(`Book manifest ${id} does not match catalog book_id ${expectedBookId}.`);
   if (!String(manifest.content_version || '').trim()) throw new Error(`Book manifest ${id} requires content_version.`);
-  const files = new Set((manifest.files || []).map(safeMediaPath));
+  const declared = new Set((manifest.files || []).map(safeMediaPath));
   const requireDeclared = (value, label) => {
     const path = safeMediaPath(value);
-    if (!files.has(path)) throw new Error(`Book manifest ${id} does not declare ${label}: ${path}.`);
+    if (declared.size && !declared.has(path)) throw new Error(`Book manifest ${id} does not declare ${label}: ${path}.`);
     return path;
   };
   requireDeclared(manifest.verses?.catalog, 'verse catalog');
@@ -1797,54 +1855,69 @@ function validateBookManifest(manifest, expectedBookId = '') {
   return manifest;
 }
 
+function validateDeckDescriptor(descriptor) {
+  if (!descriptor || Number(descriptor.schema_version) !== 2) throw new Error('Deck descriptor requires schema_version 2.');
+  if (descriptor.provider !== 'google-slides') throw new Error(`Unsupported deck provider: ${descriptor.provider || '(empty)'}.`);
+  const source = new URL(String(descriptor.source || ''));
+  if (source.protocol !== 'https:' || source.hostname !== 'docs.google.com') throw new Error('Google deck source must be an HTTPS docs.google.com URL.');
+  return descriptor;
+}
+
+// Source: js/media-source.js
+function validateMediaCatalog(catalog, options) { return normalizeMediaCatalog(catalog, options); }
+
 function normalizeRootUrl(rootUrl) {
   const url = new URL(String(rootUrl || ''));
   if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Remote media root must use HTTP or HTTPS.');
   return url.href.endsWith('/') ? url.href : `${url.href}/`;
+}
+function parseJson(text, path) {
+  try { return JSON.parse(text); } catch (error) { throw new Error(`Media file ${path} is not valid JSON (${error.message}; received ${JSON.stringify(String(text).slice(0, 80))}).`); }
 }
 
 class RemoteMediaSource {
   constructor({ rootUrl, catalogPath = 'catalog.json', fetchImpl = globalThis.fetch?.bind(globalThis), maxAgeMs = 300000 } = {}) {
     if (typeof fetchImpl !== 'function') throw new Error('Remote media source requires fetch.');
     this.rootUrl = normalizeRootUrl(rootUrl);
-    this.catalogPath = safeMediaPath(catalogPath);
+    this.catalogPath = String(catalogPath || 'catalog.json').trim();
     this.fetchImpl = fetchImpl;
     this.maxAgeMs = maxAgeMs;
     this.loadedAt = 0;
     this.catalog = null;
     this.books = new Map();
   }
-
   get label() { return this.rootUrl; }
   get needsRefresh() { return Boolean(this.loadedAt && Date.now() - this.loadedAt >= this.maxAgeMs); }
-  resolve(path) { return new URL(safeMediaPath(path), this.rootUrl).href; }
-  resolveMedia(pathOrUrl) {
-    const value = String(pathOrUrl || '').trim();
-    if (/^https:\/\//i.test(value)) return value;
-    return this.resolve(value);
+  catalogUrl() {
+    const url = new URL(this.catalogPath, this.rootUrl);
+    url.searchParams.set('mgc', '1');
+    url.searchParams.set('check', String(Date.now()));
+    return url.href;
   }
-
-  async readText(path, { cache = 'no-store' } = {}) {
-    const response = await this.fetchImpl(this.resolve(path), { cache });
+  resolve(path) {
+    if (!this.catalog) throw new Error('Load the media catalog before resolving media.');
+    return resolveRemoteMediaUrl(this.catalog, path);
+  }
+  resolveMedia(path) { return this.resolve(path); }
+  async fetchText(url, path, options = {}) {
+    const response = await this.fetchImpl(url, options);
     if (!response?.ok) throw new Error(`Unable to load media file ${path} (${response?.status || 'network error'}).`);
     return response.text();
   }
-
-  async readJson(path, options) {
-    const text = await this.readText(path, options);
-    try { return JSON.parse(text); } catch { throw new Error(`Media file ${path} is not valid JSON.`); }
+  async readText(path) {
+    const logical = safeMediaPath(path);
+    return this.fetchText(this.resolve(logical), logical, { cache: 'default' });
   }
-
+  async readJson(path) { return parseJson(await this.readText(path), path); }
   async loadCatalog({ refresh = false } = {}) {
     const stale = this.catalog && Date.now() - this.loadedAt >= this.maxAgeMs;
-    if (!refresh && this.catalog && !stale) return this.catalog;
     const previousVersion = this.catalog?.content_version;
-    this.catalog = validateMediaCatalog(await this.readJson(this.catalogPath));
+    const raw = parseJson(await this.fetchText(this.catalogUrl(), this.catalogPath, { cache: 'no-store' }), this.catalogPath);
+    this.catalog = normalizeMediaCatalog(raw, { catalogRoot: this.rootUrl });
     this.loadedAt = Date.now();
     if (refresh || stale || (previousVersion && previousVersion !== this.catalog.content_version)) this.books.clear();
     return this.catalog;
   }
-
   async loadBook(bookId, { refresh = false } = {}) {
     const id = String(bookId || '').trim();
     const catalog = await this.loadCatalog({ refresh });
@@ -1868,36 +1941,30 @@ function selectedMediaFiles(fileList) {
     const path = rootPrefix && original.startsWith(rootPrefix) ? original.slice(rootPrefix.length) : original;
     files.set(path, file);
   }
-  return files;
+  return { files, rootName: rootPrefix.replace(/\/$/, '').split('/').at(-1) || 'media' };
 }
 
-class FilesMediaSource {
-  constructor({ fileList, catalogPath = 'catalog.json', createObjectUrl = (file) => URL.createObjectURL(file), revokeObjectUrl = (url) => URL.revokeObjectURL(url) } = {}) {
-    this.files = selectedMediaFiles(fileList);
-    if (!this.files.has(catalogPath)) throw new Error('The selected folder is missing catalog.json.');
-    this.catalogPath = safeMediaPath(catalogPath);
+class LocalMediaSource {
+  constructor({ catalogPath = 'catalog.json', createObjectUrl = (file) => URL.createObjectURL(file), revokeObjectUrl = (url) => URL.revokeObjectURL(url) } = {}) {
+    this.catalogPath = String(catalogPath || 'catalog.json').trim();
     this.createObjectUrl = createObjectUrl;
     this.revokeObjectUrl = revokeObjectUrl;
     this.objectUrls = new Map();
     this.catalog = null;
     this.books = new Map();
   }
-  get label() { return 'media'; }
   get needsRefresh() { return false; }
-  async readFile(path) {
-    const safe = safeMediaPath(path);
-    const file = this.files.get(safe);
-    if (!file) throw new Error(`The selected media folder is missing ${safe}.`);
-    return file;
+  assertLocalMount(path) {
+    if (!this.catalog) return;
+    const mount = selectMediaMount(this.catalog, path);
+    if (mount.local !== this.rootName) throw new Error(`Media path ${path} requires local folder "${mount.local}"; selected "${this.rootName}".`);
   }
   async readText(path) { return (await this.readFile(path)).text(); }
-  async readJson(path) {
-    const text = await this.readText(path);
-    try { return JSON.parse(text); } catch { throw new Error(`Media file ${path} is not valid JSON.`); }
-  }
+  async readJson(path) { return parseJson(await this.readText(path), path); }
   async loadCatalog({ refresh = false } = {}) {
     if (!refresh && this.catalog) return this.catalog;
-    this.catalog = validateMediaCatalog(await this.readJson(this.catalogPath));
+    const raw = parseJson(await (await this.readCatalogFile()).text(), this.catalogPath);
+    this.catalog = normalizeMediaCatalog(raw, { catalogRoot: 'https://schema1.invalid/' });
     if (refresh) this.books.clear();
     return this.catalog;
   }
@@ -1910,12 +1977,10 @@ class FilesMediaSource {
     this.books.set(id, manifest);
     return manifest;
   }
-  async resolveMedia(pathOrUrl) {
-    const value = String(pathOrUrl || '').trim();
-    if (/^https:\/\//i.test(value)) return value;
-    const path = safeMediaPath(value);
-    if (!this.objectUrls.has(path)) this.objectUrls.set(path, this.createObjectUrl(await this.readFile(path)));
-    return this.objectUrls.get(path);
+  async resolveMedia(path) {
+    const logical = safeMediaPath(path);
+    if (!this.objectUrls.has(logical)) this.objectUrls.set(logical, this.createObjectUrl(await this.readFile(logical)));
+    return this.objectUrls.get(logical);
   }
   release() {
     this.objectUrls.forEach((url) => this.revokeObjectUrl(url));
@@ -1923,66 +1988,47 @@ class FilesMediaSource {
   }
 }
 
+class FilesMediaSource extends LocalMediaSource {
+  constructor({ fileList, ...options } = {}) {
+    super(options);
+    const selected = selectedMediaFiles(fileList);
+    this.files = selected.files;
+    this.rootName = selected.rootName;
+    if (!this.files.has(this.catalogPath)) throw new Error('The selected folder is missing catalog.json.');
+  }
+  get label() { return this.rootName; }
+  async readCatalogFile() { return this.files.get(this.catalogPath); }
+  async readFile(path) {
+    const logical = safeMediaPath(path);
+    this.assertLocalMount(logical);
+    const file = this.files.get(logical);
+    if (!file) throw new Error(`The selected media folder is missing ${logical}.`);
+    return file;
+  }
+}
+
 async function directoryFile(root, path) {
-  const parts = safeMediaPath(path).split('/');
+  const parts = String(path).split('/');
   let directory = root;
   for (const part of parts.slice(0, -1)) directory = await directory.getDirectoryHandle(part);
   const handle = await directory.getFileHandle(parts.at(-1));
   return handle.getFile();
 }
 
-class DirectoryMediaSource {
-  constructor({ directoryHandle, catalogPath = 'catalog.json', createObjectUrl = (file) => URL.createObjectURL(file), revokeObjectUrl = (url) => URL.revokeObjectURL(url) } = {}) {
+class DirectoryMediaSource extends LocalMediaSource {
+  constructor({ directoryHandle, ...options } = {}) {
     if (!directoryHandle || directoryHandle.kind !== 'directory') throw new Error('Local media source requires a directory handle.');
+    super(options);
     this.directoryHandle = directoryHandle;
-    this.catalogPath = safeMediaPath(catalogPath);
-    this.createObjectUrl = createObjectUrl;
-    this.revokeObjectUrl = revokeObjectUrl;
-    this.objectUrls = new Map();
-    this.catalog = null;
-    this.books = new Map();
+    this.rootName = directoryHandle.name || 'media';
   }
-
-  get label() { return this.directoryHandle.name || 'media'; }
-  get needsRefresh() { return false; }
-  async readFile(path) { return directoryFile(this.directoryHandle, path); }
-  async readText(path) { return (await this.readFile(path)).text(); }
-  async readJson(path) {
-    const text = await this.readText(path);
-    try { return JSON.parse(text); } catch { throw new Error(`Media file ${path} is not valid JSON.`); }
-  }
-
-  async loadCatalog({ refresh = false } = {}) {
-    if (!refresh && this.catalog) return this.catalog;
-    this.catalog = validateMediaCatalog(await this.readJson(this.catalogPath));
-    if (refresh) this.books.clear();
-    return this.catalog;
-  }
-
-  async loadBook(bookId, { refresh = false } = {}) {
-    const id = String(bookId || '').trim();
-    if (!refresh && this.books.has(id)) return this.books.get(id);
-    const catalog = await this.loadCatalog({ refresh });
-    const entry = catalog.books.find((book) => book.book_id === id);
-    if (!entry) throw new Error(`Media catalog does not contain book ${id}.`);
-    const manifest = validateBookManifest(await this.readJson(entry.manifest), id);
-    this.books.set(id, manifest);
-    return manifest;
-  }
-
-  async resolveMedia(pathOrUrl) {
-    const value = String(pathOrUrl || '').trim();
-    if (/^https:\/\//i.test(value)) return value;
-    const path = safeMediaPath(value);
-    if (this.objectUrls.has(path)) return this.objectUrls.get(path);
-    const url = this.createObjectUrl(await this.readFile(path));
-    this.objectUrls.set(path, url);
-    return url;
-  }
-
-  release() {
-    this.objectUrls.forEach((url) => this.revokeObjectUrl(url));
-    this.objectUrls.clear();
+  get label() { return this.rootName; }
+  async readCatalogFile() { return directoryFile(this.directoryHandle, this.catalogPath); }
+  async readFile(path) {
+    const logical = safeMediaPath(path);
+    this.assertLocalMount(logical);
+    try { return await directoryFile(this.directoryHandle, logical); }
+    catch { throw new Error(`The selected media folder is missing ${logical}.`); }
   }
 }
 
@@ -2455,12 +2501,13 @@ function normalizeCollectionData({ sa, en, kn, sequence = null, audioComposition
       assets.forEach((asset, index) => {
         const compositionRow = compositionRows.find((entry) => entry.deck_collection === deckCollection && entry.deck_order === asset.order) || compositionRows[index];
         let embedUrl = '';
-        if (asset.deck_url) embedUrl = normalizeGoogleDeckUrl(asset.deck_url);
+        if (asset.provider_url) embedUrl = normalizeGoogleDeckUrl(asset.provider_url);
         deckSlots.push({
           order: Number(compositionRow?.order || index + 1),
           collectionId: deckCollection,
           catalogOrder: asset.order,
-          sourceUrl: asset.deck_url,
+          sourceUrl: asset.provider_url || asset.deck_url,
+          descriptorUrl: asset.deck_url,
           embedUrl,
           title: asset.title,
           language: asset.language,
@@ -2743,18 +2790,23 @@ async function readCollectionTextFromFiles(fileList, url) {
   return file.text();
 }
 
-async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '' }) {
+async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '', manifest = null }) {
   const table = async (url, headers = null) => parseCollectionTable(await text(url), headers, url);
   const experienceRegistry = await table(EXPERIENCE_ROOT + '/collection.csv');
   const experienceEntry = registryEntry(experienceRegistry, experienceId, 'Experience');
   const experienceCatalog = await table(experienceEntry.catalog_url, ['content_type', 'content_url']);
   const experience = JSON.parse(await text(catalogEntry(experienceCatalog, 'configuration', experienceId)));
   if (experience.id !== experienceId || experience.schemaVersion !== 1) throw new Error('Unsupported experience configuration for ' + experienceId + '.');
-  const verseRegistry = await table(COLLECTION_ROOT + '/verses/collection.csv');
+  const registryPath = (type, language = '') => {
+    if (!manifest) return `${COLLECTION_ROOT}/${type}/collection${language ? `_${language}` : ''}.csv`;
+    if (type === 'verses') return language ? manifest.registries?.verses?.localized?.[language] : manifest.registries?.verses?.structural;
+    return manifest.registries?.[type];
+  };
+  const verseRegistry = await table(registryPath('verses'));
   const configured = configuredVerseCollections(experience);
   const activeCollection = configured.includes(collectionId) ? collectionId : configured[0];
   const verseEntry = registryEntry(verseRegistry, activeCollection, 'Verse');
-  const localizedTables = Object.fromEntries(await Promise.all(['sa', 'en', 'kn'].map(async (language) => [language, await table(`${COLLECTION_ROOT}/verses/collection_${language}.csv`, ['collection_id', 'name', 'short_name', 'description'])])));
+  const localizedTables = Object.fromEntries(await Promise.all(['sa', 'en', 'kn'].map(async (language) => [language, await table(registryPath('verses', language), ['collection_id', 'name', 'short_name', 'description'])])));
   const collections = localizedCollectionRows({ ...verseRegistry, rows: verseRegistry.rows.filter((row) => configured.includes(row.collection_id)) }, localizedTables);
   const verseCatalog = await table(verseEntry.catalog_url, ['language', 'content_type', 'content_url']);
   const languageUrls = Object.fromEntries(['sa', 'en', 'kn'].map((language) => [language, languageFile(verseCatalog, language)]));
@@ -2780,18 +2832,25 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
     mediaCompositionUrl ? table(mediaCompositionUrl, MEDIA_COMPOSITION_HEADERS) : null
   ]);
   async function localCatalogs(type, composition, collectionField, headers, declaredIds = []) {
-    const registry = await table(COLLECTION_ROOT + '/' + type + '/collection.csv');
+    const registry = await table(registryPath(type));
     const catalogs = new Map();
     for (const id of new Set([...declaredIds, ...composition.rows.map((row) => row[collectionField]).filter(Boolean)])) {
       const entry = registryEntry(registry, id, type);
       const catalog = await table(entry.catalog_url, headers);
       catalog.url = entry.catalog_url;
+      if (type === 'deck') {
+        for (const asset of catalog.rows) {
+          const descriptor = validateDeckDescriptor(JSON.parse(await text(asset.deck_url)));
+          asset.provider_url = descriptor.source;
+          asset.deck_descriptor = descriptor;
+        }
+      }
       catalogs.set(id, catalog);
     }
     return catalogs;
   }
   async function localAudioCatalogs() {
-    const registry = await table(COLLECTION_ROOT + '/audio/collection.csv', AUDIO_REGISTRY_HEADERS);
+    const registry = await table(registryPath('audio'), AUDIO_REGISTRY_HEADERS);
     const catalogs = new Map();
     const cueIndexes = new Map();
     const cueErrors = new Map();
@@ -2820,7 +2879,7 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
     return { catalogs, cueIndexes, cueErrors };
   }
   async function localLocalizedCatalogs({ type, composition, collectionField, catalogHeaders, localizedHeaders, localizedFields, registryHeaders, declaredIds = [] }) {
-    const registry = await table(COLLECTION_ROOT + '/' + type + '/collection.csv', registryHeaders);
+    const registry = await table(registryPath(type), registryHeaders);
     const catalogs = new Map();
     for (const id of new Set([...declaredIds, ...composition.rows.map((row) => row[collectionField]).filter(Boolean)])) {
       const entry = registryEntry(registry, id, type);
@@ -3103,69 +3162,20 @@ function serializeCollectionTable(table) {
 }
 
 // Source: js/media-experience-adapter.js
-function declaredFiles(manifest) {
-  return new Set((manifest?.files || []).map((path) => safeMediaPath(path)));
-}
-
-function declaredCandidate(files, candidates) {
-  return candidates.map(safeMediaPath).find((path) => files.has(path)) || '';
-}
-
-function mediaPathForProductPath(productPath, { manifest, experienceId } = {}) {
-  const originalPath = String(productPath || '').replace(/\\/g, '/');
-  const embeddedData = originalPath.indexOf('/data/');
-  const path = embeddedData >= 0 ? originalPath.slice(embeddedData + 1) : originalPath;
-  const bookId = String(manifest?.book_id || '').trim();
-  if (!bookId || !experienceId) throw new Error('Media experience adapter requires a book manifest and experience ID.');
-  const files = declaredFiles(manifest);
-  if (!path.startsWith('data/')) return files.has(path) ? path : '';
-
-  const registryPaths = {
-    'data/collections/verses/collection.csv': manifest.registries?.verses?.structural,
-    'data/collections/verses/collection_sa.csv': manifest.registries?.verses?.localized?.sa,
-    'data/collections/verses/collection_en.csv': manifest.registries?.verses?.localized?.en,
-    'data/collections/verses/collection_kn.csv': manifest.registries?.verses?.localized?.kn,
-    'data/collections/audio/collection.csv': manifest.registries?.audio,
-    'data/collections/images/collection.csv': manifest.registries?.images,
-    'data/collections/deck/collection.csv': manifest.registries?.deck,
-    'data/collections/text/collection.csv': manifest.registries?.text
+function createMediaResourceReader({ mediaSource, productText }) {
+  return async (path) => {
+    const source = String(path || '').trim();
+    return isLogicalMediaPath(source) ? mediaSource.readText(source) : productText(source);
   };
-  if (registryPaths[path]) return declaredCandidate(files, [registryPaths[path]]);
+}
 
-  const versePrefix = `data/collections/verses/${bookId}/`;
-  if (path.startsWith(versePrefix)) {
-    const name = path.slice(versePrefix.length);
-    if (name === 'catalog.csv') return declaredCandidate(files, [manifest.verses?.catalog || '']);
-    const language = name.match(/^master_(sa|en|kn)\.csv$/)?.[1];
-    if (language) return declaredCandidate(files, [manifest.verses?.masters?.[language] || '']);
-  }
-
-  const audio = path.match(/^data\/collections\/audio\/([^/]+)\/catalog\.csv$/);
-  if (audio) return declaredCandidate(files, [`book/${bookId}/audio/${audio[1]}/catalog.csv`]);
-
-  const localized = path.match(/^data\/collections\/(images|text)\/([^/]+)\/(catalog|master_en|master_kn)\.csv$/);
-  if (localized) {
-    const [, type, collectionId, name] = localized;
-    const folder = type === 'text' ? 'questions' : 'illustration';
-    return declaredCandidate(files, [`book/${bookId}/${folder}/${collectionId}/${name}.csv`]);
-  }
-
-  const experienceResource = path.match(/^data\/experiences\/([^/]+)\/(.+)$/);
-  if (experienceResource) {
-    const [, sourceExperienceId, requested] = experienceResource;
-    const generic = requested
-      .replace(new RegExp(`^${bookId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-`), '')
-      .replace(/^images\.csv$/, 'image.csv');
-    return declaredCandidate(files, [
-      `book/${bookId}/experience/${sourceExperienceId}/${requested}`,
-      `book/${bookId}/experience/${sourceExperienceId}/${generic}`,
-      `book/${bookId}/experience/${sourceExperienceId}/${requested.replace(/^images\.csv$/, 'image.csv')}`,
-      `book/${bookId}/experience/${experienceId}/${requested}`,
-      `book/${bookId}/experience/${experienceId}/${generic}`,
-      `book/${bookId}/experience/${experienceId}/${requested.replace(/^images\.csv$/, 'image.csv')}`
-    ]);
-  }
-  return '';
+function createMediaUrlResolver({ mediaSource, resolveProductMediaUrl }) {
+  return (value) => {
+    const source = String(value || '').trim();
+    if (isLogicalMediaPath(source)) return mediaSource.resolveMedia(source);
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(source)) throw new Error(`Owned media must use a logical path: ${source}.`);
+    return resolveProductMediaUrl(source);
+  };
 }
 
 async function settleDatasetMedia(dataset) {
@@ -3199,19 +3209,22 @@ async function loadMediaBookExperience(experienceId, {
   if (typeof productText !== 'function') throw new Error('Media experience adapter requires a product configuration reader.');
   const manifest = await mediaSource.loadBook(bookId);
   if (!manifest.experiences?.includes(experienceId)) throw new Error(`Book ${bookId} does not declare experience ${experienceId}.`);
-  const text = async (path) => {
-    const mediaPath = mediaPathForProductPath(path, { manifest, experienceId });
-    return mediaPath ? mediaSource.readText(mediaPath) : productText(path);
-  };
-  const resolveMediaUrl = (value) => {
-    const source = String(value || '').trim();
-    if (/^https:\/\//i.test(source)) return source;
-    if (source.startsWith('audio/') || source.startsWith('image/') || source.startsWith('video/') || source.startsWith('book/')) {
-      return mediaSource.resolveMedia(source);
-    }
-    return resolveProductMediaUrl(source);
-  };
-  const dataset = await loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, collectionId });
+  const text = createMediaResourceReader({ mediaSource, productText });
+  const resolveMediaUrl = createMediaUrlResolver({ mediaSource, resolveProductMediaUrl });
+  const dataset = await loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, collectionId, manifest });
+  const configuredBooks = [...new Set((dataset.experience?.verseCollections?.length
+    ? dataset.experience.verseCollections
+    : [dataset.experience?.verseCollection]).filter(Boolean))];
+  if (configuredBooks.length > 1) {
+    dataset.collections = await Promise.all(configuredBooks.map(async (id, order) => {
+      const book = id === manifest.book_id ? manifest : (mediaSource.books?.get(id) || await mediaSource.loadBook(id));
+      const localized = Object.fromEntries(['sa', 'en', 'kn'].map((language) => {
+        const name = String(book.name?.[language] || book.name?.en || id);
+        return [language, { name, shortName: name, description: '' }];
+      }));
+      return { id, order: order + 1, localized };
+    }));
+  }
   dataset.contentSource = Object.freeze({ type: 'media-book', bookId, contentVersion: manifest.content_version });
   return settleDatasetMedia(dataset);
 }
@@ -3953,11 +3966,12 @@ function createGitaSaraRenderer({ translate = (_key, fallback) => fallback, gita
     if (!editing) requestAnimationFrame(fitText);
   }
 
-  function toggleQuestions() {
+  async function toggleQuestions() {
     if (editing || !root) return false;
-    questionsVisible = !questionsVisible;
+    const nextVisible = !questionsVisible;
+    await onGitaSaraViewChange(nextVisible ? 'three_panel' : 'two_panel');
+    questionsVisible = nextVisible;
     applyQuestionView();
-    onGitaSaraViewChange(questionsVisible ? 'three_panel' : 'two_panel');
     return true;
   }
 
@@ -5699,14 +5713,12 @@ async function startPlayer(dataset, experience, { workspace = null, sid = reques
   state.renderer = await experience.load({
     translate,
     gitaSaraView,
-    onGitaSaraViewChange: (view) => {
-      profileStore.setGitaSaraView(state.activeProfile.pid, view).catch(() => {});
-      emitEvent('gita_sara_view_changed', {
+    onGitaSaraViewChange: (view) => profileStore.setGitaSaraView(state.activeProfile.pid, view)
+      .catch(() => {})
+      .finally(() => emitEvent('gita_sara_view_changed', {
         context: verseContext(),
         details: { view }
-      });
-      syncQuestionsMenu();
-    }
+      }))
   });
   state.renderer.mount(document.getElementById('renderer-root'));
   syncQuestionsMenu();
@@ -5779,7 +5791,7 @@ function chapterIconFor(cid) {
 
 function audioSource(row) {
   const source = row.media.primaryAudioUrl || row.media.chantFullSaUrl;
-  return source ? new URL(source, location.href).href : '';
+  return source || '';
 }
 
 function syncQuestionsMenu() {
@@ -5792,9 +5804,9 @@ function syncQuestionsMenu() {
   button.querySelector('.top-menu-label').textContent = i18n.t(visible ? 'menu.questionsOn' : 'menu.questionsOff');
 }
 
-function toggleQuestions() {
+async function toggleQuestions() {
   if (!state.renderer?.supportsQuestions || state.editor?.active) return false;
-  const changed = state.renderer.toggleQuestions?.();
+  const changed = await state.renderer.toggleQuestions?.();
   if (changed) {
     syncQuestionsMenu();
     setMenuOpen(false);
@@ -5811,7 +5823,7 @@ function render(options = {}) {
   const chapterIcon = document.getElementById('chapter-icon');
   const iconPath = chapterIconFor(row.cid);
   chapterIcon.hidden = !iconPath;
-  if (iconPath) chapterIcon.src = new URL(iconPath, location.href).href;
+  if (iconPath) chapterIcon.src = iconPath;
   else chapterIcon.removeAttribute('src');
   document.getElementById('sid-label').textContent = row.sid;
   document.getElementById('position-label').textContent = (state.index + 1) + ' / ' + state.dataset.rows.length;
@@ -6113,7 +6125,7 @@ function buildChapterList() {
     if (iconPath) {
       const icon = document.createElement('img');
       icon.className = 'chapter-list-icon';
-      icon.src = new URL(iconPath, location.href).href;
+      icon.src = iconPath;
       icon.alt = '';
       button.appendChild(icon);
     }

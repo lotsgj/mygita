@@ -21,6 +21,7 @@ const sources = [
   'js/events/sentry-adapter.js',
   'js/pwa.js',
   'js/shared/about-dialog.js',
+  'js/media-contract.js',
   'js/media-source.js',
   'js/player/collection-data.js',
   'js/media-experience-adapter.js',
@@ -42,6 +43,7 @@ for (const source of sources) {
   let code = await readFile(source, 'utf8');
   code = code
     .replace(/^import\s+[^;]+;\s*$/gm, '')
+    .replace(/^export\s+\{[^}]+\}(?:\s+from\s+['"][^'"]+['"])?;?\s*$/gm, '')
     .replace(/^export\s+(?=(const|let|class|function|async\s+function)\b)/gm, '');
   parts.push('// Source: ' + source + '\n' + code.trim());
 }

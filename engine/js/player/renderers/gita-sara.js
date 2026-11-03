@@ -74,11 +74,12 @@ export function createGitaSaraRenderer({ translate = (_key, fallback) => fallbac
     if (!editing) requestAnimationFrame(fitText);
   }
 
-  function toggleQuestions() {
+  async function toggleQuestions() {
     if (editing || !root) return false;
-    questionsVisible = !questionsVisible;
+    const nextVisible = !questionsVisible;
+    await onGitaSaraViewChange(nextVisible ? 'three_panel' : 'two_panel');
+    questionsVisible = nextVisible;
     applyQuestionView();
-    onGitaSaraViewChange(questionsVisible ? 'three_panel' : 'two_panel');
     return true;
   }
 

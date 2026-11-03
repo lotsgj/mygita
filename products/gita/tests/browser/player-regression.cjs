@@ -237,7 +237,12 @@ async function run() {
     }
     await page.goto(`${base}/player.html?play=gita-chant&sid=18.E&lang=en&pid=1`, { waitUntil: 'networkidle' });
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.waitForFunction(() => Array.from(document.querySelectorAll('.verse-chant-text')).every((text) => text.dataset.fitCap));
+    await page.waitForFunction(() => {
+      const panels = Array.from(document.querySelectorAll('.verse-chant-panel'));
+      return panels.length && panels.every((panel) => panel.clientWidth < 390)
+        && Array.from(document.querySelectorAll('.verse-chant-text')).every((text) => text.dataset.fitCap);
+    });
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const longRows = await page.locator('.verse-chant-text').evaluateAll((texts) => texts.map((text) => ({
       wrapped: text.dataset.wrapped,
       textAlign: getComputedStyle(text).textAlign,
@@ -296,7 +301,7 @@ async function run() {
     assert.equal(await page.locator('[data-language-panel="en"]').evaluate((element) => element.getBoundingClientRect().left < document.querySelector('[data-language-panel="kn"]').getBoundingClientRect().left), true, 'English must be the primary desktop panel for English content');
     await assertYogaTopColumnsDoNotOverlap(page);
     assert.notEqual(await page.locator('[data-role="shloka"]').innerText(), '—');
-    assert.match(await page.locator('#audio').getAttribute('src'), /^https:\/\/media\.gitajyoti\.org\/audio\/chanting-aj-padma-aj-vijay-learn-mode\/.*\.ogg$/);
+    assert.match(await page.locator('#audio').getAttribute('src'), /^https:\/\/media\.gitajyoti\.org\/audio\/bhagavad-gita\/chanting-aj-padma-aj-vijay-learn-mode\/.*\.ogg\?/);
     await page.keyboard.press('l');
     await page.getByRole('button', { name: 'ಕನ್ನಡ' }).click();
     assert.equal(await page.locator('[data-language-panel="kn"]').evaluate((element) => element.getBoundingClientRect().left < document.querySelector('[data-language-panel="en"]').getBoundingClientRect().left), true, 'Kannada must move to the primary desktop panel when content language changes');
@@ -342,7 +347,7 @@ async function run() {
     const questionLeftEdges = await page.locator('[data-role="question-stage"] p').evaluateAll((questions) => questions.map((question) => question.getBoundingClientRect().left));
     assert.ok(Math.max(...questionLeftEdges) - Math.min(...questionLeftEdges) < 2, 'all-question mode must give every question the same left edge');
     assert.equal(await page.locator('[data-role="meaning"]').getAttribute('lang'), 'en');
-    assert.match(await page.locator('#audio').getAttribute('src'), /^https:\/\/media\.gitajyoti\.org\/audio\/chanting-swami-brahmananda\/.*\.mp3$/);
+    assert.match(await page.locator('#audio').getAttribute('src'), /^https:\/\/media\.gitajyoti\.org\/audio\/bhagavad-gita\/chanting-swami-brahmananda\/.*\.mp3\?/);
     const saraWidths = await page.locator('[data-sara-panel]').evaluateAll((panels) => panels.map((panel) => panel.getBoundingClientRect().width));
     const threePanelWordSize = Number.parseFloat(await page.locator('[data-role="word"]').evaluate((element) => getComputedStyle(element).fontSize));
     assert.ok(Math.max(...saraWidths) - Math.min(...saraWidths) < 3, 'all three desktop panels must have equal width');
@@ -351,6 +356,7 @@ async function run() {
     assert.equal(await page.locator('#questions-button').isVisible(), true, 'the shared menu exposes Questions only for a capable renderer');
     assert.equal(await page.locator('#questions-button .top-menu-label').innerText(), 'Questions (On)');
     await page.locator('#questions-button').click();
+    await page.locator('[data-sara-panel="questions"]').waitFor({ state: 'hidden' });
     assert.equal(await page.locator('[data-sara-panel="questions"]').isHidden(), true, 'Q hides the contemplation panel');
     const focusedWidths = await page.locator('[data-sara-panel="text"], [data-sara-panel="media"]').evaluateAll((panels) => panels.map((panel) => panel.getBoundingClientRect().width));
     assert.ok(Math.abs(focusedWidths[1] - saraWidths[1]) < 2, 'the illustration panel keeps its exact three-panel width');
@@ -363,6 +369,7 @@ async function run() {
     assert.equal(await page.locator('[data-sara-panel="questions"]').isHidden(), true, 'the focused view remains active across shloka navigation');
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('q');
+    await page.locator('[data-sara-panel="questions"]').waitFor({ state: 'visible' });
     assert.equal(await page.locator('[data-sara-panel="questions"]').isVisible(), true, 'Q restores the contemplation panel');
     await page.keyboard.press('c');
     await page.locator('#chapters-overlay').waitFor({ state: 'visible' });
@@ -376,18 +383,20 @@ async function run() {
     await page.goto(`${base}/player.html?play=gita-sara&sid=1.1&lang=en&pid=1`, { waitUntil: 'domcontentloaded' });
     await page.locator('.gita-sara-media-image').waitFor();
     const illustrationSource = await page.locator('.gita-sara-media-image').getAttribute('src');
-    assert.equal(illustrationSource, 'https://media.gitajyoti.org/image/bhagavad-gita/gita-sara/illustration/1.1-1.webp', 'Gita Sara illustrations must resolve through the media root');
+    assert.equal(new URL(illustrationSource).pathname, '/image/bhagavad-gita/gita-sara/illustration/1.1-1.webp', 'Gita Sara illustrations must resolve through the media root');
     assert.equal(await page.locator('.gita-sara-media-image').evaluate((image) => getComputedStyle(image).objectFit), 'cover');
     const threePanelImageWidth = await page.locator('[data-sara-panel="media"]').evaluate((panel) => panel.getBoundingClientRect().width);
     await page.keyboard.press('q');
+    await page.locator('[data-sara-panel="questions"]').waitFor({ state: 'hidden' });
     assert.equal(await page.locator('.gita-sara-media-image').getAttribute('src'), illustrationSource, 'changing panel count must not change the visible illustration source');
     assert.ok(Math.abs(await page.locator('[data-sara-panel="media"]').evaluate((panel) => panel.getBoundingClientRect().width) - threePanelImageWidth) < 2, 'image framing remains identical because its panel width is invariant');
     await page.keyboard.press('q');
+    await page.locator('[data-sara-panel="questions"]').waitFor({ state: 'visible' });
     assert.equal(await page.locator('[data-text-action="toggle-all"]').isHidden(), false);
     assert.match(await page.locator('[data-role="question-stage"]').innerText(), /^1\.\s+Who is Dhritarastra\?/);
     await page.goto(`${base}/player.html?play=gita-sara&sid=D.1&lang=en&pid=1`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('.gita-sara-media-image')?.getAttribute('src')?.includes('/gita-sara/default/'));
-    assert.equal(await page.locator('.gita-sara-media-image').getAttribute('src'), 'https://media.gitajyoti.org/image/bhagavad-gita/gita-sara/default/transformation-cycle-clean.png');
+    assert.equal(new URL(await page.locator('.gita-sara-media-image').getAttribute('src')).pathname, '/image/bhagavad-gita/gita-sara/default/transformation-cycle-clean.png');
     assert.equal(await page.locator('.gita-sara-media-image').getAttribute('alt'), 'TRUTH. REALISE. USE.');
     assert.equal(await page.locator('[data-role="media-caption"]').innerText(), 'TRUTH. REALISE. USE.');
     assert.match(await page.locator('[data-role="question-stage"]').innerText(), /^1\.\s+What is Truth/);
@@ -426,7 +435,7 @@ async function run() {
       return text.scrollHeight <= panel.clientHeight + 1 && text.scrollWidth <= panel.clientWidth + 1;
     })), true, 'Noto Sans content must fit every desktop panel');
     assert.equal(await page.locator('#play-button').isEnabled(), true);
-    assert.equal(await page.locator('#audio').getAttribute('src'), 'https://media.gitajyoti.org/audio/chanting-swami-brahmananda/sa/chapter-06/06-007.mp3');
+    assert.equal(new URL(await page.locator('#audio').getAttribute('src')).pathname, '/audio/bhagavad-gita/chanting-swami-brahmananda/sa/chapter-06/06-007.mp3');
     await page.locator('#play-button').click();
     await page.locator('#play-button[aria-label="Pause audio"]').waitFor();
     await page.locator('#play-button').click();
@@ -643,13 +652,18 @@ async function run() {
 
     await page.goto(`${base}/player.html?play=gita-sara&sid=2.47&lang=en&pid=1`, { waitUntil: 'domcontentloaded' });
     await page.locator('.gita-sara-layout').waitFor();
-    if (!(await page.locator('[data-sara-panel="questions"]').isHidden())) await page.keyboard.press('q');
+    if (await page.locator('[data-sara-panel="questions"]').isHidden()) {
+      await page.keyboard.press('q');
+      await page.waitForFunction(() => document.querySelector('[data-sara-panel="questions"]')?.hidden === false);
+    }
+    await page.keyboard.press('q');
     await page.waitForFunction(() => document.querySelector('[data-sara-panel="questions"]')?.hidden === true);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.locator('.gita-sara-layout').waitFor();
     await page.waitForFunction(() => document.querySelector('[data-sara-panel="questions"]')?.hidden === true);
     assert.equal(await page.locator('[data-sara-panel="questions"]').isHidden(), true, 'the Gita Sara view persists per profile across reload');
     await page.keyboard.press('q');
+    await page.locator('[data-sara-panel="questions"]').waitFor({ state: 'visible' });
     console.log('CHECK: remote media experiences and profile persistence verified');
 
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -679,6 +693,7 @@ async function run() {
     assert.ok(saraTextBoxes.every((box, index) => index === 0 || box.top >= saraTextBoxes[index - 1].bottom), 'mobile Gita Sara text fields must flow without overlap');
     assert.equal(await mobilePage.locator('.gita-sara-text-panel').evaluate((panel) => panel.scrollHeight <= panel.clientHeight + 1), true, 'mobile Gita Sara text panel must grow to fit its content');
     await mobilePage.keyboard.press('q');
+    await mobilePage.locator('[data-sara-panel="questions"]').waitFor({ state: 'hidden' });
     assert.equal(await mobilePage.locator('[data-sara-panel="questions"]').isHidden(), true, 'mobile Q hides questions without creating a parallel layout');
     const focusedMobileBoxes = await mobilePage.locator('[data-sara-panel="text"], [data-sara-panel="media"]').evaluateAll((panels) => panels.map((panel) => ({ left: panel.getBoundingClientRect().left, top: panel.getBoundingClientRect().top })));
     assert.equal(new Set(focusedMobileBoxes.map(({ left }) => Math.round(left))).size, 1, 'mobile focused panels remain one full-width column');

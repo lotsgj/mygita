@@ -1,7 +1,7 @@
 # Architecture overview
 
 **Status:** Current  
-**Last updated:** 2 November 2026
+**Last updated:** 3 November 2026
 
 ## Layers
 
@@ -25,9 +25,9 @@ The active profile establishes global interface-language and content-language pr
 
 Distribution configuration also overlays product-specific interface language on the shared dictionaries. The current Bhagavad Gita and provisional Sukta definitions can therefore name their own content language, loading, storage, installation and About surfaces without forking the shell.
 
-The shared media-source service reads the same catalog and book-manifest contract from either `https://media.gitajyoti.org/` or a user-selected local media directory. It validates schema, identity and root-safe paths, fetches mutable manifests without an HTTP cache, and owns the lifecycle of local object URLs. A book-to-experience adapter combines product-owned experience configuration with manifest-declared registries, masters, associations, chapter icons and media. The adapter produces the existing normalized renderer model; an executable media-only audit covers every row of all four Gita experiences and both Sukta collections.
+The shared media-source service reads one schema-2 catalog and resolves strict logical paths through explicit `book`, `audio`, `image`, `video`, `deck`, and `docs` mounts. The same resolver serves remote, PWA and selected-folder modes; host placement is not embedded in book or experience catalogs. It validates schema, identity and paths and owns the lifecycle of local object URLs. A book-to-experience adapter combines product-owned experience configuration with manifest-declared registries, masters, associations, chapter icons and media. The adapter produces the existing normalized renderer model; an executable media-only audit covers every row of all four Gita experiences and both Sukta collections.
 
-Web and installed-PWA sessions require the configured remote media book; they do not silently fall back to bundled scripture content. A missing or invalid media source produces an explicit unavailable state. `file://` sessions select the media root once on Home and retain that choice across product and experience changes. Experience declarations map their default and permitted books explicitly. Remote catalogs are checked again at a bounded interval, while the service worker progressively caches successfully used manifests, text and images through a network-first policy; the complete library is never added to the install shell.
+Web and installed-PWA sessions require the configured remote media book; they do not silently fall back to bundled scripture content. A missing or invalid media source produces an explicit unavailable state. `file://` sessions select the media root once on Home and retain that choice across product and experience changes. Experience declarations map their default and permitted books explicitly. The root catalog is checked fresh; all other content is versioned and progressively cached by logical path plus content version. The complete library is never added to the install shell.
 
 For troubleshooting, the document root exposes `data-content-source`, `data-content-book`, and `data-content-version`. A successful scripture screen reports `media-book`; this makes unintended bundled loading visible to tests and support diagnostics.
 

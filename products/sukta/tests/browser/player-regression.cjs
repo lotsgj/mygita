@@ -142,7 +142,7 @@ async function runCollection(browser, collection, sids) {
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(message.text()); });
   try {
-    await page.goto(pathToFileURL(path.join(engineRoot, 'index.html')).href + `?product=sukta&play=sukta-chant&collection=${collection}&sid=${encodeURIComponent(sids[0])}&lang=en`, { waitUntil: 'domcontentloaded' });
+    await page.goto(pathToFileURL(path.resolve(engineRoot, '../index.html')).href + `?product=sukta&play=sukta-chant&collection=${collection}&sid=${encodeURIComponent(sids[0])}&lang=en`, { waitUntil: 'domcontentloaded' });
     assert.equal(await page.locator('#distribution-chooser').isHidden(), true, 'file mode embeds stable product configuration');
     await page.locator('#profile-setup').waitFor({ state: 'visible' });
     await createProfile(page);

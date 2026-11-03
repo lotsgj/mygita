@@ -1,3 +1,5 @@
+import { validateDeckDescriptor } from '../media-contract.js';
+
 export let COLLECTION_ROOT = 'data/collections';
 export let EXPERIENCE_ROOT = 'data/experiences';
 
@@ -466,12 +468,13 @@ export function normalizeCollectionData({ sa, en, kn, sequence = null, audioComp
       assets.forEach((asset, index) => {
         const compositionRow = compositionRows.find((entry) => entry.deck_collection === deckCollection && entry.deck_order === asset.order) || compositionRows[index];
         let embedUrl = '';
-        if (asset.deck_url) embedUrl = normalizeGoogleDeckUrl(asset.deck_url);
+        if (asset.provider_url) embedUrl = normalizeGoogleDeckUrl(asset.provider_url);
         deckSlots.push({
           order: Number(compositionRow?.order || index + 1),
           collectionId: deckCollection,
           catalogOrder: asset.order,
-          sourceUrl: asset.deck_url,
+          sourceUrl: asset.provider_url || asset.deck_url,
+          descriptorUrl: asset.deck_url,
           embedUrl,
           title: asset.title,
           language: asset.language,
@@ -754,18 +757,23 @@ export async function readCollectionTextFromFiles(fileList, url) {
   return file.text();
 }
 
-export async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '' }) {
+export async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '', manifest = null }) {
   const table = async (url, headers = null) => parseCollectionTable(await text(url), headers, url);
   const experienceRegistry = await table(EXPERIENCE_ROOT + '/collection.csv');
   const experienceEntry = registryEntry(experienceRegistry, experienceId, 'Experience');
   const experienceCatalog = await table(experienceEntry.catalog_url, ['content_type', 'content_url']);
   const experience = JSON.parse(await text(catalogEntry(experienceCatalog, 'configuration', experienceId)));
   if (experience.id !== experienceId || experience.schemaVersion !== 1) throw new Error('Unsupported experience configuration for ' + experienceId + '.');
-  const verseRegistry = await table(COLLECTION_ROOT + '/verses/collection.csv');
+  const registryPath = (type, language = '') => {
+    if (!manifest) return `${COLLECTION_ROOT}/${type}/collection${language ? `_${language}` : ''}.csv`;
+    if (type === 'verses') return language ? manifest.registries?.verses?.localized?.[language] : manifest.registries?.verses?.structural;
+    return manifest.registries?.[type];
+  };
+  const verseRegistry = await table(registryPath('verses'));
   const configured = configuredVerseCollections(experience);
   const activeCollection = configured.includes(collectionId) ? collectionId : configured[0];
   const verseEntry = registryEntry(verseRegistry, activeCollection, 'Verse');
-  const localizedTables = Object.fromEntries(await Promise.all(['sa', 'en', 'kn'].map(async (language) => [language, await table(`${COLLECTION_ROOT}/verses/collection_${language}.csv`, ['collection_id', 'name', 'short_name', 'description'])])));
+  const localizedTables = Object.fromEntries(await Promise.all(['sa', 'en', 'kn'].map(async (language) => [language, await table(registryPath('verses', language), ['collection_id', 'name', 'short_name', 'description'])])));
   const collections = localizedCollectionRows({ ...verseRegistry, rows: verseRegistry.rows.filter((row) => configured.includes(row.collection_id)) }, localizedTables);
   const verseCatalog = await table(verseEntry.catalog_url, ['language', 'content_type', 'content_url']);
   const languageUrls = Object.fromEntries(['sa', 'en', 'kn'].map((language) => [language, languageFile(verseCatalog, language)]));
@@ -791,18 +799,25 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
     mediaCompositionUrl ? table(mediaCompositionUrl, MEDIA_COMPOSITION_HEADERS) : null
   ]);
   async function localCatalogs(type, composition, collectionField, headers, declaredIds = []) {
-    const registry = await table(COLLECTION_ROOT + '/' + type + '/collection.csv');
+    const registry = await table(registryPath(type));
     const catalogs = new Map();
     for (const id of new Set([...declaredIds, ...composition.rows.map((row) => row[collectionField]).filter(Boolean)])) {
       const entry = registryEntry(registry, id, type);
       const catalog = await table(entry.catalog_url, headers);
       catalog.url = entry.catalog_url;
+      if (type === 'deck') {
+        for (const asset of catalog.rows) {
+          const descriptor = validateDeckDescriptor(JSON.parse(await text(asset.deck_url)));
+          asset.provider_url = descriptor.source;
+          asset.deck_descriptor = descriptor;
+        }
+      }
       catalogs.set(id, catalog);
     }
     return catalogs;
   }
   async function localAudioCatalogs() {
-    const registry = await table(COLLECTION_ROOT + '/audio/collection.csv', AUDIO_REGISTRY_HEADERS);
+    const registry = await table(registryPath('audio'), AUDIO_REGISTRY_HEADERS);
     const catalogs = new Map();
     const cueIndexes = new Map();
     const cueErrors = new Map();
@@ -831,7 +846,7 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
     return { catalogs, cueIndexes, cueErrors };
   }
   async function localLocalizedCatalogs({ type, composition, collectionField, catalogHeaders, localizedHeaders, localizedFields, registryHeaders, declaredIds = [] }) {
-    const registry = await table(COLLECTION_ROOT + '/' + type + '/collection.csv', registryHeaders);
+    const registry = await table(registryPath(type), registryHeaders);
     const catalogs = new Map();
     for (const id of new Set([...declaredIds, ...composition.rows.map((row) => row[collectionField]).filter(Boolean)])) {
       const entry = registryEntry(registry, id, type);

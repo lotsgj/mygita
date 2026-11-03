@@ -32,9 +32,10 @@ test('MyGita production identity and PWA paths work at root and project Pages UR
 });
 
 test('remote books are progressively cached without joining the install shell', () => {
-  assert.match(serviceWorker, /CONTENT_CACHE/);
-  assert.match(serviceWorker, /mediaContentResponse/);
-  assert.match(serviceWorker, /url\.origin === MEDIA_ORIGIN/);
-  assert.match(serviceWorker, /cache: 'no-store'/);
+  assert.match(serviceWorker, /MEDIA_CACHE/);
+  assert.match(serviceWorker, /logicalMediaRequest/);
+  assert.match(serviceWorker, /__media_cache__/);
+  assert.match(serviceWorker, /cache: 'default'/);
+  assert.match(serviceWorker, /mgc.*no-store/s);
   assert.match(serviceWorker, /not available offline yet/);
 });

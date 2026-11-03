@@ -5,6 +5,7 @@ import { access, readFile } from 'node:fs/promises';
 const player = await readFile(new URL('../../player.html', import.meta.url), 'utf8');
 const core = await readFile(new URL('../../js/player/player-core.js', import.meta.url), 'utf8');
 const data = await readFile(new URL('../../js/player/collection-data.js', import.meta.url), 'utf8');
+const mediaContract = await readFile(new URL('../../js/media-contract.js', import.meta.url), 'utf8');
 const index = await readFile(new URL('../../../index.html', import.meta.url), 'utf8');
 const deployment = await readFile(new URL('../../scripts/build-deployment.mjs', import.meta.url), 'utf8');
 const fonts = await readFile(new URL('../../css/fonts.css', import.meta.url), 'utf8');
@@ -52,10 +53,10 @@ test('the direct player entry avoids PWA fetches and loads the local workspace i
 
 test('the shared player uses canonical cross-origin media with progressive PWA caching', () => {
   assert.match(player, /<audio[^>]+crossorigin="anonymous"/);
-  assert.match(data, /function remoteMediaUrl\(value\)/);
-  assert.match(data, /url\.protocol === 'https:'/);
-  assert.match(serviceWorker, /MEDIA_ORIGIN = 'https:\/\/media\.gitajyoti\.org'/);
-  assert.match(serviceWorker, /url\.origin === MEDIA_ORIGIN && isAudio/);
+  assert.match(mediaContract, /function resolveRemoteMediaUrl\(catalog, logicalPath/);
+  assert.match(mediaContract, /selectMediaMount/);
+  assert.match(serviceWorker, /logicalMediaRequest/);
+  assert.match(serviceWorker, /searchParams\.get\('mgp'\)/);
   assert.match(serviceWorker, /credentials: 'omit', mode: 'cors'/);
 });
 

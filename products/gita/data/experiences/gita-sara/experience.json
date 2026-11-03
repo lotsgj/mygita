@@ -37,12 +37,12 @@
     "orderField": "audio_order"
   },
   "resources": {
-    "sequence": "data/experiences/gita-sara/sequence.csv",
-    "audio": "data/experiences/gita-sara/audio.csv",
-    "decks": "data/experiences/gita-sara/decks.csv",
-    "images": "data/experiences/gita-700/images.csv",
-    "illustrations": "data/experiences/gita-sara/illustrations.csv",
-    "contemplations": "data/experiences/gita-sara/contemplations.csv",
-    "media": "data/experiences/gita-sara/media.csv"
+    "sequence": "book/bhagavad-gita/experience/gita-sara/sequence.csv",
+    "audio": "book/bhagavad-gita/experience/gita-sara/audio.csv",
+    "decks": "book/bhagavad-gita/experience/gita-sara/decks.csv",
+    "images": "book/bhagavad-gita/experience/gita-700/images.csv",
+    "illustrations": "book/bhagavad-gita/experience/gita-sara/illustrations.csv",
+    "contemplations": "book/bhagavad-gita/experience/gita-sara/contemplations.csv",
+    "media": "book/bhagavad-gita/experience/gita-sara/media.csv"
   }
 }

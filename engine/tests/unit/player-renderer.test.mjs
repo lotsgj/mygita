@@ -141,7 +141,7 @@ test('player-4 shows Sanskrit, preferred transliteration, then the other transli
   ]);
 });
 
-test('the Gita-Sara renderer uses one semantic text model and the preferred content language', () => {
+test('the Gita-Sara renderer uses one semantic text model and the preferred content language', async () => {
   const root = rootFixture();
   const renderer = createGitaSaraRenderer();
   renderer.mount(root);
@@ -161,7 +161,7 @@ test('the Gita-Sara renderer uses one semantic text model and the preferred cont
   assert.equal(root.get('meaning').textContent, 'ಕನ್ನಡ ಅರ್ಥ');
   assert.equal(root.get('word').textContent, 'ಪದ — ಅರ್ಥ');
   assert.equal(root.hasClass('gita-sara-questions-hidden'), false);
-  assert.equal(renderer.toggleQuestions(), true);
+  assert.equal(await renderer.toggleQuestions(), true);
   assert.equal(root.hasClass('gita-sara-questions-hidden'), true);
   assert.equal(root.querySelector('[data-sara-panel="questions"]').hidden, true);
   renderer.setEditing(true);

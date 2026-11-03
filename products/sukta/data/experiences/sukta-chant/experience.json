@@ -12,12 +12,12 @@
   "renderer": "verse-chant",
   "collectionResources": {
     "purusha-sukta": {
-      "audio": "data/experiences/sukta-chant/purusha-sukta-audio.csv",
-      "images": "data/experiences/sukta-chant/purusha-sukta-images.csv"
+      "audio": "book/purusha-sukta/experience/sukta-chant/audio.csv",
+      "images": "book/purusha-sukta/experience/sukta-chant/image.csv"
     }
   },
   "resources": {
-    "audio": "data/experiences/sukta-chant/audio.csv",
-    "images": "data/experiences/sukta-chant/images.csv"
+    "audio": "book/ganesha-atharva/experience/sukta-chant/audio.csv",
+    "images": "book/ganesha-atharva/experience/sukta-chant/image.csv"
   }
 }

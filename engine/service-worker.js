@@ -1,11 +1,10 @@
 const BUILD_VERSION = '__GITAVERSE_VERSION__';
 const SHELL_CACHE = `gitaverse-shell-${BUILD_VERSION}`;
-const AUDIO_CACHE = 'gitaverse-audio-v3';
-const CONTENT_CACHE = 'gitaverse-content-v1';
+const MEDIA_CACHE = 'gitaverse-media-v1';
 const AUDIO_PREFIX = 'gitaverse-audio-';
 const CONTENT_PREFIX = 'gitaverse-content-';
+const MEDIA_PREFIX = 'gitaverse-media-';
 const SHELL_PREFIX = 'gitaverse-shell-';
-const MEDIA_ORIGIN = 'https://media.gitajyoti.org';
 
 function scopedUrl(path) {
   return new URL(path, self.registration.scope).href;
@@ -43,8 +42,9 @@ self.addEventListener('activate', (event) => {
     const names = await caches.keys();
     await Promise.all(names.filter((name) => (
       (name.startsWith(SHELL_PREFIX) && name !== SHELL_CACHE)
-      || (name.startsWith(AUDIO_PREFIX) && name !== AUDIO_CACHE)
-      || (name.startsWith(CONTENT_PREFIX) && name !== CONTENT_CACHE)
+      || name.startsWith(AUDIO_PREFIX)
+      || name.startsWith(CONTENT_PREFIX)
+      || (name.startsWith(MEDIA_PREFIX) && name !== MEDIA_CACHE)
     )).map((name) => caches.delete(name)));
     await self.clients.claim();
   })());
@@ -70,36 +70,28 @@ async function sliceRange(request, response) {
   return new Response(body.slice(start, end + 1), { status: 206, statusText: 'Partial Content', headers });
 }
 
-async function audioResponse(request) {
-  const cache = await caches.open(AUDIO_CACHE);
-  const cacheKey = new Request(request.url, { method: 'GET' });
+function logicalMediaRequest(url) {
+  const logicalPath = url.searchParams.get('mgp');
+  const version = url.searchParams.get('v');
+  if (!logicalPath || !version) return null;
+  return { logicalPath, version, cacheKey: new Request(scopedUrl(`__media_cache__/${encodeURIComponent(version)}/${encodeURIComponent(logicalPath)}`)) };
+}
+
+async function mediaResponse(request, identity, isAudio) {
+  const cache = await caches.open(MEDIA_CACHE);
+  const cacheKey = identity.cacheKey;
   let response = await cache.match(cacheKey);
   if (!response) {
     try {
-      const network = await fetch(request.url, { cache: 'no-store', credentials: 'omit', mode: 'cors' });
+      const network = await fetch(request.url, { cache: 'default', credentials: 'omit', mode: 'cors' });
       if (!network.ok || network.status !== 200) return network;
       await cache.put(cacheKey, network.clone());
       response = network;
     } catch (_) {
-      return new Response('This audio is not available offline yet.', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+      return new Response(`This ${isAudio ? 'audio' : 'content'} is not available offline yet.`, { status: 503, headers: { 'Content-Type': 'text/plain' } });
     }
   }
-  return sliceRange(request, response);
-}
-
-async function mediaContentResponse(request) {
-  const cache = await caches.open(CONTENT_CACHE);
-  const cacheKey = new Request(request.url, { method: 'GET' });
-  try {
-    const network = await fetch(request.url, { cache: 'no-store', credentials: 'omit', mode: 'cors' });
-    if (network.ok && network.status === 200) await cache.put(cacheKey, network.clone());
-    return network;
-  } catch (_) {
-    return (await cache.match(cacheKey)) || new Response('This content is not available offline yet.', {
-      status: 503,
-      headers: { 'Content-Type': 'text/plain' }
-    });
-  }
+  return isAudio ? sliceRange(request, response) : response;
 }
 
 async function shellResponse(request) {
@@ -120,16 +112,16 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   const isAudio = /\.(mp3|m4a|ogg|wav)$/i.test(url.pathname);
-  if (url.origin === MEDIA_ORIGIN && isAudio) {
-    event.respondWith(audioResponse(request));
+  if (url.searchParams.get('mgc') === '1') {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
-  if (url.origin === MEDIA_ORIGIN) {
-    event.respondWith(mediaContentResponse(request));
+  const mediaIdentity = logicalMediaRequest(url);
+  if (mediaIdentity) {
+    event.respondWith(mediaResponse(request, mediaIdentity, isAudio));
     return;
   }
   if (url.origin !== self.location.origin) return;
   if (isDocumentationRequest(url)) return;
-  if (isAudio) event.respondWith(audioResponse(request));
-  else event.respondWith(shellResponse(request));
+  event.respondWith(shellResponse(request));
 });

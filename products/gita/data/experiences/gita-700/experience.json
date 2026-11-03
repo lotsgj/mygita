@@ -10,7 +10,7 @@
   ],
   "renderer": "gita-700",
   "resources": {
-    "audio": "data/experiences/gita-700/audio.csv",
-    "images": "data/experiences/gita-700/images.csv"
+    "audio": "book/bhagavad-gita/experience/gita-700/audio.csv",
+    "images": "book/bhagavad-gita/experience/gita-700/images.csv"
   }
 }

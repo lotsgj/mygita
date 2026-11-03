@@ -1,7 +1,7 @@
 # Collections and media
 
 **Status:** Current  
-**Last updated:** 2 November 2026
+**Last updated:** 3 November 2026
 
 ## Ownership boundary
 
@@ -31,17 +31,19 @@ book/<book-id>/experience/...
 audio/...
 image/...
 video/...
+deck/...
+docs/...
 ```
 
-The root catalog owns the content version and maps stable book IDs to manifests. Each book manifest owns its book version, language-specific verse masters, reusable resource declarations, experience associations and explicit file inventory. Binary resources remain independently reusable at root-level `audio`, `image` and `video` paths. Product branding, shell translations, experience definitions and renderer configuration remain in MyGita. Icons that describe scripture chapters belong to media; neutral shell controls and product identity artwork remain in MyGita.
+The schema-2 root catalog owns the content version, maps stable book IDs to manifests, and declares logical mounts for `book/`, `audio/`, `image/`, `video/`, `deck/`, and `docs/`. A mount contains a prefix, an HTTPS remote root, and one local-folder name. Resolution uses the longest matching prefix, so a book or media family can later move to another host without changing a catalog reference. Each book manifest uses the same schema version and owns its language-specific verse masters, reusable resource declarations, experience associations and generated metadata-only file inventory. Binary resources remain independently reusable under their type namespace. Product branding, shell translations, experience definitions and renderer configuration remain in MyGita. Icons that describe scripture chapters belong to `image/`; neutral shell controls and product identity artwork remain in MyGita.
 
-`products/app.json` declares `https://media.gitajyoti.org/` and `catalog.json` as the production source. The engine’s media-source service can read this contract remotely or from a selected local media directory. Both modes reject paths that escape the root; remote manifests bypass the browser HTTP cache; local binaries receive managed object URLs that are revoked when the source is released. Legacy absolute HTTPS asset URLs remain playable during migration.
+`products/app.json` declares the bootstrap location of `catalog.json`. After that one read, every owned reference is a strict logical path. Paths cannot be absolute, contain backslashes, escape with dot segments, or use an undeclared namespace. The engine’s one resolver selects the mount and produces either a versioned remote URL or a file from the selected local mount. Local binaries receive managed object URLs that are revoked when the source is released. Owned absolute URLs and implicit legacy-path guessing are deliberately unsupported; external provider URLs are permitted only inside an explicit provider descriptor such as a Google Deck descriptor.
 
 The service is deliberately separate from renderers. The book-to-experience adapter combines manifest-declared content with product-owned experience configuration and passes the result through the existing normalization pipeline. It supports shared resources across experiences and records the active book content version on the normalized dataset.
 
 `pnpm run verify:media-parity` is a strict media-only audit. It proves that Gita 700, Gita Yoga, Gita Chant, Gita Sara, Ganesha Atharva and Purusha Sukta normalize successfully without a bundled scripture source.
 
-Web and PWA sessions load the remote media book. If validation or loading fails, the app reports that content is unavailable; it never substitutes a bundled scripture copy. Remote catalogs have a bounded refresh interval; successfully used remote manifests, CSV/JSON and images are progressively cached network-first for offline reuse. They are not precached during PWA installation. Audio retains its range-aware progressive cache.
+Web and PWA sessions load the remote media book. If validation or loading fails, the app reports that content is unavailable; it never substitutes a bundled scripture copy. The root catalog is always fetched fresh. Every other remote request carries the logical path and `content_version`; the service worker caches it by those two values rather than by physical host URL. Used text, images, decks and audio are cache-first after their initial successful request, while audio retains byte-range playback. A new content version naturally creates new cache identities. Media is never precached during PWA installation.
 
 In `file://` mode, the app’s product configuration is already embedded in a built distribution or supplied by the local development harness. Home therefore asks for the media root once, validates `catalog.json`, and reuses that source across products and experiences. Folder-upload fallback follows the same contract. Legacy product-data editing is hidden because products no longer own editable scripture files; writable media authoring remains a future workflow requiring conflict and version design.
 
@@ -80,11 +82,11 @@ collection_id#title#contributor#language#catalog_url#cue_purpose_url#cue_url#att
 
 Each audio catalog uses `sid#order#language#audio_url`. Gita 700’s composition uses the purpose-specific fields `chant_full_sa_collection` and `chant_full_sa_order`. Gita Yoga uses `audio_collection` and `audio_order`; its `experience.json` declares those names through `audioBinding.collectionField` and `audioBinding.orderField`. This generic binding lets future experiences define their own composition vocabulary without placing provider paths in a renderer.
 
-`audio_url` is a media-root-relative path such as `audio/chanting-swami-brahmananda/sa/chapter-01/01-001.mp3`. In web and PWA sessions it resolves beneath `https://media.gitajyoti.org/`; in `file://` mode it resolves inside the selected media folder and is exposed to the player through a temporary `blob:` URL. Google Deck URLs remain absolute because they identify an external provider. The Swami Brahmananda collection uses MP3; the AJ Padma and AJ Vijay learning collection uses OGG.
+`audio_url` is a logical path such as `audio/bhagavad-gita/chanting-swami-brahmananda/sa/chapter-01/01-001.mp3`. In web and PWA sessions its mount currently resolves beneath `https://media.gitajyoti.org/`; in `file://` mode the same logical path resolves inside the selected `media` folder and is exposed through a temporary `blob:` URL. The Swami Brahmananda collection uses MP3; the AJ Padma and AJ Vijay learning collection uses OGG.
 
 Gitaverse stores audio metadata only: collection registry rows, catalogs, cue-purpose definitions, and cue timings. Production audio binaries do not belong in this repository or its deployment artifact. The build excludes MP3, M4A, OGG, Opus, and WAV files as a defensive boundary, while contract tests fail if a production audio binary is added under `data/collections/audio`.
 
-The PWA does not precache the media library. Its service worker recognizes only the approved media origin, fetches recordings with anonymous CORS, and caches recordings progressively when they are used. Cached responses retain byte-range behavior for seeking. Media-host failure does not prevent canonical verse content or navigation from loading.
+The PWA does not precache the media library. The resolver marks owned requests with logical identity and content version; the service worker therefore remains independent of the physical media origin, fetches with anonymous CORS, and progressively caches only content the person uses. Cached recordings retain byte-range behavior for seeking.
 
 Gita 700’s image composition references its chapter icons through the same reusable-collection principle.
 
@@ -94,7 +96,7 @@ Gita Sara is a registered experience with 135 explicitly ordered SIDs: nine Dhya
 
 Gita Sara’s audio composition references the reusable Swami Brahmananda collection for all 126 numbered shlokas. The nine Dhyana rows remain present with blank audio references because that collection has no matching recordings.
 
-The reusable `deck` type has a Google-deck collection whose catalog uses `sid#order#language#deck_url#title` and contains only real deck assets. Experience composition uses `sid#order#deck_collection#deck_order`, allowing more than one explicitly ordered deck per SID. A SID without a deck has no composition row.
+The reusable `deck` type has a Google-deck collection whose catalog uses `sid#order#language#deck_url#title`. Here `deck_url` is a logical `deck/...json` descriptor path, not the provider URL. The descriptor declares schema, provider, external source and minimal display settings; a provider adapter converts it to the playable embed URL. Experience composition uses `sid#order#deck_collection#deck_order`, allowing more than one explicitly ordered deck per SID. A SID without a deck has no composition row.
 
 The loader converts an approved Google Slides share URL to an HTTPS embed URL and adds `rm=minimal` together with non-autoplay parameters. A missing deck never blocks text or audio.
 
@@ -102,7 +104,7 @@ The three-panel renderer uses reusable illustrations and contemplation lines. Il
 
 Gita Sara composes source-specific assets through sparse `illustrations.csv`, `decks.csv`, and `contemplations.csv` files. Its sparse unified `media.csv` supplies cross-type order through `media_type`, collection, and asset order. Composition rows exist only for actual associations; their SIDs must belong to `sequence.csv` and remain in its relative order. Missing illustration or contemplation associations resolve to shared defaults.
 
-Image URLs may be app-relative or absolute HTTPS URLs. Unsafe schemes, protocol-relative URLs, and root-relative paths are rejected. Normalized media retains the catalog `sourceUrl`, renderer `resolvedUrl`, and `isExternal` state. Reusable image and question defaults are declared once in `experience.json` and applied only when no authored media or question exists. The normalized model exposes `media.items` and `contemplation.lines`, including localized content and `isFallback` markers.
+Owned image URLs are strict `image/...` logical paths. External provider URLs do not appear in image catalogs. Normalized media retains catalog and resolved identities. Reusable image and question defaults are declared once in `experience.json` and applied only when no authored media or question exists. The normalized model exposes `media.items` and `contemplation.lines`, including localized content and `isFallback` markers.
 
 ## Audio cues
 
@@ -119,7 +121,7 @@ Gita Yoga’s composition deliberately contains all canonical SIDs even though i
 
 ## Validation
 
-The loader verifies required headers, unique/aligned SIDs, supported schema versions, catalog references, and media paths before producing normalized rows. HTTP, file chooser, and writable-workspace loading share the same normalization rules.
+The loader verifies required headers, unique/aligned SIDs, supported schema versions, catalog references, mounts, and logical media paths before producing normalized rows. The media repository imports this same engine contract for publishing validation, recursively follows catalog references, and verifies every referenced binary. `npm run generate:manifests` regenerates each book’s sorted metadata-only `files` list; stale lists fail validation. HTTP and file chooser loading share the same resolution rules.
 
 ## Runtime source
 

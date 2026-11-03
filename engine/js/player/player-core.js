@@ -944,14 +944,12 @@ async function startPlayer(dataset, experience, { workspace = null, sid = reques
   state.renderer = await experience.load({
     translate,
     gitaSaraView,
-    onGitaSaraViewChange: (view) => {
-      profileStore.setGitaSaraView(state.activeProfile.pid, view).catch(() => {});
-      emitEvent('gita_sara_view_changed', {
+    onGitaSaraViewChange: (view) => profileStore.setGitaSaraView(state.activeProfile.pid, view)
+      .catch(() => {})
+      .finally(() => emitEvent('gita_sara_view_changed', {
         context: verseContext(),
         details: { view }
-      });
-      syncQuestionsMenu();
-    }
+      }))
   });
   state.renderer.mount(document.getElementById('renderer-root'));
   syncQuestionsMenu();
@@ -1024,7 +1022,7 @@ function chapterIconFor(cid) {
 
 function audioSource(row) {
   const source = row.media.primaryAudioUrl || row.media.chantFullSaUrl;
-  return source ? new URL(source, location.href).href : '';
+  return source || '';
 }
 
 function syncQuestionsMenu() {
@@ -1037,9 +1035,9 @@ function syncQuestionsMenu() {
   button.querySelector('.top-menu-label').textContent = i18n.t(visible ? 'menu.questionsOn' : 'menu.questionsOff');
 }
 
-function toggleQuestions() {
+async function toggleQuestions() {
   if (!state.renderer?.supportsQuestions || state.editor?.active) return false;
-  const changed = state.renderer.toggleQuestions?.();
+  const changed = await state.renderer.toggleQuestions?.();
   if (changed) {
     syncQuestionsMenu();
     setMenuOpen(false);
@@ -1056,7 +1054,7 @@ function render(options = {}) {
   const chapterIcon = document.getElementById('chapter-icon');
   const iconPath = chapterIconFor(row.cid);
   chapterIcon.hidden = !iconPath;
-  if (iconPath) chapterIcon.src = new URL(iconPath, location.href).href;
+  if (iconPath) chapterIcon.src = iconPath;
   else chapterIcon.removeAttribute('src');
   document.getElementById('sid-label').textContent = row.sid;
   document.getElementById('position-label').textContent = (state.index + 1) + ' / ' + state.dataset.rows.length;
@@ -1358,7 +1356,7 @@ function buildChapterList() {
     if (iconPath) {
       const icon = document.createElement('img');
       icon.className = 'chapter-list-icon';
-      icon.src = new URL(iconPath, location.href).href;
+      icon.src = iconPath;
       icon.alt = '';
       button.appendChild(icon);
     }

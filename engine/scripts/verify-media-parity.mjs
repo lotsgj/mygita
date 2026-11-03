@@ -12,7 +12,7 @@ class FileMediaSource {
   constructor(root) { this.root = root; this.catalog = null; this.books = new Map(); }
   async readText(path) { return readFile(resolve(this.root, safeMediaPath(path)), 'utf8'); }
   async loadCatalog() {
-    if (!this.catalog) this.catalog = validateMediaCatalog(JSON.parse(await this.readText('catalog.json')));
+    if (!this.catalog) this.catalog = validateMediaCatalog(JSON.parse(await readFile(resolve(this.root, 'catalog.json'), 'utf8')), { catalogRoot: 'https://media.gitajyoti.org/' });
     return this.catalog;
   }
   async loadBook(bookId) {
