@@ -13,6 +13,8 @@
   "experiences": [
     {
       "id": "sukta-chant",
+      "bookId": "ganesha-atharva",
+      "bookIds": ["ganesha-atharva", "purusha-sukta"],
       "renderer": "player-4",
       "label": "Sukta Chant",
       "cardClass": "experience-chant",
@@ -43,8 +45,9 @@
       "pwa.ready": "A new Suktaverse version is ready.",
       "help.about": "Open About Suktaverse",
       "data.title": "Unable to load the Sukta collections",
-      "data.description": "Suktaverse could not load its language and media collections automatically. Choose the local data/collections folder to continue.",
-      "collections.message": "Choose this product’s data/collections folder to use Suktaverse locally.",
+      "data.description": "MyGita could not load this book from the selected media source. Choose the local media folder to continue.",
+      "data.choose": "Choose media folder",
+      "collections.message": "Choose the local media folder to use MyGita from file mode.",
       "workspace.note": "The folder stays on your device. Suktaverse requests read and write access only after you choose it.",
       "validation.contentLanguage": "Choose a preferred Sukta content language."
     },
@@ -67,8 +70,9 @@
       "pwa.ready": "Suktaverse ನ ಹೊಸ ಆವೃತ್ತಿ ಸಿದ್ಧವಾಗಿದೆ.",
       "help.about": "Suktaverse ಕುರಿತು ತೆರೆಯಿರಿ",
       "data.title": "ಸೂಕ್ತ ಸಂಗ್ರಹಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ",
-      "data.description": "Suktaverse ಭಾಷೆ ಮತ್ತು ಮಾಧ್ಯಮ ಸಂಗ್ರಹಗಳನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ. ಮುಂದುವರಿಯಲು ಸ್ಥಳೀಯ data/collections ಫೋಲ್ಡರ್ ಅನ್ನು ಆಯ್ಕೆಮಾಡಿ.",
-      "collections.message": "Suktaverse ಅನ್ನು ಸ್ಥಳೀಯವಾಗಿ ಬಳಸಲು ಈ ಉತ್ಪನ್ನದ data/collections ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ.",
+      "data.description": "ಆಯ್ಕೆಮಾಡಿದ ಮಾಧ್ಯಮ ಮೂಲದಿಂದ ಈ ಪುಸ್ತಕವನ್ನು ಲೋಡ್ ಮಾಡಲು MyGita ಗೆ ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಮುಂದುವರಿಯಲು ಸ್ಥಳೀಯ media ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ.",
+      "data.choose": "ಮಾಧ್ಯಮ ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ",
+      "collections.message": "ಫೈಲ್ ಮೋಡ್‌ನಲ್ಲಿ MyGita ಬಳಸಲು ಸ್ಥಳೀಯ media ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ.",
       "workspace.note": "ಫೋಲ್ಡರ್ ನಿಮ್ಮ ಸಾಧನದಲ್ಲೇ ಇರುತ್ತದೆ. ಆಯ್ಕೆಮಾಡಿದ ನಂತರ ಮಾತ್ರ Suktaverse ಓದು ಮತ್ತು ಬರೆಯುವ ಅನುಮತಿ ಕೇಳುತ್ತದೆ.",
       "validation.contentLanguage": "ಆದ್ಯತೆಯ ಸೂಕ್ತ ವಿಷಯ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ."
     }

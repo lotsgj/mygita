@@ -8,6 +8,7 @@ const { chromium } = require('playwright');
 const productRoot = path.resolve(__dirname, '../..');
 const productsRoot = path.resolve(productRoot, '..');
 const engineRoot = process.env.VERSES_ENGINE_ROOT || path.resolve(productRoot, '../../engine');
+const mediaRoot = process.env.MYGITA_MEDIA_ROOT || path.resolve(productRoot, '../../../media');
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const forbiddenIndicMarks = /[\u0900-\u097f\u1cd0-\u1cff\ua8e0-\ua8ff]/u;
 const latinSvaraMarks = /[\u030d\u030e\u0331]/u;
@@ -134,7 +135,6 @@ async function assertLongLineFixture(page, label) {
 }
 
 async function runCollection(browser, collection, sids) {
-  const product = productForCollection(collection);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   context.setDefaultTimeout(15000);
   const page = await context.newPage();
@@ -142,22 +142,18 @@ async function runCollection(browser, collection, sids) {
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(message.text()); });
   try {
-    await page.goto(pathToFileURL(path.join(engineRoot, 'index.html')).href + `?play=sukta-chant&sid=${encodeURIComponent(sids[0])}&lang=en`, { waitUntil: 'domcontentloaded' });
-    await page.locator('#distribution-folder-input').setInputFiles(product.root);
-    try {
-      await page.waitForFunction(() => !document.querySelector('#profile-setup')?.hidden
-        || Boolean(document.querySelector('.verse-chant-panels')));
-    } catch (error) {
-      const visible = await page.locator('body > section:not([hidden]), body > main:not([hidden]), #app:not([hidden]), #distribution-chooser:not([hidden]), #profile-setup:not([hidden]), #diksoochi:not([hidden]), #error-view:not([hidden])').evaluateAll((elements) => elements.map((element) => `${element.id || element.tagName}:${element.textContent.trim().slice(0, 240)}`));
-      throw new Error(`${collection} did not reach profile setup or player: ${visible.join(' | ')}; runtime errors: ${runtimeErrors.join(' | ')}`, { cause: error });
-    }
-    if (await page.locator('#profile-setup').isVisible()) await createProfile(page);
+    await page.goto(pathToFileURL(path.join(engineRoot, 'index.html')).href + `?product=sukta&play=sukta-chant&collection=${collection}&sid=${encodeURIComponent(sids[0])}&lang=en`, { waitUntil: 'domcontentloaded' });
+    assert.equal(await page.locator('#distribution-chooser').isHidden(), true, 'file mode embeds stable product configuration');
+    await page.locator('#profile-setup').waitFor({ state: 'visible' });
+    await createProfile(page);
+    await page.locator('#home-collections-input').setInputFiles(mediaRoot);
     try {
       await page.locator('.verse-chant-panels').waitFor();
     } catch (error) {
       const visible = await page.locator('body > section:not([hidden]), body > main:not([hidden]), #app:not([hidden]), #profile-setup:not([hidden]), #diksoochi:not([hidden]), #error-view:not([hidden])').evaluateAll((elements) => elements.map((element) => `${element.id || element.tagName}:${element.textContent.trim().slice(0, 160)}`));
       throw new Error(`${collection} did not open: ${visible.join(' | ')}; runtime errors: ${runtimeErrors.join(' | ')}`, { cause: error });
     }
+    assert.deepEqual(await page.locator('html').evaluate((element) => ({ source: element.dataset.contentSource, book: element.dataset.contentBook })), { source: 'media-book', book: collection });
     assert.equal(await page.locator('[data-app-name]').first().innerText(), 'MyGita');
     if (collection === 'ganesha-atharva') {
       assert.equal(await page.locator('#collection-trigger').isVisible(), true, 'multiple collections expose the shared collection pill');
@@ -196,7 +192,6 @@ async function runCollection(browser, collection, sids) {
     await assertLongLineFixture(page, `${collection} mobile`);
   } finally {
     await context.close();
-    product.dispose();
   }
 }
 

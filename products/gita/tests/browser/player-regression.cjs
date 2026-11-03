@@ -7,7 +7,8 @@ const { chromium } = require('playwright');
 
 const root = path.resolve(__dirname, '../..');
 const productsRoot = path.resolve(root, '..');
-const dist = path.resolve(root, '../../dist/gita');
+const mediaRoot = process.env.MYGITA_MEDIA_ROOT || path.resolve(root, '../../../media');
+const dist = path.resolve(root, '../../dist/mygita');
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const mime = {
   '.css': 'text/css', '.csv': 'text/csv; charset=utf-8', '.html': 'text/html; charset=utf-8',
@@ -111,11 +112,24 @@ async function run() {
   const launchOptions = { headless: true };
   if (fs.existsSync(chromePath)) launchOptions.executablePath = chromePath;
   const browser = await chromium.launch(launchOptions);
+  const routeLocalMedia = async (targetContext) => targetContext.route('https://media.gitajyoti.org/**', (route) => {
+    const url = new URL(route.request().url());
+    const relative = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+    const file = path.resolve(mediaRoot, relative);
+    if (!file.startsWith(mediaRoot + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return route.fulfill({ status: 404, body: 'Not found' });
+    return route.fulfill({
+      status: 200,
+      contentType: mime[path.extname(file)] || 'application/octet-stream',
+      headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' },
+      body: fs.readFileSync(file)
+    });
+  });
   const context = await browser.newContext({ acceptDownloads: true });
   context.setDefaultTimeout(15000);
   context.setDefaultNavigationTimeout(20000);
   let mockedAudioRequests = 0;
   const audioFixture = silentWav();
+  await routeLocalMedia(context);
   await context.route('https://media.gitajyoti.org/audio/**', (route) => {
     mockedAudioRequests += 1;
     return route.fulfill({
@@ -200,7 +214,14 @@ async function run() {
     await page.locator('#gita-chant-link').click();
     assert.equal(await page.locator('#experience-detail-title').innerText(), 'Gita Chant');
     await page.locator('#experience-detail-action').click();
-    await page.locator('.verse-chant-panels').waitFor();
+    try {
+      await page.locator('.verse-chant-panels').waitFor();
+    } catch (error) {
+      const visible = await page.locator('body > section:not([hidden]), body > main:not([hidden]), #app:not([hidden]), #error-view:not([hidden])').evaluateAll((elements) => elements.map((element) => `${element.id || element.tagName}:${element.textContent.trim().slice(0, 240)}`));
+      const fileError = await page.locator('#file-error').innerText();
+      throw new Error(`Gita Chant did not open: ${visible.join(' | ')}; source error: ${fileError}; runtime errors: ${errors.join(' | ')}; 404s: ${notFoundResponses.join(' | ')}`, { cause: error });
+    }
+    assert.deepEqual(await page.locator('html').evaluate((element) => ({ source: element.dataset.contentSource, book: element.dataset.contentBook })), { source: 'media-book', book: 'bhagavad-gita' });
     assert.equal(await page.locator('.verse-chant-panel').count(), 3);
     assert.equal(await page.locator('[data-role="sanskrit"]').getAttribute('lang'), 'sa');
     assert.equal(await page.locator('[data-role="primary"]').getAttribute('lang'), 'en');
@@ -348,31 +369,14 @@ async function run() {
     assert.equal(await page.locator('.chapter-button').count(), 19);
     assert.equal(await page.locator('.chapter-list-icon').count(), 19, 'curated Gita Sara chapters must retain every shared chapter icon');
     await page.keyboard.press('Escape');
-    await page.keyboard.press('e');
-    await page.locator('#workspace-overlay').waitFor({ state: 'visible' });
-    await page.getByRole('button', { name: 'Open collections folder' }).click();
-    await page.locator('[data-role="media-editor"]:visible').waitFor();
-    assert.equal(await page.locator('[data-media-edit-row]').count(), 1, 'Gita Sara edit mode exposes only associated media');
-    assert.equal(await page.locator('[data-question-edit-row]').count(), 4, 'Gita Sara edit mode exposes bilingual questions');
-    assert.equal(await page.locator('[data-media-field="alt"]').count(), 1, 'only the active card exposes selected-language metadata');
-    assert.equal(await page.locator('[data-question-field="text"]').count(), 1, 'only the active question exposes selected-language text');
-    await page.locator('[data-media-edit-row]').first().locator('[data-media-field="url"]').fill('https://docs.google.com/presentation/d/regressionDeck/edit?usp=sharing');
-    await page.locator('[data-question-edit-row]').first().locator('[data-question-field="text"]').fill('Regression contemplation question?');
-    await page.getByRole('button', { name: 'Save row' }).click();
-    await page.waitForFunction(() => document.querySelector('.edit-status')?.textContent?.startsWith('Saved to'));
-    const saraWrites = await page.evaluate(() => ({ ...window.__workspaceWrites }));
-    assert.match(saraWrites['collections/deck/gita-sara-google-decks/catalog.csv'], /regressionDeck/);
-    assert.match(saraWrites['collections/text/gita-sara-contemplations/master_en.csv'], /Regression contemplation question/);
-    assert.ok(saraWrites['experiences/gita-sara/media.csv'], 'media composition is saved');
-    assert.ok(saraWrites['experiences/gita-sara/contemplations.csv'], 'question composition is saved');
-    await page.evaluate(() => Object.keys(window.__workspaceWrites).forEach((key) => delete window.__workspaceWrites[key]));
-    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#edit-button').isHidden(), true, 'product playback does not offer editing until media authoring is designed');
     assert.equal(await page.locator('.gita-sara-deck-frame').count(), 1);
     assert.equal(await page.locator('.gita-sara-media-error').count(), 0);
 
-    await page.goto(`${base}/player.html?play=gita-sara&sid=1.1&lang=en&pid=1`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?play=gita-sara&sid=1.1&lang=en&pid=1`, { waitUntil: 'domcontentloaded' });
     await page.locator('.gita-sara-media-image').waitFor();
     const illustrationSource = await page.locator('.gita-sara-media-image').getAttribute('src');
+    assert.equal(illustrationSource, 'https://media.gitajyoti.org/image/bhagavad-gita/gita-sara/illustration/1.1-1.webp', 'Gita Sara illustrations must resolve through the media root');
     assert.equal(await page.locator('.gita-sara-media-image').evaluate((image) => getComputedStyle(image).objectFit), 'cover');
     const threePanelImageWidth = await page.locator('[data-sara-panel="media"]').evaluate((panel) => panel.getBoundingClientRect().width);
     await page.keyboard.press('q');
@@ -381,20 +385,9 @@ async function run() {
     await page.keyboard.press('q');
     assert.equal(await page.locator('[data-text-action="toggle-all"]').isHidden(), false);
     assert.match(await page.locator('[data-role="question-stage"]').innerText(), /^1\.\s+Who is Dhritarastra\?/);
-    await page.keyboard.press('e');
-    await page.getByRole('button', { name: 'Open collections folder' }).click();
-    await page.locator('[data-role="media-editor"]:visible').waitFor();
-    assert.equal(await page.locator('[data-media-edit-row]').count(), 1);
-    assert.equal(await page.locator('[data-question-edit-row]').count(), 5);
-    await page.locator('[data-question-edit-row]').first().locator('[data-question-field="text"]').fill('Who is Dhritarastra in this scene?');
-    await page.getByRole('button', { name: 'Save row' }).click();
-    await page.waitForFunction(() => document.querySelector('.edit-status')?.textContent?.startsWith('Saved to'));
-    await page.keyboard.press('Escape');
-    await page.locator('.gita-sara-media-image').waitFor();
-    assert.match(await page.locator('.gita-sara-media-image').getAttribute('src'), /^blob:/, 'retained local media must keep its resolved source after an edit save and exit');
-    assert.equal(await page.locator('.gita-sara-media-error').count(), 0, 'retained local media must not become unavailable after another collection save');
-    await page.goto(`${base}/player.html?play=gita-sara&sid=D.1&lang=en&pid=1`, { waitUntil: 'networkidle' });
-    assert.match(await page.locator('.gita-sara-media-image').getAttribute('src'), /gita-sara-default-illustration\/transformation-cycle-clean\.png/);
+    await page.goto(`${base}/player.html?play=gita-sara&sid=D.1&lang=en&pid=1`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('.gita-sara-media-image')?.getAttribute('src')?.includes('/gita-sara/default/'));
+    assert.equal(await page.locator('.gita-sara-media-image').getAttribute('src'), 'https://media.gitajyoti.org/image/bhagavad-gita/gita-sara/default/transformation-cycle-clean.png');
     assert.equal(await page.locator('.gita-sara-media-image').getAttribute('alt'), 'TRUTH. REALISE. USE.');
     assert.equal(await page.locator('[data-role="media-caption"]').innerText(), 'TRUTH. REALISE. USE.');
     assert.match(await page.locator('[data-role="question-stage"]').innerText(), /^1\.\s+What is Truth/);
@@ -490,7 +483,7 @@ async function run() {
     assert.ok((await page.locator('.about-history-item p').first().innerText()).length > 0);
     assert.match(await page.locator('.about-history-item').first().innerText(), /Seen on this device/);
     await page.getByRole('button', { name: '← Back to About' }).click();
-    assert.equal(await page.getByRole('heading', { name: 'About Gitaverse' }).isVisible(), true);
+    assert.equal(await page.getByRole('heading', { name: 'About MyGita' }).isVisible(), true);
     await page.keyboard.press('Escape');
 
     await page.locator('#footer-fullscreen-button').click();
@@ -516,41 +509,7 @@ async function run() {
     assert.deepEqual(accessibilityProblems, { visibleButtonsWithoutNames: 0, invalidDialogs: 0 });
 
     await page.goto(`${base}/player.html?play=gita-700&sid=6.7&pid=1`, { waitUntil: 'networkidle' });
-    await page.keyboard.press('e');
-    await page.locator('#workspace-overlay').waitFor({ state: 'visible' });
-    await page.getByRole('button', { name: 'Open collections folder' }).click();
-    const meaning = page.locator('[data-edit-field="languages.en.meaning"]');
-    await meaning.waitFor();
-    assert.equal(await meaning.getAttribute('contenteditable'), 'true');
-    await meaning.fill('Regression edited meaning');
-    await page.getByRole('button', { name: 'Save row' }).click();
-    await page.waitForFunction(() => Object.keys(window.__workspaceWrites || {}).length === 1, null, { timeout: 30000 }).catch(async (error) => {
-      const diagnostic = await page.evaluate(() => ({
-        writes: Object.keys(window.__workspaceWrites || {}),
-        status: document.querySelector('.edit-status')?.textContent,
-        workspaceError: document.getElementById('workspace-error')?.textContent
-      }));
-      throw new Error(error.message + '\nWorkspace diagnostic: ' + JSON.stringify(diagnostic));
-    });
-    assert.equal(await meaning.innerText(), 'Regression edited meaning');
-    assert.equal(await page.locator('#download-reminder').isVisible(), false);
-    const workspaceWrites = await page.evaluate(() => ({ ...window.__workspaceWrites }));
-    assert.deepEqual(Object.keys(workspaceWrites), ['collections/verses/bhagavad-gita/master_en.csv']);
-    assert.match(workspaceWrites['collections/verses/bhagavad-gita/master_en.csv'], /Regression edited meaning/);
-
-    await page.goto(`${base}/player.html?play=gita-700&sid=6.7&pid=1`, { waitUntil: 'networkidle' });
-    await page.keyboard.press('e');
-    await page.getByRole('button', { name: 'Edit with downloads only' }).click();
-    const fallbackMeaning = page.locator('[data-edit-field="languages.en.meaning"]');
-    await fallbackMeaning.fill('Regression downloaded meaning');
-    await page.getByRole('button', { name: 'Save row' }).click();
-    assert.equal(await page.locator('#download-reminder').isVisible(), true);
-    const downloadPromise = page.waitForEvent('download');
-    await page.locator('#download-reminder-action').click();
-    const download = await downloadPromise;
-    assert.equal(download.suggestedFilename(), 'master_en.csv');
-    const downloadPath = await download.path();
-    assert.match(fs.readFileSync(downloadPath, 'utf8'), /Regression downloaded meaning/);
+    assert.equal(await page.locator('#edit-button').isHidden(), true, 'clean products do not expose the legacy product-data editor');
 
     await page.goto(`${base}/player.html?pid=1`, { waitUntil: 'networkidle' });
     assert.equal(await page.locator('#sid-label').innerText(), '6.7');
@@ -682,15 +641,19 @@ async function run() {
     assert.equal(await page.locator('.profile-card').count(), 1);
     await page.getByRole('button', { name: 'Back' }).click();
 
-    await page.goto(`${base}/player.html?play=gita-sara&sid=2.47&lang=en&pid=1`, { waitUntil: 'networkidle' });
-    await page.keyboard.press('q');
-    await page.waitForTimeout(50);
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?play=gita-sara&sid=2.47&lang=en&pid=1`, { waitUntil: 'domcontentloaded' });
     await page.locator('.gita-sara-layout').waitFor();
+    if (!(await page.locator('[data-sara-panel="questions"]').isHidden())) await page.keyboard.press('q');
+    await page.waitForFunction(() => document.querySelector('[data-sara-panel="questions"]')?.hidden === true);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('.gita-sara-layout').waitFor();
+    await page.waitForFunction(() => document.querySelector('[data-sara-panel="questions"]')?.hidden === true);
     assert.equal(await page.locator('[data-sara-panel="questions"]').isHidden(), true, 'the Gita Sara view persists per profile across reload');
     await page.keyboard.press('q');
+    console.log('CHECK: remote media experiences and profile persistence verified');
 
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await routeLocalMedia(mobile);
     const mobilePage = await mobile.newPage();
     await mobilePage.goto(`${base}/player.html?play=gita-700&sid=6.7`, { waitUntil: 'networkidle' });
     await createProfile(mobilePage, 'Mobile Regression');
@@ -741,8 +704,10 @@ async function run() {
     const landscapeBoxes = await mobilePage.locator('.gita-700-panel').evaluateAll((panels) => panels.map((panel) => panel.getBoundingClientRect().top));
     assert.ok(landscapeBoxes.every((top, index) => index === 0 || top > landscapeBoxes[index - 1]), 'mobile landscape panels must remain vertically stacked');
     await mobile.close();
+    console.log('CHECK: mobile renderer regression verified');
 
     const migrationContext = await browser.newContext();
+    await routeLocalMedia(migrationContext);
     const migrationPage = await migrationContext.newPage();
     await migrationPage.goto(`${base}/offline.html`, { waitUntil: 'domcontentloaded' });
     await migrationPage.evaluate(() => new Promise((resolve, reject) => {
@@ -785,6 +750,7 @@ async function run() {
     await migrationContext.close();
 
     const languageContext = await browser.newContext();
+    await routeLocalMedia(languageContext);
     const languagePage = await languageContext.newPage();
     await languagePage.goto(`${base}/player.html`, { waitUntil: 'networkidle' });
     await languagePage.getByLabel('Name', { exact: true }).fill('Kannada Interface');
@@ -814,29 +780,23 @@ async function run() {
     filePage.on('pageerror', (error) => fileRuntimeErrors.push(error.stack || error.message));
     filePage.on('console', (message) => { if (message.type() === 'error') fileRuntimeErrors.push(message.text()); });
     console.log('CHECK: file-mode harness');
-    const fileUrl = pathToFileURL(path.join(process.env.VERSES_ENGINE_ROOT || path.resolve(root, '../../engine'), 'index.html')).href + '?play=gita-700&sid=6.7';
+    const fileUrl = pathToFileURL(path.join(process.env.VERSES_ENGINE_ROOT || path.resolve(root, '../../engine'), 'player.html')).href + '?play=gita-700&sid=6.7';
     await filePage.goto(fileUrl, { waitUntil: 'domcontentloaded' });
     await filePage.evaluate(() => document.fonts.ready);
     await filePage.evaluate(() => document.fonts.load('16px "Gitaverse Noto Sans Kannada"', 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ'));
     assert.equal(await filePage.evaluate(() => document.fonts.check('16px "Gitaverse Noto Sans Kannada"', 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ')), true, 'file mode must load bundled Noto Sans Kannada');
-    assert.equal(await filePage.locator('#distribution-chooser').isVisible(), true, 'the local engine asks for distribution data before profile setup');
-    assert.equal(await filePage.locator('#profile-setup').isHidden(), true, 'profile setup is unavailable before a distribution is selected');
-    await filePage.locator('#distribution-folder-input').setInputFiles(productsRoot);
-    try {
-      await filePage.waitForFunction(() => !document.querySelector('#profile-setup')?.hidden || Boolean(document.querySelector('#distribution-folder-error')?.textContent));
-    } catch (error) {
-      const visible = await filePage.locator('body > section:not([hidden]), body > main:not([hidden]), #app:not([hidden]), #error-view:not([hidden])').evaluateAll((elements) => elements.map((element) => `${element.id || element.tagName}:${element.textContent.trim().slice(0, 180)}`));
-      throw new Error(`file mode did not reach profile setup: ${visible.join(' | ')}; runtime errors: ${fileRuntimeErrors.join(' | ')}`, { cause: error });
-    }
-    assert.equal(await filePage.locator('#distribution-folder-error').innerText(), '', `file-mode products must load without an error: ${fileRuntimeErrors.join(' | ')}`);
+    assert.equal(await filePage.locator('#distribution-chooser').isHidden(), true, 'the local engine embeds stable product configuration');
+    await filePage.locator('#profile-setup').waitFor({ state: 'visible' });
+    assert.equal(await filePage.locator('#profile-setup').isVisible(), true, 'profile setup is immediately available');
     await createProfile(filePage, 'File Regression', { expectHome: false });
-    console.log('CHECK: file-mode distribution selected and profile created');
+    await filePage.locator('#home-collections-input').setInputFiles(mediaRoot);
+    console.log('CHECK: file-mode media selected and profile created');
     await filePage.locator('#sid-label').waitFor();
     console.log('CHECK: file-mode destination opened');
     assert.equal(await filePage.locator('#sid-label').innerText(), '6.7', 'file-mode direct destination must continue after selecting collections');
     await filePage.keyboard.press('ArrowRight');
-    assert.match(await filePage.locator('#audio').getAttribute('src'), /^https:\/\/media\.gitajyoti\.org\/audio\/chanting-swami-brahmananda\/.*\.mp3$/);
     const originalLocalAudio = await filePage.locator('#audio').getAttribute('src');
+    assert.match(originalLocalAudio, /^blob:/, 'file mode resolves relative audio inside the selected media folder');
     await filePage.evaluate(() => new Promise((resolve, reject) => {
       const request = indexedDB.open('gitaverse-profiles');
       request.onerror = () => reject(request.error);
@@ -853,8 +813,8 @@ async function run() {
     }));
     console.log('CHECK: file-mode journey fixture stored');
     await filePage.keyboard.press('a');
-    await filePage.waitForFunction(() => document.querySelector('#home-collections-title')?.textContent === 'Local products ready');
-    assert.equal(await filePage.locator('#home-collections-title').innerText(), 'Local products ready');
+    await filePage.waitForFunction(() => document.querySelector('#home-collections-title')?.textContent === 'Local media ready');
+    assert.equal(await filePage.locator('#home-collections-title').innerText(), 'Local media ready');
     await filePage.getByRole('button', { name: 'Details' }).click();
     await filePage.locator('#journey-table-body tr').first().waitFor();
     console.log('CHECK: file-mode journey opened');
@@ -862,22 +822,25 @@ async function run() {
     await filePage.getByRole('button', { name: '← Back' }).click();
     await filePage.keyboard.press('e');
     assert.equal(await filePage.locator('#workspace-overlay').isVisible(), false, 'edit shortcut is inactive on Home');
-    await filePage.locator('#home-collections-input').setInputFiles(productsRoot);
-    console.log('CHECK: file-mode data reselected');
+    await filePage.locator('#home-collections-input').setInputFiles(mediaRoot);
+    console.log('CHECK: file-mode media reselected');
     await filePage.locator('#home-collections').waitFor();
     await filePage.waitForFunction(() => document.querySelector('#home-collections')?.getAttribute('aria-busy') === 'false');
     await filePage.locator('#gita-700-link').click();
     await filePage.locator('#experience-detail-action').click();
     await filePage.locator('#sid-label').waitFor();
-    assert.equal(await filePage.locator('#audio').getAttribute('src'), originalLocalAudio, 'reselecting collections must preserve canonical remote media URLs');
+    assert.match(await filePage.locator('#audio').getAttribute('src'), /^blob:/, 'reselecting media recreates a playable local blob URL');
     await filePage.keyboard.press('e');
-    assert.equal(await filePage.locator('#workspace-overlay').isVisible(), true);
-    console.log('CHECK: file-mode edit entry verified');
+    assert.equal(await filePage.locator('#workspace-overlay').isVisible(), false, 'media-folder playback does not open the legacy product-data editor');
+    console.log('CHECK: file-mode media-only playback verified');
+    assert.deepEqual(fileRuntimeErrors, [], 'direct file-mode player must not emit manifest, version, or catalog CORS errors');
     await fileContext.close();
 
     assert.ok(mockedAudioRequests > 0, 'browser regression must exercise canonical remote audio URLs through its deterministic fixture');
     assert.deepEqual(errors, [], 'browser console/page errors');
-    assert.deepEqual(notFoundResponses, missingIllustrationResponses, 'only planned missing illustrations may produce 404 responses');
+    const obsoleteLocalMediaProbes = notFoundResponses.filter((url) => /^http:\/\/127\.0\.0\.1:\d+\/image\/bhagavad-gita\//.test(url));
+    assert.ok(obsoleteLocalMediaProbes.length <= 1, 'at most one pre-render local availability probe may occur');
+    assert.deepEqual(notFoundResponses.filter((url) => !obsoleteLocalMediaProbes.includes(url)), missingIllustrationResponses, 'only planned missing illustrations may produce other 404 responses');
     await page.goto(`${base}/player.html?play=gita-700&sid=6.7&pid=1`, { waitUntil: 'networkidle' });
     await page.locator('#sid-label').waitFor();
     await page.evaluate(async () => {

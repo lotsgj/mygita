@@ -1741,6 +1741,251 @@ class AboutDialog {
   }
 }
 
+// Source: js/media-source.js
+const MEDIA_SCHEMA_VERSION = 1;
+
+function safeMediaPath(value) {
+  const path = String(value || '').trim().replace(/\\/g, '/');
+  if (!path || path.startsWith('/') || path.includes('://')) throw new Error(`Invalid media path: ${path || '(empty)'}.`);
+  const parts = path.split('/');
+  if (parts.some((part) => !part || part === '.' || part === '..')) throw new Error(`Invalid media path: ${path}.`);
+  return parts.join('/');
+}
+
+function validateSchema(record, label) {
+  if (!record || Number(record.schema_version) !== MEDIA_SCHEMA_VERSION) {
+    throw new Error(`${label} requires schema_version ${MEDIA_SCHEMA_VERSION}.`);
+  }
+  return record;
+}
+
+function validateMediaCatalog(catalog) {
+  validateSchema(catalog, 'Media catalog');
+  if (!String(catalog.content_version || '').trim()) throw new Error('Media catalog requires content_version.');
+  if (!Array.isArray(catalog.books) || !catalog.books.length) throw new Error('Media catalog requires at least one book.');
+  const ids = new Set();
+  catalog.books.forEach((book) => {
+    const id = String(book?.book_id || '').trim();
+    if (!id || ids.has(id)) throw new Error(`Media catalog contains an invalid or duplicate book_id: ${id || '(empty)'}.`);
+    ids.add(id);
+    safeMediaPath(book.manifest);
+  });
+  return catalog;
+}
+
+function validateBookManifest(manifest, expectedBookId = '') {
+  validateSchema(manifest, 'Book manifest');
+  const id = String(manifest.book_id || '').trim();
+  if (!id) throw new Error('Book manifest requires book_id.');
+  if (expectedBookId && id !== expectedBookId) throw new Error(`Book manifest ${id} does not match catalog book_id ${expectedBookId}.`);
+  if (!String(manifest.content_version || '').trim()) throw new Error(`Book manifest ${id} requires content_version.`);
+  const files = new Set((manifest.files || []).map(safeMediaPath));
+  const requireDeclared = (value, label) => {
+    const path = safeMediaPath(value);
+    if (!files.has(path)) throw new Error(`Book manifest ${id} does not declare ${label}: ${path}.`);
+    return path;
+  };
+  requireDeclared(manifest.verses?.catalog, 'verse catalog');
+  for (const language of ['sa', 'en', 'kn']) requireDeclared(manifest.verses?.masters?.[language], `${language} verse master`);
+  const registries = manifest.registries || {};
+  requireDeclared(registries.verses?.structural, 'verse registry');
+  for (const language of ['sa', 'en', 'kn']) requireDeclared(registries.verses?.localized?.[language], `${language} verse metadata`);
+  requireDeclared(registries.audio, 'audio registry');
+  requireDeclared(registries.images, 'image registry');
+  if (registries.deck) requireDeclared(registries.deck, 'deck registry');
+  if (registries.text) requireDeclared(registries.text, 'text registry');
+  return manifest;
+}
+
+function normalizeRootUrl(rootUrl) {
+  const url = new URL(String(rootUrl || ''));
+  if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Remote media root must use HTTP or HTTPS.');
+  return url.href.endsWith('/') ? url.href : `${url.href}/`;
+}
+
+class RemoteMediaSource {
+  constructor({ rootUrl, catalogPath = 'catalog.json', fetchImpl = globalThis.fetch?.bind(globalThis), maxAgeMs = 300000 } = {}) {
+    if (typeof fetchImpl !== 'function') throw new Error('Remote media source requires fetch.');
+    this.rootUrl = normalizeRootUrl(rootUrl);
+    this.catalogPath = safeMediaPath(catalogPath);
+    this.fetchImpl = fetchImpl;
+    this.maxAgeMs = maxAgeMs;
+    this.loadedAt = 0;
+    this.catalog = null;
+    this.books = new Map();
+  }
+
+  get label() { return this.rootUrl; }
+  get needsRefresh() { return Boolean(this.loadedAt && Date.now() - this.loadedAt >= this.maxAgeMs); }
+  resolve(path) { return new URL(safeMediaPath(path), this.rootUrl).href; }
+  resolveMedia(pathOrUrl) {
+    const value = String(pathOrUrl || '').trim();
+    if (/^https:\/\//i.test(value)) return value;
+    return this.resolve(value);
+  }
+
+  async readText(path, { cache = 'no-store' } = {}) {
+    const response = await this.fetchImpl(this.resolve(path), { cache });
+    if (!response?.ok) throw new Error(`Unable to load media file ${path} (${response?.status || 'network error'}).`);
+    return response.text();
+  }
+
+  async readJson(path, options) {
+    const text = await this.readText(path, options);
+    try { return JSON.parse(text); } catch { throw new Error(`Media file ${path} is not valid JSON.`); }
+  }
+
+  async loadCatalog({ refresh = false } = {}) {
+    const stale = this.catalog && Date.now() - this.loadedAt >= this.maxAgeMs;
+    if (!refresh && this.catalog && !stale) return this.catalog;
+    const previousVersion = this.catalog?.content_version;
+    this.catalog = validateMediaCatalog(await this.readJson(this.catalogPath));
+    this.loadedAt = Date.now();
+    if (refresh || stale || (previousVersion && previousVersion !== this.catalog.content_version)) this.books.clear();
+    return this.catalog;
+  }
+
+  async loadBook(bookId, { refresh = false } = {}) {
+    const id = String(bookId || '').trim();
+    const catalog = await this.loadCatalog({ refresh });
+    if (!refresh && this.books.has(id)) return this.books.get(id);
+    const entry = catalog.books.find((book) => book.book_id === id);
+    if (!entry) throw new Error(`Media catalog does not contain book ${id}.`);
+    const manifest = validateBookManifest(await this.readJson(entry.manifest), id);
+    this.books.set(id, manifest);
+    return manifest;
+  }
+}
+
+function selectedMediaFiles(fileList) {
+  const selected = Array.from(fileList || []);
+  const files = new Map();
+  const catalogFile = selected.find((file) => /(^|\/)catalog\.json$/.test(String(file.webkitRelativePath || file.name).replace(/\\/g, '/')));
+  const catalogOriginal = String(catalogFile?.webkitRelativePath || catalogFile?.name || '').replace(/\\/g, '/');
+  const rootPrefix = catalogOriginal.slice(0, Math.max(0, catalogOriginal.length - 'catalog.json'.length));
+  for (const file of selected) {
+    const original = String(file.webkitRelativePath || file.name).replace(/\\/g, '/');
+    const path = rootPrefix && original.startsWith(rootPrefix) ? original.slice(rootPrefix.length) : original;
+    files.set(path, file);
+  }
+  return files;
+}
+
+class FilesMediaSource {
+  constructor({ fileList, catalogPath = 'catalog.json', createObjectUrl = (file) => URL.createObjectURL(file), revokeObjectUrl = (url) => URL.revokeObjectURL(url) } = {}) {
+    this.files = selectedMediaFiles(fileList);
+    if (!this.files.has(catalogPath)) throw new Error('The selected folder is missing catalog.json.');
+    this.catalogPath = safeMediaPath(catalogPath);
+    this.createObjectUrl = createObjectUrl;
+    this.revokeObjectUrl = revokeObjectUrl;
+    this.objectUrls = new Map();
+    this.catalog = null;
+    this.books = new Map();
+  }
+  get label() { return 'media'; }
+  get needsRefresh() { return false; }
+  async readFile(path) {
+    const safe = safeMediaPath(path);
+    const file = this.files.get(safe);
+    if (!file) throw new Error(`The selected media folder is missing ${safe}.`);
+    return file;
+  }
+  async readText(path) { return (await this.readFile(path)).text(); }
+  async readJson(path) {
+    const text = await this.readText(path);
+    try { return JSON.parse(text); } catch { throw new Error(`Media file ${path} is not valid JSON.`); }
+  }
+  async loadCatalog({ refresh = false } = {}) {
+    if (!refresh && this.catalog) return this.catalog;
+    this.catalog = validateMediaCatalog(await this.readJson(this.catalogPath));
+    if (refresh) this.books.clear();
+    return this.catalog;
+  }
+  async loadBook(bookId, { refresh = false } = {}) {
+    const id = String(bookId || '').trim();
+    if (!refresh && this.books.has(id)) return this.books.get(id);
+    const entry = (await this.loadCatalog({ refresh })).books.find((book) => book.book_id === id);
+    if (!entry) throw new Error(`Media catalog does not contain book ${id}.`);
+    const manifest = validateBookManifest(await this.readJson(entry.manifest), id);
+    this.books.set(id, manifest);
+    return manifest;
+  }
+  async resolveMedia(pathOrUrl) {
+    const value = String(pathOrUrl || '').trim();
+    if (/^https:\/\//i.test(value)) return value;
+    const path = safeMediaPath(value);
+    if (!this.objectUrls.has(path)) this.objectUrls.set(path, this.createObjectUrl(await this.readFile(path)));
+    return this.objectUrls.get(path);
+  }
+  release() {
+    this.objectUrls.forEach((url) => this.revokeObjectUrl(url));
+    this.objectUrls.clear();
+  }
+}
+
+async function directoryFile(root, path) {
+  const parts = safeMediaPath(path).split('/');
+  let directory = root;
+  for (const part of parts.slice(0, -1)) directory = await directory.getDirectoryHandle(part);
+  const handle = await directory.getFileHandle(parts.at(-1));
+  return handle.getFile();
+}
+
+class DirectoryMediaSource {
+  constructor({ directoryHandle, catalogPath = 'catalog.json', createObjectUrl = (file) => URL.createObjectURL(file), revokeObjectUrl = (url) => URL.revokeObjectURL(url) } = {}) {
+    if (!directoryHandle || directoryHandle.kind !== 'directory') throw new Error('Local media source requires a directory handle.');
+    this.directoryHandle = directoryHandle;
+    this.catalogPath = safeMediaPath(catalogPath);
+    this.createObjectUrl = createObjectUrl;
+    this.revokeObjectUrl = revokeObjectUrl;
+    this.objectUrls = new Map();
+    this.catalog = null;
+    this.books = new Map();
+  }
+
+  get label() { return this.directoryHandle.name || 'media'; }
+  get needsRefresh() { return false; }
+  async readFile(path) { return directoryFile(this.directoryHandle, path); }
+  async readText(path) { return (await this.readFile(path)).text(); }
+  async readJson(path) {
+    const text = await this.readText(path);
+    try { return JSON.parse(text); } catch { throw new Error(`Media file ${path} is not valid JSON.`); }
+  }
+
+  async loadCatalog({ refresh = false } = {}) {
+    if (!refresh && this.catalog) return this.catalog;
+    this.catalog = validateMediaCatalog(await this.readJson(this.catalogPath));
+    if (refresh) this.books.clear();
+    return this.catalog;
+  }
+
+  async loadBook(bookId, { refresh = false } = {}) {
+    const id = String(bookId || '').trim();
+    if (!refresh && this.books.has(id)) return this.books.get(id);
+    const catalog = await this.loadCatalog({ refresh });
+    const entry = catalog.books.find((book) => book.book_id === id);
+    if (!entry) throw new Error(`Media catalog does not contain book ${id}.`);
+    const manifest = validateBookManifest(await this.readJson(entry.manifest), id);
+    this.books.set(id, manifest);
+    return manifest;
+  }
+
+  async resolveMedia(pathOrUrl) {
+    const value = String(pathOrUrl || '').trim();
+    if (/^https:\/\//i.test(value)) return value;
+    const path = safeMediaPath(value);
+    if (this.objectUrls.has(path)) return this.objectUrls.get(path);
+    const url = this.createObjectUrl(await this.readFile(path));
+    this.objectUrls.set(path, url);
+    return url;
+  }
+
+  release() {
+    this.objectUrls.forEach((url) => this.revokeObjectUrl(url));
+    this.objectUrls.clear();
+  }
+}
+
 // Source: js/player/collection-data.js
 let COLLECTION_ROOT = 'data/collections';
 let EXPERIENCE_ROOT = 'data/experiences';
@@ -2492,6 +2737,12 @@ function selectedCollectionFiles(fileList) {
   return files;
 }
 
+async function readCollectionTextFromFiles(fileList, url) {
+  const file = selectedCollectionFiles(fileList).get(url);
+  if (!file) throw new Error('The selected product folder is missing ' + url + '.');
+  return file.text();
+}
+
 async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '' }) {
   const table = async (url, headers = null) => parseCollectionTable(await text(url), headers, url);
   const experienceRegistry = await table(EXPERIENCE_ROOT + '/collection.csv');
@@ -2658,6 +2909,10 @@ async function fileHandleAt(rootHandle, url) {
   let directory = rootHandle;
   for (const part of parts) directory = await directory.getDirectoryHandle(part);
   return directory.getFileHandle(filename);
+}
+
+async function readCollectionTextFromDirectory(rootHandle, url) {
+  return (await (await fileHandleAt(rootHandle, url)).getFile()).text();
 }
 
 async function hasDataMarker(handle) {
@@ -2847,33 +3102,168 @@ function serializeCollectionTable(table) {
   ].map((row) => row.map(encode).join('#')).join('\n') + '\n';
 }
 
+// Source: js/media-experience-adapter.js
+function declaredFiles(manifest) {
+  return new Set((manifest?.files || []).map((path) => safeMediaPath(path)));
+}
+
+function declaredCandidate(files, candidates) {
+  return candidates.map(safeMediaPath).find((path) => files.has(path)) || '';
+}
+
+function mediaPathForProductPath(productPath, { manifest, experienceId } = {}) {
+  const originalPath = String(productPath || '').replace(/\\/g, '/');
+  const embeddedData = originalPath.indexOf('/data/');
+  const path = embeddedData >= 0 ? originalPath.slice(embeddedData + 1) : originalPath;
+  const bookId = String(manifest?.book_id || '').trim();
+  if (!bookId || !experienceId) throw new Error('Media experience adapter requires a book manifest and experience ID.');
+  const files = declaredFiles(manifest);
+  if (!path.startsWith('data/')) return files.has(path) ? path : '';
+
+  const registryPaths = {
+    'data/collections/verses/collection.csv': manifest.registries?.verses?.structural,
+    'data/collections/verses/collection_sa.csv': manifest.registries?.verses?.localized?.sa,
+    'data/collections/verses/collection_en.csv': manifest.registries?.verses?.localized?.en,
+    'data/collections/verses/collection_kn.csv': manifest.registries?.verses?.localized?.kn,
+    'data/collections/audio/collection.csv': manifest.registries?.audio,
+    'data/collections/images/collection.csv': manifest.registries?.images,
+    'data/collections/deck/collection.csv': manifest.registries?.deck,
+    'data/collections/text/collection.csv': manifest.registries?.text
+  };
+  if (registryPaths[path]) return declaredCandidate(files, [registryPaths[path]]);
+
+  const versePrefix = `data/collections/verses/${bookId}/`;
+  if (path.startsWith(versePrefix)) {
+    const name = path.slice(versePrefix.length);
+    if (name === 'catalog.csv') return declaredCandidate(files, [manifest.verses?.catalog || '']);
+    const language = name.match(/^master_(sa|en|kn)\.csv$/)?.[1];
+    if (language) return declaredCandidate(files, [manifest.verses?.masters?.[language] || '']);
+  }
+
+  const audio = path.match(/^data\/collections\/audio\/([^/]+)\/catalog\.csv$/);
+  if (audio) return declaredCandidate(files, [`book/${bookId}/audio/${audio[1]}/catalog.csv`]);
+
+  const localized = path.match(/^data\/collections\/(images|text)\/([^/]+)\/(catalog|master_en|master_kn)\.csv$/);
+  if (localized) {
+    const [, type, collectionId, name] = localized;
+    const folder = type === 'text' ? 'questions' : 'illustration';
+    return declaredCandidate(files, [`book/${bookId}/${folder}/${collectionId}/${name}.csv`]);
+  }
+
+  const experienceResource = path.match(/^data\/experiences\/([^/]+)\/(.+)$/);
+  if (experienceResource) {
+    const [, sourceExperienceId, requested] = experienceResource;
+    const generic = requested
+      .replace(new RegExp(`^${bookId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-`), '')
+      .replace(/^images\.csv$/, 'image.csv');
+    return declaredCandidate(files, [
+      `book/${bookId}/experience/${sourceExperienceId}/${requested}`,
+      `book/${bookId}/experience/${sourceExperienceId}/${generic}`,
+      `book/${bookId}/experience/${sourceExperienceId}/${requested.replace(/^images\.csv$/, 'image.csv')}`,
+      `book/${bookId}/experience/${experienceId}/${requested}`,
+      `book/${bookId}/experience/${experienceId}/${generic}`,
+      `book/${bookId}/experience/${experienceId}/${requested.replace(/^images\.csv$/, 'image.csv')}`
+    ]);
+  }
+  return '';
+}
+
+async function settleDatasetMedia(dataset) {
+  for (const [cid, value] of dataset.chapterIcons || []) dataset.chapterIcons.set(cid, await value);
+  const settleIllustration = async (item) => {
+    if (!item) return;
+    if (item.resolvedUrl) item.resolvedUrl = await item.resolvedUrl;
+    if (item.imageUrl) item.imageUrl = await item.imageUrl;
+    if (item.fallback) await settleIllustration(item.fallback);
+  };
+  for (const row of dataset.rows || []) {
+    for (const field of ['primaryAudioUrl', 'chantFullSaUrl', 'chapterIconUrl']) {
+      if (row.media?.[field]) row.media[field] = await row.media[field];
+    }
+    for (const illustration of row.media?.illustrations || []) await settleIllustration(illustration);
+    for (const item of row.media?.items || []) await settleIllustration(item);
+  }
+  return dataset;
+}
+
+async function loadMediaBookExperience(experienceId, {
+  bookId,
+  mediaSource,
+  productText,
+  resolveProductMediaUrl = (value) => value,
+  collectionId = bookId
+} = {}) {
+  if (!mediaSource?.loadBook || !mediaSource?.readText || !mediaSource?.resolveMedia) {
+    throw new Error('Media experience adapter requires a readable media source.');
+  }
+  if (typeof productText !== 'function') throw new Error('Media experience adapter requires a product configuration reader.');
+  const manifest = await mediaSource.loadBook(bookId);
+  if (!manifest.experiences?.includes(experienceId)) throw new Error(`Book ${bookId} does not declare experience ${experienceId}.`);
+  const text = async (path) => {
+    const mediaPath = mediaPathForProductPath(path, { manifest, experienceId });
+    return mediaPath ? mediaSource.readText(mediaPath) : productText(path);
+  };
+  const resolveMediaUrl = (value) => {
+    const source = String(value || '').trim();
+    if (/^https:\/\//i.test(source)) return source;
+    if (source.startsWith('audio/') || source.startsWith('image/') || source.startsWith('video/') || source.startsWith('book/')) {
+      return mediaSource.resolveMedia(source);
+    }
+    return resolveProductMediaUrl(source);
+  };
+  const dataset = await loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, collectionId });
+  dataset.contentSource = Object.freeze({ type: 'media-book', bookId, contentVersion: manifest.content_version });
+  return settleDatasetMedia(dataset);
+}
+
 // Source: js/player/collection-source.js
 class CollectionSourceRequiredError extends Error {
   constructor() {
-    super('Choose the local collections folder to continue.');
+    super('Choose the local media folder to continue.');
     this.name = 'CollectionSourceRequiredError';
   }
 }
 
 class CollectionSource {
-  constructor({ protocol = location.protocol, version = '' } = {}) {
+  constructor({
+    protocol = globalThis.location?.protocol || 'https:',
+    version = '',
+    media = {},
+    bookForExperience = () => '',
+    productTextReader = null,
+    productMediaResolver = null,
+    fetchImpl = globalThis.fetch?.bind(globalThis),
+    baseUrl = globalThis.location?.href || 'https://localhost/'
+  } = {}) {
     this.protocol = protocol;
     this.version = version;
+    this.mediaConfig = media || {};
+    this.bookForExperience = bookForExperience;
+    this.productTextReader = productTextReader;
+    this.productMediaResolver = productMediaResolver;
+    this.fetchImpl = fetchImpl;
+    this.baseUrl = baseUrl;
     this.files = null;
     this.directoryHandle = null;
+    this.mediaSource = null;
     this.cache = new Map();
-    this.workspaces = new Map();
+    if (protocol !== 'file:' && media?.remoteRoot) {
+      this.mediaSource = new RemoteMediaSource({ rootUrl: media.remoteRoot, catalogPath: media.catalog || 'catalog.json', fetchImpl });
+    }
   }
 
-  get requiresSelection() { return this.protocol === 'file:' && !this.files && !this.directoryHandle; }
-  get usesLocalFiles() { return Boolean(this.files || this.directoryHandle); }
+  get requiresSelection() { return this.protocol === 'file:' && !this.mediaSource; }
+  get usesLocalFiles() { return Boolean(this.files || this.directoryHandle || (this.protocol === 'file:' && this.mediaSource)); }
   get isReady() { return !this.requiresSelection; }
-  get label() { return this.directoryHandle?.name || (this.files ? 'collections' : 'data/collections'); }
+  get label() { return this.mediaSource?.label || (this.protocol === 'file:' ? 'media' : this.mediaConfig.remoteRoot || 'bundled content'); }
 
-  clear() {
+  clear({ releaseMedia = false } = {}) {
     this.cache.forEach((dataset) => dataset.release?.());
     this.cache.clear();
-    this.workspaces.clear();
+    if (releaseMedia) {
+      this.mediaSource?.release?.();
+      this.mediaSource = null;
+    }
   }
 
   selectFiles(fileList) {
@@ -2891,22 +3281,60 @@ class CollectionSource {
     this.directoryHandle = directoryHandle;
   }
 
-  workspaceFor(experienceId, collectionId = '') { return this.workspaces.get(`${experienceId}:${collectionId}`) || this.workspaces.get(experienceId) || null; }
+  async selectMediaDirectory(directoryHandle) {
+    const source = new DirectoryMediaSource({ directoryHandle, catalogPath: this.mediaConfig.catalog || 'catalog.json' });
+    await source.loadCatalog();
+    this.clear({ releaseMedia: true });
+    this.mediaSource = source;
+  }
 
-  async loadExperience(experienceId, { collectionId = '' } = {}) {
+  async selectMediaFiles(fileList) {
+    const source = new FilesMediaSource({ fileList, catalogPath: this.mediaConfig.catalog || 'catalog.json' });
+    await source.loadCatalog();
+    this.clear({ releaseMedia: true });
+    this.mediaSource = source;
+  }
+
+  workspaceFor() { return null; }
+
+  async productText(url) {
+    if (this.productTextReader) return this.productTextReader(url);
+    if (this.directoryHandle) return readCollectionTextFromDirectory(this.directoryHandle, url);
+    if (this.files) return readCollectionTextFromFiles(this.files, url);
+    const dataRoot = COLLECTION_ROOT.replace(/\/collections$/, '');
+    const resolved = String(url).startsWith('data/') ? `${dataRoot}/${String(url).slice(5)}` : String(url);
+    const request = new URL(resolved, this.baseUrl);
+    if (this.version) request.searchParams.set('v', this.version);
+    const response = await this.fetchImpl(request.href);
+    if (!response?.ok) throw new Error(`Could not load ${url} (HTTP ${response?.status || 'network error'}).`);
+    return response.text();
+  }
+
+  resolveProductMediaUrl(value) {
+    if (/^https:\/\//i.test(String(value || ''))) return value;
+    if (this.productMediaResolver) return this.productMediaResolver(value);
+    const dataRoot = COLLECTION_ROOT.replace(/\/collections$/, '');
+    const resolved = String(value).startsWith('data/') ? `${dataRoot}/${String(value).slice(5)}` : String(value);
+    return new URL(resolved, this.baseUrl).href;
+  }
+
+  async loadExperience(experienceId, { collectionId = '', refresh = false } = {}) {
     const key = `${experienceId}:${collectionId}`;
-    if (this.cache.has(key)) return this.cache.get(key);
+    if (!refresh && this.mediaSource?.needsRefresh) refresh = true;
+    if (!refresh && this.cache.has(key)) return this.cache.get(key);
     if (this.requiresSelection) throw new CollectionSourceRequiredError();
-    let dataset;
-    if (this.directoryHandle) {
-      const opened = await openWritableCollectionWorkspace(experienceId, this.directoryHandle, { collectionId });
-      dataset = opened.dataset;
-      this.workspaces.set(key, opened.workspace);
-    } else {
-      dataset = this.files
-        ? await loadCollectionExperienceFromFiles(experienceId, this.files, { collectionId })
-        : await loadCollectionExperience(experienceId, { version: this.version, collectionId });
-    }
+    if (refresh) this.cache.get(key)?.release?.();
+    const bookId = String(this.bookForExperience(experienceId, collectionId) || collectionId || '').trim();
+    if (!this.mediaSource) throw new Error('MyGita requires a media source to load scripture content.');
+    if (!bookId) throw new Error(`Experience ${experienceId} does not declare a media book.`);
+    if (refresh) await this.mediaSource.loadCatalog({ refresh: true });
+    const dataset = await loadMediaBookExperience(experienceId, {
+      bookId,
+      mediaSource: this.mediaSource,
+      productText: (url) => this.productText(url),
+      resolveProductMediaUrl: (url) => this.resolveProductMediaUrl(url),
+      collectionId: collectionId || bookId
+    });
     this.cache.set(key, dataset);
     return dataset;
   }
@@ -4393,7 +4821,26 @@ const initialProduct = products.find((product) => product.id === requestedProduc
 state.activeProductId = initialProduct.id;
 setDistribution(initialProduct.config || distribution());
 setCollectionRoot(initialProduct.collectionRoot || 'data/collections');
-const collectionSource = new CollectionSource({ version: appVersion });
+const collectionSource = new CollectionSource({
+  version: appVersion,
+  media: appConfig.media,
+  productTextReader: globalThis.__MYGITA_PRODUCT_TEXT__ ? (url) => {
+    const productText = globalThis.__MYGITA_PRODUCT_TEXT__?.[state.activeProductId] || {};
+    const key = String(url || '').replace(/^\.\//, '');
+    if (!Object.hasOwn(productText, key)) throw new Error(`The product configuration is missing ${key}.`);
+    return productText[key];
+  } : null,
+  productMediaResolver: globalThis.__MYGITA_PRODUCT_BASES__ ? (value) => {
+    const base = globalThis.__MYGITA_PRODUCT_BASES__?.[state.activeProductId];
+    const productBase = new URL(base || '.', location.href);
+    return new URL(String(value || '').replace(/^\.\//, ''), productBase).href;
+  } : null,
+  bookForExperience: (experienceId, collectionId = '') => {
+    const experience = distribution().experiences.find((entry) => entry.id === experienceId) || {};
+    if (collectionId && (!experience.bookIds?.length || experience.bookIds.includes(collectionId))) return collectionId;
+    return experience.bookId || experience.bookIds?.[0] || '';
+  }
+});
 if (initialProduct.data || globalThis.__VERSES_DATA_HANDLE__) collectionSource.selectDirectory(initialProduct.data || globalThis.__VERSES_DATA_HANDLE__);
 else if (initialProduct.files || globalThis.__VERSES_DATA_FILES__) collectionSource.selectFiles(initialProduct.files || globalThis.__VERSES_DATA_FILES__);
 function mergedTranslations(productTranslations = {}) {
@@ -4879,21 +5326,7 @@ async function useSelectedCollections(fileList) {
   error.textContent = '';
   section.setAttribute('aria-busy', 'true');
   try {
-    const selected = globalThis.__VERSES_OPEN_DISTRIBUTION_FILES__
-      ? await globalThis.__VERSES_OPEN_DISTRIBUTION_FILES__(fileList)
-      : { config: await distributionFromFiles(fileList), files: fileList };
-    if (selected.products) {
-      products = selected.products;
-      globalThis.__MYGITA_APP__ = selected.app;
-      appConfig = selected.app;
-      globalThis.__MYGITA_PRODUCTS__ = selected.products;
-      state.activeProductId = selected.products.some((product) => product.id === state.activeProductId)
-        ? state.activeProductId : selected.app.defaultProduct;
-      activateProduct(state.activeProductId, { updateUrl: false });
-    } else {
-      activateDistribution(selected.config);
-      collectionSource.selectFiles(selected.files);
-    }
+    await collectionSource.selectMediaFiles(fileList);
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
     syncHomeCollectionSource();
@@ -4904,8 +5337,7 @@ async function useSelectedCollections(fileList) {
     }
     return startRequestedExperience();
   } catch (failure) {
-    collectionSource.clear();
-    collectionSource.files = null;
+    collectionSource.clear({ releaseMedia: true });
     syncHomeCollectionSource();
     error.textContent = failure.message || i18n.t('collections.invalid');
   } finally {
@@ -4919,21 +5351,7 @@ async function useSelectedCollectionsDirectory(handle) {
   error.textContent = '';
   section.setAttribute('aria-busy', 'true');
   try {
-    const selected = globalThis.__VERSES_OPEN_DISTRIBUTION_DIRECTORY__
-      ? await globalThis.__VERSES_OPEN_DISTRIBUTION_DIRECTORY__(handle)
-      : { config: await distributionFromDirectory(handle), data: handle };
-    if (selected.products) {
-      products = selected.products;
-      globalThis.__MYGITA_APP__ = selected.app;
-      appConfig = selected.app;
-      globalThis.__MYGITA_PRODUCTS__ = selected.products;
-      state.activeProductId = selected.products.some((product) => product.id === state.activeProductId)
-        ? state.activeProductId : selected.app.defaultProduct;
-      activateProduct(state.activeProductId, { updateUrl: false });
-    } else {
-      activateDistribution(selected.config);
-      collectionSource.selectDirectory(selected.data);
-    }
+    await collectionSource.selectMediaDirectory(handle);
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
     syncHomeCollectionSource();
@@ -4944,8 +5362,7 @@ async function useSelectedCollectionsDirectory(handle) {
     }
     return startRequestedExperience();
   } catch (failure) {
-    collectionSource.clear();
-    collectionSource.directoryHandle = null;
+    collectionSource.clear({ releaseMedia: true });
     syncHomeCollectionSource();
     error.textContent = failure.message || i18n.t('collections.invalid');
   } finally {
@@ -4959,7 +5376,7 @@ async function chooseHomeCollections() {
     return;
   }
   try {
-    const handle = await window.showDirectoryPicker({ id: 'verses-distribution', mode: 'readwrite' });
+    const handle = await window.showDirectoryPicker({ id: 'mygita-media', mode: 'read' });
     await useSelectedCollectionsDirectory(handle);
   } catch (error) {
     if (error?.name !== 'AbortError') document.getElementById('home-collections-error').textContent = error.message || i18n.t('collections.invalid');
@@ -5102,6 +5519,7 @@ async function initializeProfiles() {
 }
 
 async function checkPlayerVersion() {
+  if (location.protocol === 'file:') return true;
   try {
     const response = await fetch('data/app-version.json?check=' + Date.now(), { cache: 'no-store' });
     if (!response.ok) return true;
@@ -5146,7 +5564,9 @@ function showHomeExperienceDetail(link) {
   document.getElementById('experience-detail-action').href = link.href;
   document.querySelector('#experience-detail .experience-detail-art').style.backgroundImage = cssUrl(detail.cardImage);
   panel.hidden = false;
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // The detail is below the experience cards. Move it into view immediately so
+  // the first click never looks unresponsive, especially in file mode.
+  panel.scrollIntoView({ behavior: 'auto', block: 'center' });
 }
 
 async function startRequestedExperience() {
@@ -5263,6 +5683,9 @@ async function startPlayer(dataset, experience, { workspace = null, sid = reques
   if (state.editor) state.editor.destroy();
   if (state.renderer) state.renderer.destroy();
   state.dataset = dataset;
+  document.documentElement.dataset.contentSource = dataset.contentSource?.type || 'unknown';
+  document.documentElement.dataset.contentBook = dataset.contentSource?.bookId || '';
+  document.documentElement.dataset.contentVersion = dataset.contentSource?.contentVersion || '';
   state.collectionId = dataset.collectionId || null;
   state.language = requestedLanguage === 'kn' || requestedLanguage === 'en' ? requestedLanguage : state.activeProfile.contentLanguage;
   const requestedIndex = sid ? findSid(sid) : -1;
@@ -5311,6 +5734,7 @@ async function startPlayer(dataset, experience, { workspace = null, sid = reques
       action.textContent = pendingDownload ? i18n.t('editor.download') : i18n.t('editor.downloadAgain');
     }
   });
+  document.getElementById('edit-button').hidden = !workspace;
 
   bindEvents();
   buildChapterList();
@@ -5559,6 +5983,7 @@ function closeOverlays({ restoreFocus = true } = {}) {
 
 async function requestEditMode() {
   setMenuOpen(false);
+  if (document.getElementById('edit-button').hidden) return;
   if (state.editor.active) return state.editor.toggle();
   if (state.editor.workspace) return state.editor.enter();
   openOverlay('workspace-overlay');
@@ -5839,7 +6264,7 @@ function bindEvents() {
   state.eventsBound = true;
   document.getElementById('collections-folder-input').addEventListener('change', async (event) => {
     try {
-      collectionSource.selectFiles(event.target.files);
+      await collectionSource.selectMediaFiles(event.target.files);
       const dataset = await collectionSource.loadExperience(play);
       await startPlayer(dataset, getExperience(play));
     } catch (error) {

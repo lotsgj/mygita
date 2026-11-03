@@ -1,3 +1,5 @@
+const localHarnessBase = new URL('.', document.currentScript.src);
+
 function byId(id) { return document.getElementById(id); }
 
 function parseTable(text) {
@@ -130,10 +132,25 @@ function startPlayer(workspace) {
   globalThis.__VERSES_DISTRIBUTION__ = initial.config;
   if (initial.data) globalThis.__VERSES_DATA_HANDLE__ = initial.data;
   if (initial.files) globalThis.__VERSES_DATA_FILES__ = initial.files;
-  byId('distribution-chooser').hidden = true;
+  const chooser = byId('distribution-chooser');
+  if (chooser) chooser.hidden = true;
   const script = document.createElement('script');
-  script.src = 'js/player.bundle.js?v=dev';
+  script.src = new URL('player.bundle.js?v=dev', localHarnessBase).href;
   document.body.appendChild(script);
+}
+
+function startEmbeddedWorkspace() {
+  const workspace = globalThis.__MYGITA_LOCAL_WORKSPACE__;
+  if (!workspace?.products?.length) return false;
+  for (const stylesheet of workspace.app?.branding?.themeStyles || []) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = stylesheet;
+    link.dataset.productTheme = 'true';
+    document.head.appendChild(link);
+  }
+  startPlayer(workspace);
+  return true;
 }
 
 function showError(error) { byId('distribution-folder-error').textContent = error?.message || 'The selected products folder could not be opened.'; }
@@ -145,11 +162,13 @@ async function chooseDirectory() {
   catch (error) { if (error?.name !== 'AbortError') showError(error); }
 }
 
-byId('distribution-folder-button').addEventListener('click', chooseDirectory);
-globalThis.__VERSES_OPEN_DISTRIBUTION_DIRECTORY__ = workspaceFromHandle;
-globalThis.__VERSES_OPEN_DISTRIBUTION_FILES__ = workspaceFromFiles;
-byId('distribution-folder-input').addEventListener('change', async (event) => {
-  try { startPlayer(await workspaceFromFiles(event.target.files)); }
-  catch (error) { showError(error); }
-});
-byId('distribution-chooser').hidden = false;
+if (!startEmbeddedWorkspace()) {
+  byId('distribution-folder-button').addEventListener('click', chooseDirectory);
+  globalThis.__VERSES_OPEN_DISTRIBUTION_DIRECTORY__ = workspaceFromHandle;
+  globalThis.__VERSES_OPEN_DISTRIBUTION_FILES__ = workspaceFromFiles;
+  byId('distribution-folder-input').addEventListener('change', async (event) => {
+    try { startPlayer(await workspaceFromFiles(event.target.files)); }
+    catch (error) { showError(error); }
+  });
+  byId('distribution-chooser').hidden = false;
+}

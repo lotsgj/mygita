@@ -5,7 +5,7 @@ import { access, readFile } from 'node:fs/promises';
 const player = await readFile(new URL('../../player.html', import.meta.url), 'utf8');
 const core = await readFile(new URL('../../js/player/player-core.js', import.meta.url), 'utf8');
 const data = await readFile(new URL('../../js/player/collection-data.js', import.meta.url), 'utf8');
-const index = await readFile(new URL('../../index.html', import.meta.url), 'utf8');
+const index = await readFile(new URL('../../../index.html', import.meta.url), 'utf8');
 const deployment = await readFile(new URL('../../scripts/build-deployment.mjs', import.meta.url), 'utf8');
 const fonts = await readFile(new URL('../../css/fonts.css', import.meta.url), 'utf8');
 const playerStyles = await readFile(new URL('../../css/player.css', import.meta.url), 'utf8');
@@ -34,12 +34,20 @@ test('chapter labels are rendered from collection data without Dhyana exceptions
   assert.doesNotMatch(core, /'ॐ'\s*:\s*chapter\.cid/);
 });
 
-test('the local engine entry point requires a distribution before starting the player', () => {
+test('the repository-root local entry point embeds product configuration before starting the player', () => {
   assert.match(index, /<main id="distribution-chooser" class="profile-screen">/);
-  assert.match(index, /js\/local-harness\.js/);
+  assert.match(index, /engine\/js\/local-workspace\.js/);
+  assert.match(index, /engine\/js\/local-harness\.js/);
   assert.doesNotMatch(index, /rel="manifest"/);
   assert.doesNotMatch(index, /location\.replace/);
   assert.match(playerStyles, /--indigo:\s*#[0-9a-f]+/i);
+});
+
+test('the direct player entry avoids PWA fetches and loads the local workspace in file mode', () => {
+  assert.match(player, /location\.protocol !== 'file:'/);
+  assert.match(player, /js\/local-workspace\.js\?v=dev/);
+  assert.match(player, /js\/local-harness\.js\?v=dev/);
+  assert.match(core, /if \(location\.protocol === 'file:'\) return true/);
 });
 
 test('the shared player uses canonical cross-origin media with progressive PWA caching', () => {

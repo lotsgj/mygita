@@ -1,20 +1,49 @@
 # Collections and media
 
 **Status:** Current  
-**Last updated:** 16 October 2026
+**Last updated:** 2 November 2026
 
-## Organization
+## Ownership boundary
 
-All active content lives under `data/collections`:
+MyGita product folders contain configuration, not scripture content:
 
 ```text
-data/collections/<type>/collection.csv
-data/collections/<type>/<collection>/catalog.csv
-data/collections/<type>/<collection>/<content>
-data/collections/experiences/<experience>/...
+products/<product>/data/distribution.json
+products/<product>/data/experiences/collection.csv
+products/<product>/data/experiences/<experience>/catalog.csv
+products/<product>/data/experiences/<experience>/experience.json
 ```
 
-Current type registries include verses, audio, decks, images, text, video, and animations. Registries locate a collection catalog; catalogs locate individual content. Experience files compose those reusable records for an experience-specific purpose.
+All verse masters, collection registries, localized collection names, chapter icons, questions, decks and experience association CSVs live in media. Build guards reject a product distribution containing a `data/collections` tree or content association files.
+
+## Portable media root
+
+Canonical mutable content is being separated from application releases into one independently deployable media root:
+
+```text
+catalog.json
+book/<book-id>/manifest.json
+book/<book-id>/verses/...
+book/<book-id>/questions/...
+book/<book-id>/illustration/...
+book/<book-id>/audio/...
+book/<book-id>/experience/...
+audio/...
+image/...
+video/...
+```
+
+The root catalog owns the content version and maps stable book IDs to manifests. Each book manifest owns its book version, language-specific verse masters, reusable resource declarations, experience associations and explicit file inventory. Binary resources remain independently reusable at root-level `audio`, `image` and `video` paths. Product branding, shell translations, experience definitions and renderer configuration remain in MyGita. Icons that describe scripture chapters belong to media; neutral shell controls and product identity artwork remain in MyGita.
+
+`products/app.json` declares `https://media.gitajyoti.org/` and `catalog.json` as the production source. The engine’s media-source service can read this contract remotely or from a selected local media directory. Both modes reject paths that escape the root; remote manifests bypass the browser HTTP cache; local binaries receive managed object URLs that are revoked when the source is released. Legacy absolute HTTPS asset URLs remain playable during migration.
+
+The service is deliberately separate from renderers. The book-to-experience adapter combines manifest-declared content with product-owned experience configuration and passes the result through the existing normalization pipeline. It supports shared resources across experiences and records the active book content version on the normalized dataset.
+
+`pnpm run verify:media-parity` is a strict media-only audit. It proves that Gita 700, Gita Yoga, Gita Chant, Gita Sara, Ganesha Atharva and Purusha Sukta normalize successfully without a bundled scripture source.
+
+Web and PWA sessions load the remote media book. If validation or loading fails, the app reports that content is unavailable; it never substitutes a bundled scripture copy. Remote catalogs have a bounded refresh interval; successfully used remote manifests, CSV/JSON and images are progressively cached network-first for offline reuse. They are not precached during PWA installation. Audio retains its range-aware progressive cache.
+
+In `file://` mode, the app’s product configuration is already embedded in a built distribution or supplied by the local development harness. Home therefore asks for the media root once, validates `catalog.json`, and reuses that source across products and experiences. Folder-upload fallback follows the same contract. Legacy product-data editing is hidden because products no longer own editable scripture files; writable media authoring remains a future workflow requiring conflict and version design.
 
 The verse registry keeps structural metadata language-neutral:
 
@@ -51,7 +80,7 @@ collection_id#title#contributor#language#catalog_url#cue_purpose_url#cue_url#att
 
 Each audio catalog uses `sid#order#language#audio_url`. Gita 700’s composition uses the purpose-specific fields `chant_full_sa_collection` and `chant_full_sa_order`. Gita Yoga uses `audio_collection` and `audio_order`; its `experience.json` declares those names through `audioBinding.collectionField` and `audioBinding.orderField`. This generic binding lets future experiences define their own composition vocabulary without placing provider paths in a renderer.
 
-`audio_url` is the complete HTTPS address of the playable asset. Production audio is served from `media.gitajyoti.org`, keeping the catalog as the single authority without splitting a URL across registry and catalog fields. The Swami Brahmananda collection uses MP3; the AJ Padma and AJ Vijay learning collection uses OGG. HTTP, `file://`, and writable-workspace modes all retain the same canonical remote URL.
+`audio_url` is a media-root-relative path such as `audio/chanting-swami-brahmananda/sa/chapter-01/01-001.mp3`. In web and PWA sessions it resolves beneath `https://media.gitajyoti.org/`; in `file://` mode it resolves inside the selected media folder and is exposed to the player through a temporary `blob:` URL. Google Deck URLs remain absolute because they identify an external provider. The Swami Brahmananda collection uses MP3; the AJ Padma and AJ Vijay learning collection uses OGG.
 
 Gitaverse stores audio metadata only: collection registry rows, catalogs, cue-purpose definitions, and cue timings. Production audio binaries do not belong in this repository or its deployment artifact. The build excludes MP3, M4A, OGG, Opus, and WAV files as a defensive boundary, while contract tests fail if a production audio binary is added under `data/collections/audio`.
 
@@ -94,4 +123,4 @@ The loader verifies required headers, unique/aligned SIDs, supported schema vers
 
 ## Runtime source
 
-A shared collection-source service owns runtime loading. Web and PWA sessions use the deployed relative collection root; file-mode sessions use the folder selected on Home. When the browser supports writable directory handles, the source retains that handle for the session and supplies the matching writable workspace to every loaded experience, eliminating a second Edit selection. Repository-root, `data`, and `data/collections` selections resolve to the same canonical root. It caches normalized datasets by experience for the session so player and journey views reuse identical data. Replacing a local folder clears those datasets and revokes their media object URLs. Read-only folder upload remains the compatibility fallback.
+A shared collection-source service owns runtime loading. Web and PWA sessions use the configured remote media root; file-mode sessions use the media folder selected on Home. It caches normalized datasets by experience and book for the session so player and journey views reuse identical data. Replacing a local folder clears those datasets and revokes their object URLs. A local media selection is strict—invalid or incomplete content is reported rather than silently replaced.

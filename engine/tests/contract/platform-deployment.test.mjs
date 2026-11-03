@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const root = new URL('../../../', import.meta.url);
-const [workflow, app, builder, pwa] = await Promise.all([
+const [workflow, app, builder, pwa, serviceWorker] = await Promise.all([
   readFile(new URL('.github/workflows/deploy-pages.yml', root), 'utf8'),
   readFile(new URL('products/app.json', root), 'utf8').then(JSON.parse),
   readFile(new URL('engine/scripts/build-platform.mjs', root), 'utf8'),
-  readFile(new URL('engine/js/pwa.js', root), 'utf8')
+  readFile(new URL('engine/js/pwa.js', root), 'utf8'),
+  readFile(new URL('engine/service-worker.js', root), 'utf8')
 ]);
 
 test('MyGita Pages deployment publishes only the verified unified distribution', () => {
@@ -28,4 +29,12 @@ test('MyGita production identity and PWA paths work at root and project Pages UR
   assert.equal(app.canonicalUrl, 'https://mygita.gitajyoti.org/');
   assert.match(builder, /start_url: '\.\/player\.html', scope: '\.\/'/);
   assert.match(pwa, /scope: '\.\/'/);
+});
+
+test('remote books are progressively cached without joining the install shell', () => {
+  assert.match(serviceWorker, /CONTENT_CACHE/);
+  assert.match(serviceWorker, /mediaContentResponse/);
+  assert.match(serviceWorker, /url\.origin === MEDIA_ORIGIN/);
+  assert.match(serviceWorker, /cache: 'no-store'/);
+  assert.match(serviceWorker, /not available offline yet/);
 });

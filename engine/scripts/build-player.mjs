@@ -1,4 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import './build-local-workspace.mjs';
 
 const sources = [
   'js/products.js',
@@ -20,7 +21,9 @@ const sources = [
   'js/events/sentry-adapter.js',
   'js/pwa.js',
   'js/shared/about-dialog.js',
+  'js/media-source.js',
   'js/player/collection-data.js',
+  'js/media-experience-adapter.js',
   'js/player/collection-source.js',
   'js/player/audio-player.js',
   'js/player/media-player.js',

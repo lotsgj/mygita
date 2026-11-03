@@ -1,7 +1,7 @@
 # Build, test and deployment
 
 **Status:** Current
-**Last updated:** 30 October 2026
+**Last updated:** 3 November 2026
 
 ## Source and generated files
 
@@ -15,7 +15,7 @@ The application version is `major.build`. The major value is repository-controll
 
 ## Local platform build
 
-`pnpm run build:mygita` builds the unified platform into `dist/mygita`. `engine/index.html` remains a local harness: it asks for the repository's `products` folder and then exposes every valid registered product.
+`pnpm run build:mygita` builds the unified platform into `dist/mygita`. Repository-root `index.html` is the local harness: it asks for the repository's `products` folder and then exposes every valid registered product.
 
 `pnpm run test:sukta` validates the Sukta masters, canonical SID alignment, registries and Player-4 wiring. Sukta is delivered as a product inside MyGita rather than as a separate PWA at this stage.
 

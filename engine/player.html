@@ -27,7 +27,14 @@
 <meta name="twitter:title" content="Gitaverse">
 <meta name="twitter:description" content="Explore and chant the verses of the Bhagavad Gita with Gitaverse.">
 <meta name="twitter:image" content="https://gitaverse.gitajyoti.org/assets/social/gitaverse-preview.png">
-<link rel="manifest" href="manifest.webmanifest">
+<script>
+  if (location.protocol !== 'file:') {
+    const manifest = document.createElement('link');
+    manifest.rel = 'manifest';
+    manifest.href = 'manifest.webmanifest';
+    document.head.appendChild(manifest);
+  }
+</script>
 <link rel="icon" href="" sizes="192x192" data-brand-icon>
 <link rel="apple-touch-icon" href="" data-brand-apple-icon>
 <link rel="stylesheet" href="css/fonts.css?v=dev">
@@ -404,6 +411,21 @@
 </aside>
 
 <script>window.__VERSES_DISTRIBUTION__ = window.__VERSES_DISTRIBUTION__ || null;</script>
-<script src="js/player.bundle.js?v=dev"></script>
+<script>
+  if (location.protocol === 'file:') {
+    const workspace = document.createElement('script');
+    workspace.src = 'js/local-workspace.js?v=dev';
+    workspace.onload = () => {
+      const harness = document.createElement('script');
+      harness.src = 'js/local-harness.js?v=dev';
+      document.body.appendChild(harness);
+    };
+    document.body.appendChild(workspace);
+  } else {
+    const player = document.createElement('script');
+    player.src = 'js/player.bundle.js?v=dev';
+    document.body.appendChild(player);
+  }
+</script>
 </body>
 </html>

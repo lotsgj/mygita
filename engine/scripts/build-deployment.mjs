@@ -138,7 +138,7 @@ if (deployedDocsHtml === docsSourceHtml || deployedDocsHtml.includes('?v=dev') |
 if (!deployedDocsHtml.includes(`<meta name="clarity-project-id" content="${clarityProjectId}">`)) throw new Error('docs.html does not contain the expected Clarity project marker.');
 if (!deployedDocsHtml.includes(`<meta name="ga-measurement-id" content="${gaMeasurementId}">`)) throw new Error('docs.html does not contain the expected Google Analytics marker.');
 await writeFile(path.join(output, 'docs.html'), deployedDocsHtml);
-await cp(path.join(root, 'index.html'), path.join(output, 'index.html'));
+await cp(path.join(root, 'player.html'), path.join(output, 'index.html'));
 await cp(path.join(root, 'CNAME'), path.join(output, 'CNAME'));
 await cp(path.join(root, 'manifest.webmanifest'), path.join(output, 'manifest.webmanifest'));
 await cp(path.join(root, 'offline.html'), path.join(output, 'offline.html'));

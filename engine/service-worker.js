@@ -1,7 +1,9 @@
 const BUILD_VERSION = '__GITAVERSE_VERSION__';
 const SHELL_CACHE = `gitaverse-shell-${BUILD_VERSION}`;
 const AUDIO_CACHE = 'gitaverse-audio-v3';
+const CONTENT_CACHE = 'gitaverse-content-v1';
 const AUDIO_PREFIX = 'gitaverse-audio-';
+const CONTENT_PREFIX = 'gitaverse-content-';
 const SHELL_PREFIX = 'gitaverse-shell-';
 const MEDIA_ORIGIN = 'https://media.gitajyoti.org';
 
@@ -42,6 +44,7 @@ self.addEventListener('activate', (event) => {
     await Promise.all(names.filter((name) => (
       (name.startsWith(SHELL_PREFIX) && name !== SHELL_CACHE)
       || (name.startsWith(AUDIO_PREFIX) && name !== AUDIO_CACHE)
+      || (name.startsWith(CONTENT_PREFIX) && name !== CONTENT_CACHE)
     )).map((name) => caches.delete(name)));
     await self.clients.claim();
   })());
@@ -84,6 +87,21 @@ async function audioResponse(request) {
   return sliceRange(request, response);
 }
 
+async function mediaContentResponse(request) {
+  const cache = await caches.open(CONTENT_CACHE);
+  const cacheKey = new Request(request.url, { method: 'GET' });
+  try {
+    const network = await fetch(request.url, { cache: 'no-store', credentials: 'omit', mode: 'cors' });
+    if (network.ok && network.status === 200) await cache.put(cacheKey, network.clone());
+    return network;
+  } catch (_) {
+    return (await cache.match(cacheKey)) || new Response('This content is not available offline yet.', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+}
+
 async function shellResponse(request) {
   const cached = await caches.match(request, { ignoreSearch: true });
   if (cached) return cached;
@@ -104,6 +122,10 @@ self.addEventListener('fetch', (event) => {
   const isAudio = /\.(mp3|m4a|ogg|wav)$/i.test(url.pathname);
   if (url.origin === MEDIA_ORIGIN && isAudio) {
     event.respondWith(audioResponse(request));
+    return;
+  }
+  if (url.origin === MEDIA_ORIGIN) {
+    event.respondWith(mediaContentResponse(request));
     return;
   }
   if (url.origin !== self.location.origin) return;

@@ -54,12 +54,12 @@ test('invalid renderer and experience references fail clearly', () => {
 
 test('local harness and distribution builder are present', async () => {
   const [player, builder] = await Promise.all([
-    readFile(path.join(root, 'index.html'), 'utf8'),
+    readFile(path.join(repositoryRoot, 'index.html'), 'utf8'),
     readFile(path.join(root, 'scripts/build-distribution.mjs'), 'utf8')
   ]);
   assert.match(player, /id="distribution-folder-input"/);
   assert.match(player, /window\.__VERSES_DISTRIBUTION__/);
-  assert.match(player, /js\/local-harness\.js/);
+  assert.match(player, /engine\/js\/local-harness\.js/);
   assert.match(builder, /data\/distribution\.json/);
   assert.match(builder, /dist/);
 });

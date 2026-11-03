@@ -1,7 +1,7 @@
 # Sampada — Treasure trove of MyGita enhancements
 
 **Status:** Current  
-**Last updated:** 30 October 2026
+**Last updated:** 2 November 2026
 
 Sampada keeps both future possibilities and completed enhancements. Items retain their number after completion so decisions and delivery history remain traceable.
 
@@ -11,6 +11,30 @@ Sampada keeps both future possibilities and completed enhancements. Items retain
 | **Done** | Enhancements that have been implemented, documented and regression-tested. |
 
 ## To unfold
+
+### 20. Manifest-driven media-cache cleanup
+
+**Status:** To unfold
+
+**Tag:** Major
+
+Introduce a complete, versioned media manifest that lets the PWA remove obsolete cached media selectively instead of clearing every offline asset. The manifest should identify the product, schema and content version, declare that its asset inventory is complete, and list each cache-managed asset with its canonical URL, revision and size.
+
+Apply cleanup only after a successfully fetched and validated complete manifest. Compare it with the last applied manifest, retain unchanged assets, remove URLs no longer present, and refresh assets whose revisions changed. Explicitly downloaded offline collections should be refreshed rather than silently discarded; opportunistically cached media may be removed and fetched again when needed. Run cleanup in bounded background batches, preserve the last-known-good cache on any failure, and keep its metadata separate from profiles, resume points and journey data in IndexedDB.
+
+Deliver this only after the new MyGita PWA and scripture-organized media paths are verified. Until then, keep legacy audio URLs operational alongside `audio/bhagavad-gita/` so existing sessions and caches continue to work. Decommission the legacy paths only after a compatibility window and production verification.
+
+### 19. Independently released books and media
+
+**Status:** To unfold
+
+**Tag:** Major
+
+Move canonical verse masters, questions, experience associations and reusable media to the independently deployed `media.gitajyoti.org` catalog so content can evolve without requiring a MyGita PWA release. Keep stable product configuration, branding and renderer behavior in MyGita, and preserve the normalized player model across bundled, remote and local-folder sources.
+
+The reading boundary is delivered locally: the media repository has validated Bhagavad Gita, Ganesha Atharva and Purusha Sukta books; MyGita retains only product/experience configuration and platform assets; and all scripture masters, registries, associations, chapter icons, questions and binary media resolve from media. An executable audit covers all current Gita experiences and both Sukta collections without bundled scripture fallback. File mode selects media once, web/PWA uses the configured remote root, used content is cached progressively, and runtime source diagnostics expose the active book and content version.
+
+Remaining work is to deploy and observe the media-only build, add the source diagnostics to Clarity, and design writable media authoring/publishing with conflict protection. The old product-data editor is intentionally unavailable until that workflow exists.
 
 ### 17. MyGita app-brand and product transition
 

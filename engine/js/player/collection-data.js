@@ -748,7 +748,13 @@ function selectedCollectionFiles(fileList) {
   return files;
 }
 
-async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '' }) {
+export async function readCollectionTextFromFiles(fileList, url) {
+  const file = selectedCollectionFiles(fileList).get(url);
+  if (!file) throw new Error('The selected product folder is missing ' + url + '.');
+  return file.text();
+}
+
+export async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '' }) {
   const table = async (url, headers = null) => parseCollectionTable(await text(url), headers, url);
   const experienceRegistry = await table(EXPERIENCE_ROOT + '/collection.csv');
   const experienceEntry = registryEntry(experienceRegistry, experienceId, 'Experience');
@@ -914,6 +920,10 @@ async function fileHandleAt(rootHandle, url) {
   let directory = rootHandle;
   for (const part of parts) directory = await directory.getDirectoryHandle(part);
   return directory.getFileHandle(filename);
+}
+
+export async function readCollectionTextFromDirectory(rootHandle, url) {
+  return (await (await fileHandleAt(rootHandle, url)).getFile()).text();
 }
 
 async function hasDataMarker(handle) {

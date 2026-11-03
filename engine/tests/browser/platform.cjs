@@ -5,6 +5,7 @@ const path = require('node:path');
 const { chromium } = require('playwright');
 
 const root = path.resolve(__dirname, '../../../dist/mygita');
+const mediaRoot = process.env.MYGITA_MEDIA_ROOT || path.resolve(root, '../../../media');
 const mime = { '.css': 'text/css', '.csv': 'text/csv', '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer((request, response) => {
   const relative = decodeURIComponent(new URL(request.url, 'http://localhost').pathname).replace(/^\/+/, '') || 'index.html';
@@ -22,12 +23,20 @@ assert.equal(manifest.scope, './');
 assert.equal(assetManifest.distribution, 'mygita');
 assert.ok(Object.keys(assetManifest.assets).some((name) => name.startsWith('products/gita/data/')));
 assert.ok(Object.keys(assetManifest.assets).some((name) => name.startsWith('products/sukta/data/')));
-assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') && name.includes('/data/')), false, 'product catalogs remain navigation-loaded rather than shell-precached');
+assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') && name.includes('/data/')), true, 'product configuration is shell-precached so cached media remains navigable offline');
 
 (async () => {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  await context.route('https://media.gitajyoti.org/**', (route) => {
+    const url = new URL(route.request().url());
+    const relative = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+    const file = path.resolve(mediaRoot, relative);
+    if (!file.startsWith(mediaRoot + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return route.fulfill({ status: 404, body: 'Not found' });
+    return route.fulfill({ status: 200, contentType: mime[path.extname(file)] || 'application/octet-stream', headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }, body: fs.readFileSync(file) });
+  });
+  const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('response', (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
@@ -61,6 +70,9 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
   await page.goto(`${base}?pid=1&view=diksoochi`, { waitUntil: 'networkidle' });
   assert.equal(await page.locator('[data-product-id="sukta"]').getAttribute('aria-selected'), 'true', 'selected product persists per profile');
   await page.locator('#sukta-chant-link').click();
+  assert.equal(await page.locator('#experience-detail').isVisible(), true, 'the first experience-card click reveals its detail');
+  const detailBox = await page.locator('#experience-detail').boundingBox();
+  assert.ok(detailBox && detailBox.y < page.viewportSize().height, 'the revealed experience detail is immediately inside the viewport');
   await page.locator('#experience-detail-action').click();
   try { await page.locator('.verse-chant-panels').waitFor(); }
   catch (error) {

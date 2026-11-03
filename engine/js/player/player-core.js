@@ -66,7 +66,26 @@ const initialProduct = products.find((product) => product.id === requestedProduc
 state.activeProductId = initialProduct.id;
 setDistribution(initialProduct.config || distribution());
 setCollectionRoot(initialProduct.collectionRoot || 'data/collections');
-const collectionSource = new CollectionSource({ version: appVersion });
+const collectionSource = new CollectionSource({
+  version: appVersion,
+  media: appConfig.media,
+  productTextReader: globalThis.__MYGITA_PRODUCT_TEXT__ ? (url) => {
+    const productText = globalThis.__MYGITA_PRODUCT_TEXT__?.[state.activeProductId] || {};
+    const key = String(url || '').replace(/^\.\//, '');
+    if (!Object.hasOwn(productText, key)) throw new Error(`The product configuration is missing ${key}.`);
+    return productText[key];
+  } : null,
+  productMediaResolver: globalThis.__MYGITA_PRODUCT_BASES__ ? (value) => {
+    const base = globalThis.__MYGITA_PRODUCT_BASES__?.[state.activeProductId];
+    const productBase = new URL(base || '.', location.href);
+    return new URL(String(value || '').replace(/^\.\//, ''), productBase).href;
+  } : null,
+  bookForExperience: (experienceId, collectionId = '') => {
+    const experience = distribution().experiences.find((entry) => entry.id === experienceId) || {};
+    if (collectionId && (!experience.bookIds?.length || experience.bookIds.includes(collectionId))) return collectionId;
+    return experience.bookId || experience.bookIds?.[0] || '';
+  }
+});
 if (initialProduct.data || globalThis.__VERSES_DATA_HANDLE__) collectionSource.selectDirectory(initialProduct.data || globalThis.__VERSES_DATA_HANDLE__);
 else if (initialProduct.files || globalThis.__VERSES_DATA_FILES__) collectionSource.selectFiles(initialProduct.files || globalThis.__VERSES_DATA_FILES__);
 function mergedTranslations(productTranslations = {}) {
@@ -552,21 +571,7 @@ async function useSelectedCollections(fileList) {
   error.textContent = '';
   section.setAttribute('aria-busy', 'true');
   try {
-    const selected = globalThis.__VERSES_OPEN_DISTRIBUTION_FILES__
-      ? await globalThis.__VERSES_OPEN_DISTRIBUTION_FILES__(fileList)
-      : { config: await distributionFromFiles(fileList), files: fileList };
-    if (selected.products) {
-      products = selected.products;
-      globalThis.__MYGITA_APP__ = selected.app;
-      appConfig = selected.app;
-      globalThis.__MYGITA_PRODUCTS__ = selected.products;
-      state.activeProductId = selected.products.some((product) => product.id === state.activeProductId)
-        ? state.activeProductId : selected.app.defaultProduct;
-      activateProduct(state.activeProductId, { updateUrl: false });
-    } else {
-      activateDistribution(selected.config);
-      collectionSource.selectFiles(selected.files);
-    }
+    await collectionSource.selectMediaFiles(fileList);
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
     syncHomeCollectionSource();
@@ -577,8 +582,7 @@ async function useSelectedCollections(fileList) {
     }
     return startRequestedExperience();
   } catch (failure) {
-    collectionSource.clear();
-    collectionSource.files = null;
+    collectionSource.clear({ releaseMedia: true });
     syncHomeCollectionSource();
     error.textContent = failure.message || i18n.t('collections.invalid');
   } finally {
@@ -592,21 +596,7 @@ async function useSelectedCollectionsDirectory(handle) {
   error.textContent = '';
   section.setAttribute('aria-busy', 'true');
   try {
-    const selected = globalThis.__VERSES_OPEN_DISTRIBUTION_DIRECTORY__
-      ? await globalThis.__VERSES_OPEN_DISTRIBUTION_DIRECTORY__(handle)
-      : { config: await distributionFromDirectory(handle), data: handle };
-    if (selected.products) {
-      products = selected.products;
-      globalThis.__MYGITA_APP__ = selected.app;
-      appConfig = selected.app;
-      globalThis.__MYGITA_PRODUCTS__ = selected.products;
-      state.activeProductId = selected.products.some((product) => product.id === state.activeProductId)
-        ? state.activeProductId : selected.app.defaultProduct;
-      activateProduct(state.activeProductId, { updateUrl: false });
-    } else {
-      activateDistribution(selected.config);
-      collectionSource.selectDirectory(selected.data);
-    }
+    await collectionSource.selectMediaDirectory(handle);
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
     syncHomeCollectionSource();
@@ -617,8 +607,7 @@ async function useSelectedCollectionsDirectory(handle) {
     }
     return startRequestedExperience();
   } catch (failure) {
-    collectionSource.clear();
-    collectionSource.directoryHandle = null;
+    collectionSource.clear({ releaseMedia: true });
     syncHomeCollectionSource();
     error.textContent = failure.message || i18n.t('collections.invalid');
   } finally {
@@ -632,7 +621,7 @@ async function chooseHomeCollections() {
     return;
   }
   try {
-    const handle = await window.showDirectoryPicker({ id: 'verses-distribution', mode: 'readwrite' });
+    const handle = await window.showDirectoryPicker({ id: 'mygita-media', mode: 'read' });
     await useSelectedCollectionsDirectory(handle);
   } catch (error) {
     if (error?.name !== 'AbortError') document.getElementById('home-collections-error').textContent = error.message || i18n.t('collections.invalid');
@@ -775,6 +764,7 @@ async function initializeProfiles() {
 }
 
 async function checkPlayerVersion() {
+  if (location.protocol === 'file:') return true;
   try {
     const response = await fetch('data/app-version.json?check=' + Date.now(), { cache: 'no-store' });
     if (!response.ok) return true;
@@ -819,7 +809,9 @@ function showHomeExperienceDetail(link) {
   document.getElementById('experience-detail-action').href = link.href;
   document.querySelector('#experience-detail .experience-detail-art').style.backgroundImage = cssUrl(detail.cardImage);
   panel.hidden = false;
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // The detail is below the experience cards. Move it into view immediately so
+  // the first click never looks unresponsive, especially in file mode.
+  panel.scrollIntoView({ behavior: 'auto', block: 'center' });
 }
 
 async function startRequestedExperience() {
@@ -936,6 +928,9 @@ async function startPlayer(dataset, experience, { workspace = null, sid = reques
   if (state.editor) state.editor.destroy();
   if (state.renderer) state.renderer.destroy();
   state.dataset = dataset;
+  document.documentElement.dataset.contentSource = dataset.contentSource?.type || 'unknown';
+  document.documentElement.dataset.contentBook = dataset.contentSource?.bookId || '';
+  document.documentElement.dataset.contentVersion = dataset.contentSource?.contentVersion || '';
   state.collectionId = dataset.collectionId || null;
   state.language = requestedLanguage === 'kn' || requestedLanguage === 'en' ? requestedLanguage : state.activeProfile.contentLanguage;
   const requestedIndex = sid ? findSid(sid) : -1;
@@ -984,6 +979,7 @@ async function startPlayer(dataset, experience, { workspace = null, sid = reques
       action.textContent = pendingDownload ? i18n.t('editor.download') : i18n.t('editor.downloadAgain');
     }
   });
+  document.getElementById('edit-button').hidden = !workspace;
 
   bindEvents();
   buildChapterList();
@@ -1232,6 +1228,7 @@ function closeOverlays({ restoreFocus = true } = {}) {
 
 async function requestEditMode() {
   setMenuOpen(false);
+  if (document.getElementById('edit-button').hidden) return;
   if (state.editor.active) return state.editor.toggle();
   if (state.editor.workspace) return state.editor.enter();
   openOverlay('workspace-overlay');
@@ -1512,7 +1509,7 @@ function bindEvents() {
   state.eventsBound = true;
   document.getElementById('collections-folder-input').addEventListener('change', async (event) => {
     try {
-      collectionSource.selectFiles(event.target.files);
+      await collectionSource.selectMediaFiles(event.target.files);
       const dataset = await collectionSource.loadExperience(play);
       await startPlayer(dataset, getExperience(play));
     } catch (error) {

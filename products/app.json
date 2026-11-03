@@ -9,6 +9,11 @@
   "cachePrefix": "gitaverse",
   "defaultProduct": "bhagavad-gita",
   "supportedLanguages": ["en", "kn"],
+  "media": {
+    "schemaVersion": 1,
+    "remoteRoot": "https://media.gitajyoti.org/",
+    "catalog": "catalog.json"
+  },
   "translations": {
     "en": {
       "profile.who": "Who is using MyGita?",
@@ -19,12 +24,12 @@
       "about.currentBuild": "Current MyGita build",
       "pwa.ready": "A new MyGita version is ready.",
       "help.about": "Open About MyGita",
-      "collections.title": "Local products",
-      "collections.message": "Choose this repository’s products folder to use MyGita locally.",
-      "collections.readyTitle": "Local products ready",
-      "collections.readyMessage": "MyGita is using products from {name}.",
-      "collections.load": "Load products",
-      "collections.change": "Change products"
+      "collections.title": "Local media",
+      "collections.message": "Choose the media folder to use MyGita locally.",
+      "collections.readyTitle": "Local media ready",
+      "collections.readyMessage": "MyGita is using content from {name}.",
+      "collections.load": "Load media",
+      "collections.change": "Change media"
     },
     "kn": {
       "profile.who": "MyGita ಅನ್ನು ಯಾರು ಬಳಸುತ್ತಿದ್ದಾರೆ?",
@@ -35,12 +40,12 @@
       "about.currentBuild": "ಪ್ರಸ್ತುತ MyGita ಬಿಲ್ಡ್",
       "pwa.ready": "MyGita ನ ಹೊಸ ಆವೃತ್ತಿ ಸಿದ್ಧವಾಗಿದೆ.",
       "help.about": "MyGita ಕುರಿತು ತೆರೆಯಿರಿ",
-      "collections.title": "ಸ್ಥಳೀಯ ಉತ್ಪನ್ನಗಳು",
-      "collections.message": "MyGita ಅನ್ನು ಸ್ಥಳೀಯವಾಗಿ ಬಳಸಲು ಈ ರೆಪೊಸಿಟರಿಯ products ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ.",
-      "collections.readyTitle": "ಸ್ಥಳೀಯ ಉತ್ಪನ್ನಗಳು ಸಿದ್ಧವಾಗಿವೆ",
-      "collections.readyMessage": "MyGita {name} ನಿಂದ ಉತ್ಪನ್ನಗಳನ್ನು ಬಳಸುತ್ತಿದೆ.",
-      "collections.load": "ಉತ್ಪನ್ನಗಳನ್ನು ಲೋಡ್ ಮಾಡಿ",
-      "collections.change": "ಉತ್ಪನ್ನಗಳನ್ನು ಬದಲಿಸಿ"
+      "collections.title": "ಸ್ಥಳೀಯ ಮಾಧ್ಯಮ",
+      "collections.message": "MyGita ಅನ್ನು ಸ್ಥಳೀಯವಾಗಿ ಬಳಸಲು media ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ.",
+      "collections.readyTitle": "ಸ್ಥಳೀಯ ಮಾಧ್ಯಮ ಸಿದ್ಧವಾಗಿದೆ",
+      "collections.readyMessage": "MyGita {name} ನಿಂದ ವಿಷಯವನ್ನು ಬಳಸುತ್ತಿದೆ.",
+      "collections.load": "ಮಾಧ್ಯಮ ಲೋಡ್ ಮಾಡಿ",
+      "collections.change": "ಮಾಧ್ಯಮ ಬದಲಿಸಿ"
     }
   },
   "branding": {

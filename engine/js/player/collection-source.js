@@ -1,31 +1,58 @@
-import { loadCollectionExperience, loadCollectionExperienceFromFiles, openWritableCollectionWorkspace } from './collection-data.js';
+import {
+  COLLECTION_ROOT,
+  readCollectionTextFromDirectory,
+  readCollectionTextFromFiles
+} from './collection-data.js';
+import { DirectoryMediaSource, FilesMediaSource, RemoteMediaSource } from '../media-source.js';
+import { loadMediaBookExperience } from '../media-experience-adapter.js';
 
 export class CollectionSourceRequiredError extends Error {
   constructor() {
-    super('Choose the local collections folder to continue.');
+    super('Choose the local media folder to continue.');
     this.name = 'CollectionSourceRequiredError';
   }
 }
 
 export class CollectionSource {
-  constructor({ protocol = location.protocol, version = '' } = {}) {
+  constructor({
+    protocol = globalThis.location?.protocol || 'https:',
+    version = '',
+    media = {},
+    bookForExperience = () => '',
+    productTextReader = null,
+    productMediaResolver = null,
+    fetchImpl = globalThis.fetch?.bind(globalThis),
+    baseUrl = globalThis.location?.href || 'https://localhost/'
+  } = {}) {
     this.protocol = protocol;
     this.version = version;
+    this.mediaConfig = media || {};
+    this.bookForExperience = bookForExperience;
+    this.productTextReader = productTextReader;
+    this.productMediaResolver = productMediaResolver;
+    this.fetchImpl = fetchImpl;
+    this.baseUrl = baseUrl;
     this.files = null;
     this.directoryHandle = null;
+    this.mediaSource = null;
     this.cache = new Map();
-    this.workspaces = new Map();
+    if (protocol !== 'file:' && media?.remoteRoot) {
+      this.mediaSource = new RemoteMediaSource({ rootUrl: media.remoteRoot, catalogPath: media.catalog || 'catalog.json', fetchImpl });
+    }
   }
 
-  get requiresSelection() { return this.protocol === 'file:' && !this.files && !this.directoryHandle; }
-  get usesLocalFiles() { return Boolean(this.files || this.directoryHandle); }
+  get requiresSelection() { return this.protocol === 'file:' && !this.mediaSource; }
+  get usesLocalFiles() { return Boolean(this.files || this.directoryHandle || (this.protocol === 'file:' && this.mediaSource)); }
   get isReady() { return !this.requiresSelection; }
-  get label() { return this.directoryHandle?.name || (this.files ? 'collections' : 'data/collections'); }
+  get label() { return this.mediaSource?.label || (this.protocol === 'file:' ? 'media' : this.mediaConfig.remoteRoot || 'bundled content'); }
 
-  clear() {
+  clear({ releaseMedia = false } = {}) {
     this.cache.forEach((dataset) => dataset.release?.());
     this.cache.clear();
-    this.workspaces.clear();
+    if (releaseMedia) {
+      this.mediaSource?.release?.();
+      this.mediaSource = null;
+    }
   }
 
   selectFiles(fileList) {
@@ -43,22 +70,60 @@ export class CollectionSource {
     this.directoryHandle = directoryHandle;
   }
 
-  workspaceFor(experienceId, collectionId = '') { return this.workspaces.get(`${experienceId}:${collectionId}`) || this.workspaces.get(experienceId) || null; }
+  async selectMediaDirectory(directoryHandle) {
+    const source = new DirectoryMediaSource({ directoryHandle, catalogPath: this.mediaConfig.catalog || 'catalog.json' });
+    await source.loadCatalog();
+    this.clear({ releaseMedia: true });
+    this.mediaSource = source;
+  }
 
-  async loadExperience(experienceId, { collectionId = '' } = {}) {
+  async selectMediaFiles(fileList) {
+    const source = new FilesMediaSource({ fileList, catalogPath: this.mediaConfig.catalog || 'catalog.json' });
+    await source.loadCatalog();
+    this.clear({ releaseMedia: true });
+    this.mediaSource = source;
+  }
+
+  workspaceFor() { return null; }
+
+  async productText(url) {
+    if (this.productTextReader) return this.productTextReader(url);
+    if (this.directoryHandle) return readCollectionTextFromDirectory(this.directoryHandle, url);
+    if (this.files) return readCollectionTextFromFiles(this.files, url);
+    const dataRoot = COLLECTION_ROOT.replace(/\/collections$/, '');
+    const resolved = String(url).startsWith('data/') ? `${dataRoot}/${String(url).slice(5)}` : String(url);
+    const request = new URL(resolved, this.baseUrl);
+    if (this.version) request.searchParams.set('v', this.version);
+    const response = await this.fetchImpl(request.href);
+    if (!response?.ok) throw new Error(`Could not load ${url} (HTTP ${response?.status || 'network error'}).`);
+    return response.text();
+  }
+
+  resolveProductMediaUrl(value) {
+    if (/^https:\/\//i.test(String(value || ''))) return value;
+    if (this.productMediaResolver) return this.productMediaResolver(value);
+    const dataRoot = COLLECTION_ROOT.replace(/\/collections$/, '');
+    const resolved = String(value).startsWith('data/') ? `${dataRoot}/${String(value).slice(5)}` : String(value);
+    return new URL(resolved, this.baseUrl).href;
+  }
+
+  async loadExperience(experienceId, { collectionId = '', refresh = false } = {}) {
     const key = `${experienceId}:${collectionId}`;
-    if (this.cache.has(key)) return this.cache.get(key);
+    if (!refresh && this.mediaSource?.needsRefresh) refresh = true;
+    if (!refresh && this.cache.has(key)) return this.cache.get(key);
     if (this.requiresSelection) throw new CollectionSourceRequiredError();
-    let dataset;
-    if (this.directoryHandle) {
-      const opened = await openWritableCollectionWorkspace(experienceId, this.directoryHandle, { collectionId });
-      dataset = opened.dataset;
-      this.workspaces.set(key, opened.workspace);
-    } else {
-      dataset = this.files
-        ? await loadCollectionExperienceFromFiles(experienceId, this.files, { collectionId })
-        : await loadCollectionExperience(experienceId, { version: this.version, collectionId });
-    }
+    if (refresh) this.cache.get(key)?.release?.();
+    const bookId = String(this.bookForExperience(experienceId, collectionId) || collectionId || '').trim();
+    if (!this.mediaSource) throw new Error('MyGita requires a media source to load scripture content.');
+    if (!bookId) throw new Error(`Experience ${experienceId} does not declare a media book.`);
+    if (refresh) await this.mediaSource.loadCatalog({ refresh: true });
+    const dataset = await loadMediaBookExperience(experienceId, {
+      bookId,
+      mediaSource: this.mediaSource,
+      productText: (url) => this.productText(url),
+      resolveProductMediaUrl: (url) => this.resolveProductMediaUrl(url),
+      collectionId: collectionId || bookId
+    });
     this.cache.set(key, dataset);
     return dataset;
   }

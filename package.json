@@ -23,6 +23,7 @@
     "test:sukta": "node --test products/sukta/tests/contract/*.test.mjs",
     "test:sukta:browser": "VERSES_ENGINE_ROOT=$PWD/engine node products/sukta/tests/browser/player-regression.cjs",
     "test:gita:browser": "VERSES_ENGINE_ROOT=$PWD/engine node products/gita/tests/browser/player-regression.cjs",
+    "verify:media-parity": "node engine/scripts/verify-media-parity.mjs ../media",
     "verify:gita": "npm run build:gita && npm run test && npm run test:unit && npm run test:contract && npm run test:gita && npm run test:gita:browser",
     "build:docs": "node engine/scripts/build-docs.mjs",
     "build:player": "cd engine && node scripts/build-player.mjs",

@@ -85,6 +85,20 @@ for (const product of workspace.products) {
     }
   }
 }
+
+const forbiddenProductContent = [];
+for (const product of workspace.products) {
+  const productOutput = path.join(output, 'products', product.path, 'data');
+  const files = (await stat(productOutput).catch(() => null))?.isDirectory() ? await walk(productOutput) : [];
+  for (const absolute of files) {
+    const relative = path.relative(productOutput, absolute).split(path.sep).join('/');
+    if (relative.startsWith('collections/')) forbiddenProductContent.push(`${product.id}:${relative}`);
+    if (relative.startsWith('experiences/') && !/(?:^|\/)(?:collection|catalog)\.csv$/.test(relative) && !/\/experience\.json$/.test(relative)) {
+      forbiddenProductContent.push(`${product.id}:${relative}`);
+    }
+  }
+}
+if (forbiddenProductContent.length) throw new Error(`Product output contains media-owned scripture content: ${forbiddenProductContent.join(', ')}`);
 for (const filename of ['app.json', 'collection.csv', 'collection_en.csv', 'collection_kn.csv']) {
   await cp(path.join(productsRoot, filename), path.join(output, 'products', filename));
 }
@@ -140,6 +154,15 @@ for (const absolute of await walk(output)) {
   const contents = await readFile(absolute);
   assets[relative] = { sha256: createHash('sha256').update(contents).digest('hex'), bytes: (await stat(absolute)).size };
 }
-const precache = Object.keys(assets).filter((relative) => /^(?:player|index|offline)\.html$/.test(relative) || relative === 'manifest.webmanifest' || relative === 'js/player.bundle.js' || relative.startsWith('css/') || relative.startsWith('assets/'));
+const precache = Object.keys(assets).filter((relative) => (
+  /^(?:player|index|offline)\.html$/.test(relative)
+  || relative === 'manifest.webmanifest'
+  || relative === 'js/player.bundle.js'
+  || relative.startsWith('css/')
+  || relative.startsWith('assets/')
+  || relative.startsWith('products/')
+  || relative === 'data/app-version.json'
+  || relative === 'data/version-history.json'
+));
 await writeFile(path.join(output, 'asset-manifest.json'), JSON.stringify({ version, distribution: workspace.app.id, assets, precache }, null, 2) + '\n');
 console.log(`Built ${workspace.app.name} ${version} with ${builtProducts.length} products into ${output}.`);
