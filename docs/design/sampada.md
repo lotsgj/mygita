@@ -1,7 +1,7 @@
 # Sampada — Treasure trove of MyGita enhancements
 
 **Status:** Current  
-**Last updated:** 2 November 2026
+**Last updated:** 4 November 2026
 
 Sampada keeps both future possibilities and completed enhancements. Items retain their number after completion so decisions and delivery history remain traceable.
 
@@ -11,6 +11,16 @@ Sampada keeps both future possibilities and completed enhancements. Items retain
 | **Done** | Enhancements that have been implemented, documented and regression-tested. |
 
 ## To unfold
+
+### 21. Configurable content languages and renderer panels
+
+**Status:** To unfold
+
+**Tag:** Major
+
+Languages are data: the manifest and product config declare source, content and interface languages; renderer panels bind to roles; adding a language needs data and a font, no code change.
+
+The language model and role-bound renderer panels are delivered for each product. Remaining work is one shared language registry, a book-level source language in the manifest, removing the remaining hardcoded English and Kannada choices, and registries that list localized files by row instead of one column per language.
 
 ### 20. Manifest-driven media-cache cleanup
 
