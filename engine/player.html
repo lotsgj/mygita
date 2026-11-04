@@ -75,6 +75,13 @@
         <select class="profile-input" id="profile-interface-language" required><option value="" data-i18n="profile.chooseLanguage">Choose your language</option><option value="en">English</option><option value="kn">ಕನ್ನಡ</option></select>
         <label class="field-label" for="profile-content-language" data-i18n="profile.contentLanguage">Preferred Gita content language</label>
         <select class="profile-input" id="profile-content-language" required><option value="en">English</option><option value="kn">ಕನ್ನಡ</option></select>
+        <section class="experience-language-preferences" id="experience-language-preferences" hidden>
+          <div class="preferences-subhead">
+            <h3 data-i18n="profile.experienceLanguages">Languages by experience</h3>
+            <p data-i18n="profile.experienceLanguagesHint">Choose a different language for an experience panel, or keep its recommended default.</p>
+          </div>
+          <div id="experience-language-list"></div>
+        </section>
       </section>
       <label class="check-row"><input id="profile-default" type="checkbox" checked><span data-i18n="profile.default">Use this profile automatically on this device</span></label>
       <div class="form-error" id="profile-form-error" role="alert"></div>
@@ -237,7 +244,6 @@
           <button class="top-menu-item" id="chapters-button" type="button"><span class="top-menu-label" data-i18n="menu.chapters">Chapters</span><span class="menu-shortcut">C</span></button>
           <button class="top-menu-item" id="goto-button" type="button"><span class="top-menu-label" data-i18n="menu.goto">Go to shloka</span><span class="menu-shortcut">G</span></button>
           <button class="top-menu-item" id="language-button" type="button"><span class="top-menu-label">Content language (English)</span><span class="menu-shortcut">L</span></button>
-          <button class="top-menu-item" id="panel-languages-button" type="button" hidden><span class="top-menu-label" data-i18n="menu.panelLanguages">Panel languages</span></button>
           <button class="top-menu-item" id="questions-button" type="button" hidden><span class="top-menu-label" data-i18n="menu.questionsOn">Questions (On)</span><span class="menu-shortcut">Q</span></button>
           <button class="top-menu-item" id="fullscreen-button" type="button"><span class="top-menu-label" data-i18n="menu.fullscreen">Fullscreen</span><span class="menu-shortcut">F</span></button>
           <div class="top-menu-divider"></div>
@@ -312,16 +318,6 @@
       <button class="language-option" type="button" data-language="en">English</button>
       <button class="language-option" type="button" data-language="kn">ಕನ್ನಡ</button>
     </div>
-  </section>
-</div>
-
-<div class="overlay" id="panel-languages-overlay" hidden>
-  <section class="dialog language-dialog" role="dialog" aria-modal="true" aria-labelledby="panel-languages-title">
-    <header class="dialog-head"><h2 id="panel-languages-title" data-i18n="dialog.panelLanguages">Choose panel languages</h2><button class="icon-button close-dialog" type="button" aria-label="Close" data-i18n-aria="common.close">×</button></header>
-    <form class="dialog-body" id="panel-languages-form">
-      <div id="panel-language-options"></div>
-      <div class="form-actions"><button class="secondary-button" id="panel-languages-reset" type="button" data-i18n="common.reset">Use defaults</button><button class="primary-button" type="submit" data-i18n="common.apply">Apply</button></div>
-    </form>
   </section>
 </div>
 

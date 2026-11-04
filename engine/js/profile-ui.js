@@ -1,7 +1,7 @@
 import { resizeProfilePhoto } from './profile-store.js';
 
 export class ProfileUI {
-  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null }) {
+  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null, products = () => [] }) {
     this.store = store;
     this.onSelected = onSelected;
     this.onCreated = onCreated;
@@ -9,6 +9,7 @@ export class ProfileUI {
     this.translate = translate;
     this.onInterfaceLanguagePreview = onInterfaceLanguagePreview;
     this.languageModel = languageModel;
+    this.products = products;
     this.editingPid = null;
     this.photo = '';
     this.bind();
@@ -98,6 +99,7 @@ export class ProfileUI {
       }));
     }
     contentSelect.value = profile?.contentLanguage || model?.defaultContent || 'en';
+    await this.renderExperienceLanguagePreferences(profile);
     document.getElementById('profile-default').checked = profile ? (await this.store.defaultPid()) === profile.pid : true;
     document.getElementById('profile-form-cancel').hidden = !profile;
     document.getElementById('profile-form-error').textContent = '';
@@ -107,6 +109,71 @@ export class ProfileUI {
       target?.scrollIntoView({ block: focusPreferences ? 'center' : 'nearest', behavior: 'smooth' });
       target?.focus({ preventScroll: true });
     });
+  }
+
+  productName(product, language) {
+    return product.metadata?.[language]?.name || product.metadata?.en?.name || product.config?.name || product.id;
+  }
+
+  allowedPanelLanguages(panel, model) {
+    if (panel.allowedLanguages === 'all') return [model.source, ...model.content];
+    if (Array.isArray(panel.allowedLanguages)) return panel.allowedLanguages;
+    return model.content;
+  }
+
+  async renderExperienceLanguagePreferences(profile) {
+    const section = document.getElementById('experience-language-preferences');
+    const list = document.getElementById('experience-language-list');
+    section.hidden = !profile;
+    list.textContent = '';
+    if (!profile) return;
+    const interfaceLanguage = profile.interfaceLanguage || 'en';
+    for (const product of this.products()) {
+      const model = product.config?.languages;
+      const experiences = (product.config?.experiences || []).filter((experience) => experience.panels?.some((panel) => panel.userSelectable));
+      if (!model || !experiences.length) continue;
+      const productGroup = document.createElement('section'); productGroup.className = 'experience-language-product';
+      const heading = document.createElement('h4'); heading.textContent = this.productName(product, interfaceLanguage); productGroup.appendChild(heading);
+      for (const experience of experiences) {
+        const overrides = await this.store.getPanelLanguages(profile.pid, product.id, experience.id);
+        const card = document.createElement('details'); card.className = 'experience-language-card';
+        card.dataset.productId = product.id; card.dataset.experienceId = experience.id;
+        const summary = document.createElement('summary'); summary.textContent = experience.label || experience.id; card.appendChild(summary);
+        const fields = document.createElement('div'); fields.className = 'experience-language-fields';
+        experience.panels.filter((panel) => panel.userSelectable).forEach((panel) => {
+          const field = document.createElement('label'); field.className = 'experience-language-field';
+          const caption = document.createElement('span'); caption.className = 'field-label';
+          const fallbackLabel = panel.id.replace(/-/g, ' ').replace(/^./, (value) => value.toUpperCase());
+          caption.textContent = this.translate(`profile.panel.${panel.id}`, fallbackLabel);
+          const select = document.createElement('select'); select.className = 'profile-input'; select.dataset.panelId = panel.id;
+          const defaultOption = document.createElement('option'); defaultOption.value = '';
+          defaultOption.textContent = this.translate('profile.experienceDefault', 'Experience default'); select.appendChild(defaultOption);
+          this.allowedPanelLanguages(panel, model).forEach((language) => {
+            if (!model.registry?.[language]) return;
+            const option = document.createElement('option'); option.value = language;
+            option.textContent = model.registry[language].nativeName || model.registry[language].name || language; select.appendChild(option);
+          });
+          select.value = overrides[panel.id] || '';
+          field.append(caption, select); fields.appendChild(field);
+        });
+        const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'quiet-button experience-language-reset';
+        reset.textContent = this.translate('profile.useExperienceDefaults', 'Use experience defaults');
+        reset.addEventListener('click', () => fields.querySelectorAll('select').forEach((select) => { select.value = ''; }));
+        fields.appendChild(reset); card.appendChild(fields); productGroup.appendChild(card);
+      }
+      list.appendChild(productGroup);
+    }
+    section.hidden = !list.childElementCount;
+  }
+
+  async saveExperienceLanguagePreferences(pid) {
+    const cards = document.querySelectorAll('.experience-language-card[data-product-id][data-experience-id]');
+    await Promise.all([...cards].map((card) => {
+      const overrides = Object.fromEntries([...card.querySelectorAll('select[data-panel-id]')]
+        .filter((select) => select.value)
+        .map((select) => [select.dataset.panelId, select.value]));
+      return this.store.setPanelLanguages(pid, card.dataset.productId, card.dataset.experienceId, overrides);
+    }));
   }
 
   renderPhotoPreview(profile = null) {
@@ -155,6 +222,7 @@ export class ProfileUI {
           photo: this.photo,
           analyticsConsent: true
         });
+        if (this.editingPid) await this.saveExperienceLanguagePreferences(profile.pid);
         if (document.getElementById('profile-default').checked) await this.store.setDefaultPid(profile.pid);
         else if ((await this.store.defaultPid()) === profile.pid) await this.store.setDefaultPid(null);
         if (this.editingPid) await this.onChanged(profile);

@@ -1,7 +1,7 @@
 # Profiles and first use
 
 **Status:** Current  
-**Last updated:** 30 October 2026
+**Last updated:** 4 November 2026
 
 ## First visit
 
@@ -13,7 +13,7 @@ Analytics is informational rather than an opt-in and no notice interrupts profil
 
 When no default profile is set, Gitaverse displays all local profiles and lets the person choose one or add another. A default profile bypasses selection. The persistent profile pill opens, in order, **My preferences**, **View / edit profile**, and **Switch / manage profiles**; those actions are not duplicated in the main menu.
 
-The profile form separates personal details from a **My preferences** card. That card owns app language and preferred content language. Choosing **My preferences** opens the same profile form focused on this card, while **View / edit profile** opens the complete form. Both routes share one save action and one stored profile record.
+The profile form separates personal details from a **My preferences** card. During first-time setup that card asks only for app language and preferred content language. After the profile exists, it also offers **Languages by experience**: product-grouped, expandable experience cards for any panels explicitly marked as user-selectable. Choosing **My preferences** opens the same profile form focused on this card, while **View / edit profile** opens the complete form. Both routes share one save action and one stored profile record.
 
 After profile selection, Gitaverse either resumes the saved location or opens experience selection. The profile’s app language controls all Gitaverse labels and messages. Content language controls chapter names, transliteration, meaning, and word-by-word meaning and may differ by experience. An explicit `lang` URL parameter overrides content only; it never changes interface language.
 

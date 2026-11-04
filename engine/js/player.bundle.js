@@ -233,6 +233,9 @@ const EN_MESSAGES = {
   'analytics.private': 'Profile names, exact dates of birth, photos, verse text, notes and voice content are not sent.',
   'profile.cancel': 'Cancel', 'profile.save': 'Save profile', 'profile.title': 'Profile', 'profile.switch': 'Switch profile', 'profile.manage': 'Manage profiles',
   'profile.preferences': 'My preferences', 'profile.details': 'Profile details', 'profile.viewEdit': 'View / edit profile', 'profile.switchManage': 'Switch / manage profiles',
+  'profile.experienceLanguages': 'Languages by experience', 'profile.experienceLanguagesHint': 'Choose a different language for an experience panel, or keep its recommended default.',
+  'profile.experienceDefault': 'Experience default', 'profile.useExperienceDefaults': 'Use experience defaults',
+  'profile.panel.primary': 'Primary panel', 'profile.panel.secondary': 'Secondary panel', 'profile.panel.transliteration': 'Transliteration', 'profile.panel.meaning': 'Meaning', 'profile.panel.word': 'Word by word',
   'profile.who': 'Who is using Gitaverse?', 'profile.choose': 'Choose a profile to continue.', 'profile.add': '＋ Add another profile', 'profile.back': 'Back',
   'profile.storageUnavailable': 'Local profile storage is unavailable. Gitaverse requires browser storage to keep profiles on this device.',
   'profile.defaultBadge': 'Default', 'profile.editAction': 'Edit', 'profile.makeDefault': 'Make default', 'profile.unsetDefault': 'Unset default', 'profile.delete': 'Delete',
@@ -264,12 +267,11 @@ const EN_MESSAGES = {
   'diksoochi.resumeExperience': 'Resume {experience} · Shloka {sid}', 'diksoochi.beginExperience': 'Begin with {experience}', 'diksoochi.resumeLabel': 'Continue {experience}', 'diksoochi.beginLabel': 'Begin your journey', 'diksoochi.shlokaLabel': 'Shloka {sid}', 'diksoochi.continue': 'Continue',
   'common.about': 'About Gitaverse', 'common.install': 'Install Gitaverse', 'common.close': 'Close', 'common.back': '← Back',
   'loading.title': 'Opening the Gita', 'loading.message': 'Preparing the verses…', 'error.title': 'Unable to open the player',
-  'menu.collections': 'Collections', 'menu.chapters': 'Chapters', 'menu.goto': 'Go to shloka', 'menu.contentLanguage': 'Content language ({language})', 'menu.panelLanguages': 'Panel languages',
+  'menu.collections': 'Collections', 'menu.chapters': 'Chapters', 'menu.goto': 'Go to shloka', 'menu.contentLanguage': 'Content language ({language})',
   'menu.fullscreen': 'Fullscreen', 'menu.exitFullscreen': 'Exit fullscreen',
   'menu.questionsOn': 'Questions (On)', 'menu.questionsOff': 'Questions (Off)',
   'menu.home': 'Diksoochi / Home', 'menu.journey': 'Your journey', 'menu.help': 'Help', 'menu.open': 'Open menu', 'menu.close': 'Close menu',
-  'dialog.collections': 'Collections', 'dialog.contentLanguage': 'Choose content language', 'dialog.panelLanguages': 'Choose panel languages', 'dialog.goto': 'Go to a shloka', 'dialog.chapters': 'Chapters', 'dialog.shortcuts': 'Keyboard shortcuts',
-  'common.apply': 'Apply', 'common.reset': 'Use defaults',
+  'dialog.collections': 'Collections', 'dialog.contentLanguage': 'Choose content language', 'dialog.goto': 'Go to a shloka', 'dialog.chapters': 'Chapters', 'dialog.shortcuts': 'Keyboard shortcuts',
   'about.body': 'Gitaverse is a verse and chanting experience from Gita Jyoti—a simple space to listen to, study and remain close to the Bhagavad Gita.',
   'about.version': 'Version',
   'about.history': 'Version history', 'about.back': '← Back to About', 'about.historyLoading': 'Loading version history…',
@@ -308,6 +310,9 @@ const KN_MESSAGES = {
   'analytics.private': 'ಪ್ರೊಫೈಲ್ ಹೆಸರು, ನಿಖರ ಜನ್ಮ ದಿನಾಂಕ, ಚಿತ್ರ, ಶ್ಲೋಕ ಪಠ್ಯ, ಟಿಪ್ಪಣಿಗಳು ಮತ್ತು ಧ್ವನಿ ವಿಷಯವನ್ನು ಕಳುಹಿಸಲಾಗುವುದಿಲ್ಲ.',
   'profile.cancel': 'ರದ್ದುಮಾಡಿ', 'profile.save': 'ಪ್ರೊಫೈಲ್ ಉಳಿಸಿ', 'profile.title': 'ಪ್ರೊಫೈಲ್', 'profile.switch': 'ಪ್ರೊಫೈಲ್ ಬದಲಿಸಿ', 'profile.manage': 'ಪ್ರೊಫೈಲ್‌ಗಳನ್ನು ನಿರ್ವಹಿಸಿ',
   'profile.preferences': 'ನನ್ನ ಆದ್ಯತೆಗಳು', 'profile.details': 'ಪ್ರೊಫೈಲ್ ವಿವರಗಳು', 'profile.viewEdit': 'ಪ್ರೊಫೈಲ್ ನೋಡಿ / ಸಂಪಾದಿಸಿ', 'profile.switchManage': 'ಪ್ರೊಫೈಲ್ ಬದಲಿಸಿ / ನಿರ್ವಹಿಸಿ',
+  'profile.experienceLanguages': 'ಅನುಭವದ ಪ್ರಕಾರ ಭಾಷೆಗಳು', 'profile.experienceLanguagesHint': 'ಅನುಭವದ ಪ್ಯಾನಲ್‌ಗೆ ಬೇರೆ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ, ಅಥವಾ ಸೂಚಿಸಿದ ಪೂರ್ವನಿಯೋಜಿತ ಆಯ್ಕೆಯನ್ನು ಉಳಿಸಿ.',
+  'profile.experienceDefault': 'ಅನುಭವದ ಪೂರ್ವನಿಯೋಜಿತ', 'profile.useExperienceDefaults': 'ಅನುಭವದ ಪೂರ್ವನಿಯೋಜಿತ ಆಯ್ಕೆಗಳನ್ನು ಬಳಸಿ',
+  'profile.panel.primary': 'ಪ್ರಾಥಮಿಕ ಪ್ಯಾನಲ್', 'profile.panel.secondary': 'ಎರಡನೆಯ ಪ್ಯಾನಲ್', 'profile.panel.transliteration': 'ಲಿಪ್ಯಂತರ', 'profile.panel.meaning': 'ಅರ್ಥ', 'profile.panel.word': 'ಪದಪದಾರ್ಥ',
   'profile.who': 'Gitaverse ಅನ್ನು ಯಾರು ಬಳಸುತ್ತಿದ್ದಾರೆ?', 'profile.choose': 'ಮುಂದುವರಿಸಲು ಪ್ರೊಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ.', 'profile.add': '＋ ಮತ್ತೊಂದು ಪ್ರೊಫೈಲ್ ಸೇರಿಸಿ', 'profile.back': 'ಹಿಂದೆ',
   'profile.storageUnavailable': 'ಸ್ಥಳೀಯ ಪ್ರೊಫೈಲ್ ಸಂಗ್ರಹಣೆ ಲಭ್ಯವಿಲ್ಲ. ಈ ಸಾಧನದಲ್ಲಿ ಪ್ರೊಫೈಲ್‌ಗಳನ್ನು ಉಳಿಸಲು Gitaverse ಗೆ ಬ್ರೌಸರ್ ಸಂಗ್ರಹಣೆ ಅಗತ್ಯವಿದೆ.',
   'profile.defaultBadge': 'ಪೂರ್ವನಿಯೋಜಿತ', 'profile.editAction': 'ಸಂಪಾದಿಸಿ', 'profile.makeDefault': 'ಪೂರ್ವನಿಯೋಜಿತವಾಗಿಸಿ', 'profile.unsetDefault': 'ಪೂರ್ವನಿಯೋಜಿತ ತೆಗೆದುಹಾಕಿ', 'profile.delete': 'ಅಳಿಸಿ',
@@ -339,12 +344,11 @@ const KN_MESSAGES = {
   'diksoochi.resumeExperience': '{experience} ಮುಂದುವರಿಸಿ · ಶ್ಲೋಕ {sid}', 'diksoochi.beginExperience': '{experience} ಆರಂಭಿಸಿ', 'diksoochi.resumeLabel': '{experience} ಮುಂದುವರಿಸಿ', 'diksoochi.beginLabel': 'ನಿಮ್ಮ ಪಯಣ ಆರಂಭಿಸಿ', 'diksoochi.shlokaLabel': 'ಶ್ಲೋಕ {sid}', 'diksoochi.continue': 'ಮುಂದುವರಿಸಿ',
   'common.about': 'Gitaverse ಕುರಿತು', 'common.install': 'Gitaverse ಸ್ಥಾಪಿಸಿ', 'common.close': 'ಮುಚ್ಚಿ', 'common.back': '← ಹಿಂದೆ',
   'loading.title': 'ಗೀತೆಯನ್ನು ತೆರೆಯಲಾಗುತ್ತಿದೆ', 'loading.message': 'ಶ್ಲೋಕಗಳನ್ನು ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ…', 'error.title': 'ಪ್ಲೇಯರ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ',
-  'menu.collections': 'ಸಂಗ್ರಹಗಳು', 'menu.chapters': 'ಅಧ್ಯಾಯಗಳು', 'menu.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'menu.contentLanguage': 'ವಿಷಯ ಭಾಷೆ ({language})', 'menu.panelLanguages': 'ಪ್ಯಾನಲ್ ಭಾಷೆಗಳು',
+  'menu.collections': 'ಸಂಗ್ರಹಗಳು', 'menu.chapters': 'ಅಧ್ಯಾಯಗಳು', 'menu.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'menu.contentLanguage': 'ವಿಷಯ ಭಾಷೆ ({language})',
   'menu.fullscreen': 'ಪೂರ್ಣ ಪರದೆ', 'menu.exitFullscreen': 'ಪೂರ್ಣ ಪರದೆಯಿಂದ ಹೊರಗೆ',
   'menu.questionsOn': 'ಪ್ರಶ್ನೆಗಳು (ಆನ್)', 'menu.questionsOff': 'ಪ್ರಶ್ನೆಗಳು (ಆಫ್)',
   'menu.home': 'ದಿಕ್ಸೂಚಿ / ಮುಖಪುಟ', 'menu.journey': 'ನಿಮ್ಮ ಪಯಣ', 'menu.help': 'ಸಹಾಯ', 'menu.open': 'ಮೆನು ತೆರೆಯಿರಿ', 'menu.close': 'ಮೆನು ಮುಚ್ಚಿ',
-  'dialog.collections': 'ಸಂಗ್ರಹಗಳು', 'dialog.contentLanguage': 'ವಿಷಯ ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ', 'dialog.panelLanguages': 'ಪ್ಯಾನಲ್ ಭಾಷೆಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ', 'dialog.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'dialog.chapters': 'ಅಧ್ಯಾಯಗಳು', 'dialog.shortcuts': 'ಕೀಬೋರ್ಡ್ ಶಾರ್ಟ್‌ಕಟ್‌ಗಳು',
-  'common.apply': 'ಅನ್ವಯಿಸಿ', 'common.reset': 'ಪೂರ್ವನಿಯೋಜಿತ ಆಯ್ಕೆಗಳು',
+  'dialog.collections': 'ಸಂಗ್ರಹಗಳು', 'dialog.contentLanguage': 'ವಿಷಯ ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ', 'dialog.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'dialog.chapters': 'ಅಧ್ಯಾಯಗಳು', 'dialog.shortcuts': 'ಕೀಬೋರ್ಡ್ ಶಾರ್ಟ್‌ಕಟ್‌ಗಳು',
   'about.body': 'Gitaverse ಗೀತಾಜ್ಯೋತಿಯ ಶ್ಲೋಕ ಮತ್ತು ಪಠಣ ಅನುಭವ—ಭಗವದ್ಗೀತೆಯನ್ನು ಆಲಿಸಲು, ಅಧ್ಯಯನ ಮಾಡಲು ಮತ್ತು ಅದರ ಸಮೀಪದಲ್ಲಿರಲು ಸರಳ ಸ್ಥಳ.',
   'about.version': 'ಆವೃತ್ತಿ',
   'about.history': 'ಆವೃತ್ತಿ ಇತಿಹಾಸ', 'about.back': '← Gitaverse ಕುರಿತುಗೆ ಹಿಂತಿರುಗಿ', 'about.historyLoading': 'ಆವೃತ್ತಿ ಇತಿಹಾಸ ಲೋಡ್ ಆಗುತ್ತಿದೆ…',
@@ -900,7 +904,7 @@ async function resizeProfilePhoto(file) {
 
 // Source: js/profile-ui.js
 class ProfileUI {
-  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null }) {
+  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null, products = () => [] }) {
     this.store = store;
     this.onSelected = onSelected;
     this.onCreated = onCreated;
@@ -908,6 +912,7 @@ class ProfileUI {
     this.translate = translate;
     this.onInterfaceLanguagePreview = onInterfaceLanguagePreview;
     this.languageModel = languageModel;
+    this.products = products;
     this.editingPid = null;
     this.photo = '';
     this.bind();
@@ -997,6 +1002,7 @@ class ProfileUI {
       }));
     }
     contentSelect.value = profile?.contentLanguage || model?.defaultContent || 'en';
+    await this.renderExperienceLanguagePreferences(profile);
     document.getElementById('profile-default').checked = profile ? (await this.store.defaultPid()) === profile.pid : true;
     document.getElementById('profile-form-cancel').hidden = !profile;
     document.getElementById('profile-form-error').textContent = '';
@@ -1006,6 +1012,71 @@ class ProfileUI {
       target?.scrollIntoView({ block: focusPreferences ? 'center' : 'nearest', behavior: 'smooth' });
       target?.focus({ preventScroll: true });
     });
+  }
+
+  productName(product, language) {
+    return product.metadata?.[language]?.name || product.metadata?.en?.name || product.config?.name || product.id;
+  }
+
+  allowedPanelLanguages(panel, model) {
+    if (panel.allowedLanguages === 'all') return [model.source, ...model.content];
+    if (Array.isArray(panel.allowedLanguages)) return panel.allowedLanguages;
+    return model.content;
+  }
+
+  async renderExperienceLanguagePreferences(profile) {
+    const section = document.getElementById('experience-language-preferences');
+    const list = document.getElementById('experience-language-list');
+    section.hidden = !profile;
+    list.textContent = '';
+    if (!profile) return;
+    const interfaceLanguage = profile.interfaceLanguage || 'en';
+    for (const product of this.products()) {
+      const model = product.config?.languages;
+      const experiences = (product.config?.experiences || []).filter((experience) => experience.panels?.some((panel) => panel.userSelectable));
+      if (!model || !experiences.length) continue;
+      const productGroup = document.createElement('section'); productGroup.className = 'experience-language-product';
+      const heading = document.createElement('h4'); heading.textContent = this.productName(product, interfaceLanguage); productGroup.appendChild(heading);
+      for (const experience of experiences) {
+        const overrides = await this.store.getPanelLanguages(profile.pid, product.id, experience.id);
+        const card = document.createElement('details'); card.className = 'experience-language-card';
+        card.dataset.productId = product.id; card.dataset.experienceId = experience.id;
+        const summary = document.createElement('summary'); summary.textContent = experience.label || experience.id; card.appendChild(summary);
+        const fields = document.createElement('div'); fields.className = 'experience-language-fields';
+        experience.panels.filter((panel) => panel.userSelectable).forEach((panel) => {
+          const field = document.createElement('label'); field.className = 'experience-language-field';
+          const caption = document.createElement('span'); caption.className = 'field-label';
+          const fallbackLabel = panel.id.replace(/-/g, ' ').replace(/^./, (value) => value.toUpperCase());
+          caption.textContent = this.translate(`profile.panel.${panel.id}`, fallbackLabel);
+          const select = document.createElement('select'); select.className = 'profile-input'; select.dataset.panelId = panel.id;
+          const defaultOption = document.createElement('option'); defaultOption.value = '';
+          defaultOption.textContent = this.translate('profile.experienceDefault', 'Experience default'); select.appendChild(defaultOption);
+          this.allowedPanelLanguages(panel, model).forEach((language) => {
+            if (!model.registry?.[language]) return;
+            const option = document.createElement('option'); option.value = language;
+            option.textContent = model.registry[language].nativeName || model.registry[language].name || language; select.appendChild(option);
+          });
+          select.value = overrides[panel.id] || '';
+          field.append(caption, select); fields.appendChild(field);
+        });
+        const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'quiet-button experience-language-reset';
+        reset.textContent = this.translate('profile.useExperienceDefaults', 'Use experience defaults');
+        reset.addEventListener('click', () => fields.querySelectorAll('select').forEach((select) => { select.value = ''; }));
+        fields.appendChild(reset); card.appendChild(fields); productGroup.appendChild(card);
+      }
+      list.appendChild(productGroup);
+    }
+    section.hidden = !list.childElementCount;
+  }
+
+  async saveExperienceLanguagePreferences(pid) {
+    const cards = document.querySelectorAll('.experience-language-card[data-product-id][data-experience-id]');
+    await Promise.all([...cards].map((card) => {
+      const overrides = Object.fromEntries([...card.querySelectorAll('select[data-panel-id]')]
+        .filter((select) => select.value)
+        .map((select) => [select.dataset.panelId, select.value]));
+      return this.store.setPanelLanguages(pid, card.dataset.productId, card.dataset.experienceId, overrides);
+    }));
   }
 
   renderPhotoPreview(profile = null) {
@@ -1054,6 +1125,7 @@ class ProfileUI {
           photo: this.photo,
           analyticsConsent: true
         });
+        if (this.editingPid) await this.saveExperienceLanguagePreferences(profile.pid);
         if (document.getElementById('profile-default').checked) await this.store.setDefaultPid(profile.pid);
         else if ((await this.store.defaultPid()) === profile.pid) await this.store.setDefaultPid(null);
         if (this.editingPid) await this.onChanged(profile);
@@ -4321,7 +4393,8 @@ const profileUI = new ProfileUI({
   onChanged: handleProfileChange,
   translate,
   onInterfaceLanguagePreview: setInterfaceLanguage,
-  languageModel: () => distribution().languages
+  languageModel: () => distribution().languages,
+  products: () => products
 });
 buildLanguageOptions();
 
@@ -4714,28 +4787,6 @@ function buildLanguageOptions() {
   }));
 }
 
-function selectablePanels() {
-  return (getExperience(play)?.panels || []).filter((panel) => panel.userSelectable);
-}
-
-function buildPanelLanguageOptions() {
-  const container = document.getElementById('panel-language-options');
-  const model = distribution().languages;
-  container.textContent = '';
-  selectablePanels().forEach((panel) => {
-    const row = document.createElement('label'); row.className = 'field-group';
-    const caption = document.createElement('span'); caption.className = 'field-label';
-    caption.textContent = panel.id.replace(/-/g, ' ').replace(/^./, (value) => value.toUpperCase());
-    const select = document.createElement('select'); select.dataset.panelId = panel.id;
-    const languages = panel.allowedLanguages === 'all' ? [model.source, ...model.content] : Array.isArray(panel.allowedLanguages) ? panel.allowedLanguages : model.content;
-    languages.forEach((language) => {
-      const option = document.createElement('option'); option.value = language; option.textContent = languageLabel(model, language); select.appendChild(option);
-    });
-    select.value = state.panelLanguageOverrides[panel.id] || state.panelLanguages[panel.id] || languages[0];
-    row.append(caption, select); container.appendChild(row);
-  });
-}
-
 function activateProduct(productId, { updateUrl = true } = {}) {
   const product = products.find((entry) => entry.id === productId);
   if (!product || !product.config) return null;
@@ -4968,6 +5019,7 @@ async function handleProfileChange(profile, options = {}) {
   if (state.dataset && state.profileReturnView === 'app') {
     showOnly('app');
     state.language = distribution().languages.content.includes(requestedLanguage) ? requestedLanguage : profile.contentLanguage;
+    state.panelLanguageOverrides = await profileStore.getPanelLanguages(profile.pid, state.activeProductId, play).catch(() => ({}));
     render();
   } else {
     play = null;
@@ -5248,7 +5300,6 @@ async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
       }))
   });
   state.renderer.mount(document.getElementById('renderer-root'));
-  document.getElementById('panel-languages-button').hidden = !selectablePanels().length;
   syncQuestionsMenu();
 
   const defaultIndex = findSid('1.B');
@@ -5481,15 +5532,12 @@ function openOverlay(id) {
       button.setAttribute('aria-pressed', button.dataset.language === state.language ? 'true' : 'false');
     });
     requestAnimationFrame(() => document.querySelector('.language-option.active')?.focus());
-  } else if (id === 'panel-languages-overlay') {
-    buildPanelLanguageOptions();
-    requestAnimationFrame(() => document.querySelector('#panel-language-options select')?.focus());
   }
 }
 
 function closeOverlays({ restoreFocus = true } = {}) {
   let closed = false;
-  ['goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'panel-languages-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
+  ['goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
     const overlay = document.getElementById(id);
     if (!overlay.hidden) { overlay.hidden = true; closed = true; }
   });
@@ -5808,18 +5856,6 @@ function bindEvents() {
   document.getElementById('language-options').addEventListener('click', (event) => {
     const option = event.target.closest('.language-option');
     if (option) chooseLanguage(option.dataset.language);
-  });
-  document.getElementById('panel-languages-button').addEventListener('click', () => openOverlay('panel-languages-overlay'));
-  document.getElementById('panel-languages-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    state.panelLanguageOverrides = Object.fromEntries([...document.querySelectorAll('#panel-language-options select')].map((select) => [select.dataset.panelId, select.value]));
-    await profileStore.setPanelLanguages(state.activeProfile.pid, state.activeProductId, play, state.panelLanguageOverrides);
-    closeOverlays(); render({ source: 'panel_language_change' });
-  });
-  document.getElementById('panel-languages-reset').addEventListener('click', async () => {
-    state.panelLanguageOverrides = {};
-    await profileStore.setPanelLanguages(state.activeProfile.pid, state.activeProductId, play, {});
-    closeOverlays(); render({ source: 'panel_language_reset' });
   });
   document.addEventListener('click', (event) => { if (!event.target.closest('.top-menu-wrap')) setMenuOpen(false); });
   document.querySelectorAll('.close-dialog').forEach((button) => button.addEventListener('click', closeOverlays));

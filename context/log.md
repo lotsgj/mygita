@@ -25,3 +25,7 @@ Follow-ups: editor UI (S-19); later related()/checkSave() for audio.
 ## W-0007 · 2026-11-04 · Claude · S: — (agent workflow) · agent instructions + shared context
 Changed: AGENTS.md, CLAUDE.md (global rules: approval first, Sampada alignment); context/ (README, now, log, adr, features/19-independent-media.md);
 docs/design/sampada.md adds S-21 (To unfold, Major).
+
+## W-0008 · 2026-11-04 · Codex · S-21 · panel languages in My Preferences
+Changed: removed panel languages from the player menu; existing profiles receive product-grouped experience cards in My Preferences; first-time setup remains simple.
+Tests: unit 51, contract 26, Gita and Sukta browser regressions; Gita browser covers hidden-first-use, persistence and reset.

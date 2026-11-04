@@ -168,6 +168,21 @@
   .profile-form-card > p, .profile-selection-card p { margin: 0 0 1.5rem; color: var(--muted); font-size: 13px; line-height: 1.55; }
   .profile-form-section { margin-top: 16px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.64); }
   .profile-form-section h2 { margin: 0 0 12px; font: 500 19px var(--font-sans, sans-serif); color: var(--ink); }
+  .experience-language-preferences { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .preferences-subhead h3 { margin: 0; font: 600 16px var(--font-sans, sans-serif); color: var(--ink); }
+  .preferences-subhead p { margin: 5px 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .experience-language-product + .experience-language-product { margin-top: 16px; }
+  .experience-language-product > h4 { margin: 0 0 8px; color: var(--muted); font: 600 12px var(--font-sans, sans-serif); letter-spacing: .06em; text-transform: uppercase; }
+  .experience-language-card { margin-top: 8px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.7); overflow: hidden; }
+  .experience-language-card summary { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 14px; cursor: pointer; font-weight: 600; list-style: none; }
+  .experience-language-card summary::-webkit-details-marker { display: none; }
+  .experience-language-card summary::after { content: '›'; color: var(--muted); font-size: 22px; transform: rotate(90deg); transition: transform .16s ease; }
+  .experience-language-card[open] summary::after { transform: rotate(-90deg); }
+  .experience-language-fields { padding: 2px 14px 14px; }
+  .experience-language-field { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(150px, 1.5fr); align-items: center; gap: 12px; margin-top: 10px; }
+  .experience-language-field .field-label { margin: 0; text-transform: capitalize; }
+  .experience-language-reset { display: block; margin: 12px 0 0 auto; }
+  @media (max-width: 560px) { .experience-language-field { grid-template-columns: 1fr; gap: 5px; } }
   .profile-form-section:focus { outline: 3px solid rgba(183,93,42,.12); border-color: rgba(183,93,42,.5); }
   .profile-form-section .profile-photo-field { margin-top: 0; }
   .profile-photo-field { display: flex; align-items: center; gap: 16px; margin: 1.5rem 0; }

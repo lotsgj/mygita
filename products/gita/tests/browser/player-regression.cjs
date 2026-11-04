@@ -55,6 +55,7 @@ function silentWav(durationSeconds = 1, sampleRate = 8000) {
 }
 
 async function createProfile(page, name = 'Regression Profile', { expectHome = true } = {}) {
+  assert.equal(await page.locator('#experience-language-preferences').isHidden(), true, 'experience panel languages must not appear during first-time profile setup');
   await page.getByLabel('Name', { exact: true }).fill(name);
   await page.getByLabel('Date of birth', { exact: true }).fill('1990-01-01');
   await page.getByLabel('App language', { exact: true }).selectOption('en');
@@ -620,7 +621,22 @@ async function run() {
     await page.locator('#profile-preferences-section').waitFor({ state: 'visible' });
     assert.equal(await page.getByRole('heading', { name: 'My preferences' }).isVisible(), true);
     assert.equal(await page.getByLabel('App language', { exact: true }).inputValue(), 'en');
-    await page.getByRole('button', { name: 'Cancel' }).click();
+    assert.equal(await page.getByRole('heading', { name: 'Languages by experience' }).isVisible(), true, 'existing profiles expose experience language preferences');
+    assert.ok(await page.locator('.experience-language-card').count() >= 4, 'language preferences are grouped into experience cards');
+    const gitaChantPreferences = page.locator('.experience-language-card').filter({ hasText: 'Gita Chant' });
+    await gitaChantPreferences.locator('summary').click();
+    assert.equal(await gitaChantPreferences.getByLabel('Primary panel').inputValue(), '', 'experience panels initially retain their configured defaults');
+    await gitaChantPreferences.getByLabel('Primary panel').selectOption('kn');
+    await page.getByRole('button', { name: 'Save profile' }).click();
+    await page.getByRole('heading', { name: 'Diksoochi', exact: true }).waitFor();
+    await page.locator('[data-profile-pill]').first().click();
+    await page.getByRole('button', { name: 'My preferences' }).click();
+    const savedGitaChantPreferences = page.locator('.experience-language-card').filter({ hasText: 'Gita Chant' });
+    await savedGitaChantPreferences.locator('summary').click();
+    assert.equal(await savedGitaChantPreferences.getByLabel('Primary panel').inputValue(), 'kn', 'panel language overrides persist with the profile');
+    await savedGitaChantPreferences.getByRole('button', { name: 'Use experience defaults' }).click();
+    await page.getByRole('button', { name: 'Save profile' }).click();
+    await page.getByRole('heading', { name: 'Diksoochi', exact: true }).waitFor();
 
     await page.locator('[data-profile-pill]').first().click();
     await page.getByRole('button', { name: 'View / edit profile' }).click();

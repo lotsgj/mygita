@@ -135,7 +135,8 @@ const profileUI = new ProfileUI({
   onChanged: handleProfileChange,
   translate,
   onInterfaceLanguagePreview: setInterfaceLanguage,
-  languageModel: () => distribution().languages
+  languageModel: () => distribution().languages,
+  products: () => products
 });
 buildLanguageOptions();
 
@@ -528,28 +529,6 @@ function buildLanguageOptions() {
   }));
 }
 
-function selectablePanels() {
-  return (getExperience(play)?.panels || []).filter((panel) => panel.userSelectable);
-}
-
-function buildPanelLanguageOptions() {
-  const container = document.getElementById('panel-language-options');
-  const model = distribution().languages;
-  container.textContent = '';
-  selectablePanels().forEach((panel) => {
-    const row = document.createElement('label'); row.className = 'field-group';
-    const caption = document.createElement('span'); caption.className = 'field-label';
-    caption.textContent = panel.id.replace(/-/g, ' ').replace(/^./, (value) => value.toUpperCase());
-    const select = document.createElement('select'); select.dataset.panelId = panel.id;
-    const languages = panel.allowedLanguages === 'all' ? [model.source, ...model.content] : Array.isArray(panel.allowedLanguages) ? panel.allowedLanguages : model.content;
-    languages.forEach((language) => {
-      const option = document.createElement('option'); option.value = language; option.textContent = languageLabel(model, language); select.appendChild(option);
-    });
-    select.value = state.panelLanguageOverrides[panel.id] || state.panelLanguages[panel.id] || languages[0];
-    row.append(caption, select); container.appendChild(row);
-  });
-}
-
 function activateProduct(productId, { updateUrl = true } = {}) {
   const product = products.find((entry) => entry.id === productId);
   if (!product || !product.config) return null;
@@ -782,6 +761,7 @@ async function handleProfileChange(profile, options = {}) {
   if (state.dataset && state.profileReturnView === 'app') {
     showOnly('app');
     state.language = distribution().languages.content.includes(requestedLanguage) ? requestedLanguage : profile.contentLanguage;
+    state.panelLanguageOverrides = await profileStore.getPanelLanguages(profile.pid, state.activeProductId, play).catch(() => ({}));
     render();
   } else {
     play = null;
@@ -1062,7 +1042,6 @@ async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
       }))
   });
   state.renderer.mount(document.getElementById('renderer-root'));
-  document.getElementById('panel-languages-button').hidden = !selectablePanels().length;
   syncQuestionsMenu();
 
   const defaultIndex = findSid('1.B');
@@ -1295,15 +1274,12 @@ function openOverlay(id) {
       button.setAttribute('aria-pressed', button.dataset.language === state.language ? 'true' : 'false');
     });
     requestAnimationFrame(() => document.querySelector('.language-option.active')?.focus());
-  } else if (id === 'panel-languages-overlay') {
-    buildPanelLanguageOptions();
-    requestAnimationFrame(() => document.querySelector('#panel-language-options select')?.focus());
   }
 }
 
 function closeOverlays({ restoreFocus = true } = {}) {
   let closed = false;
-  ['goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'panel-languages-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
+  ['goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
     const overlay = document.getElementById(id);
     if (!overlay.hidden) { overlay.hidden = true; closed = true; }
   });
@@ -1622,18 +1598,6 @@ function bindEvents() {
   document.getElementById('language-options').addEventListener('click', (event) => {
     const option = event.target.closest('.language-option');
     if (option) chooseLanguage(option.dataset.language);
-  });
-  document.getElementById('panel-languages-button').addEventListener('click', () => openOverlay('panel-languages-overlay'));
-  document.getElementById('panel-languages-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    state.panelLanguageOverrides = Object.fromEntries([...document.querySelectorAll('#panel-language-options select')].map((select) => [select.dataset.panelId, select.value]));
-    await profileStore.setPanelLanguages(state.activeProfile.pid, state.activeProductId, play, state.panelLanguageOverrides);
-    closeOverlays(); render({ source: 'panel_language_change' });
-  });
-  document.getElementById('panel-languages-reset').addEventListener('click', async () => {
-    state.panelLanguageOverrides = {};
-    await profileStore.setPanelLanguages(state.activeProfile.pid, state.activeProductId, play, {});
-    closeOverlays(); render({ source: 'panel_language_reset' });
   });
   document.addEventListener('click', (event) => { if (!event.target.closest('.top-menu-wrap')) setMenuOpen(false); });
   document.querySelectorAll('.close-dialog').forEach((button) => button.addEventListener('click', closeOverlays));
