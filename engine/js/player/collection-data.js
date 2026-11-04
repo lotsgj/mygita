@@ -30,6 +30,7 @@ const MASTER_HEADERS = {
   en: ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning'],
   kn: ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning']
 };
+const LOCALIZED_MASTER_HEADERS = ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning'];
 
 function decode(value) {
   return String(value ?? '').replace(/\\n/g, '\n');
@@ -296,9 +297,9 @@ export function buildAudioCueIndex({ collectionId = 'audio collection', catalog,
   return { purposeById, cuesByAsset, errors };
 }
 
-export function normalizeCollectionData({ sa, en, kn, sequence = null, audioComposition, imageComposition, deckComposition = null, illustrationComposition = null, contemplationComposition = null, mediaComposition = null, audioCatalogs, audioCueIndexes = new Map(), audioCueErrors = new Map(), imageCatalogs, deckCatalogs = new Map(), illustrationCatalogs = new Map(), contemplationCatalogs = new Map(), experience, resolveMediaUrl = (url) => url, resourceUrls = {} }) {
-  verifyIdentity(sa, en, 'English master');
-  verifyIdentity(sa, kn, 'Kannada master');
+export function normalizeCollectionData({ sa, en, kn, languageTables = null, sequence = null, audioComposition, imageComposition, deckComposition = null, illustrationComposition = null, contemplationComposition = null, mediaComposition = null, audioCatalogs, audioCueIndexes = new Map(), audioCueErrors = new Map(), imageCatalogs, deckCatalogs = new Map(), illustrationCatalogs = new Map(), contemplationCatalogs = new Map(), experience, resolveMediaUrl = (url) => url, resourceUrls = {} }) {
+  const localizedTables = languageTables || { en, kn };
+  for (const [language, table] of Object.entries(localizedTables)) verifyIdentity(sa, table, `${language} master`);
   verifyIdentity(sa, imageComposition, 'Experience image composition');
   const sourceRows = selectedSourceRows(sa, sequence);
   verifyOrderedComposition(sourceRows, audioComposition, 'Experience audio composition');
@@ -308,8 +309,7 @@ export function normalizeCollectionData({ sa, en, kn, sequence = null, audioComp
   if (mediaComposition) verifyOrderedComposition(sourceRows, mediaComposition, 'Experience media composition', { multiple: true, sparse: true });
   const binding = audioBinding(experience);
   const bySid = (table) => new Map(table.rows.map((row) => [row.sid, row]));
-  const enBySid = bySid(en);
-  const knBySid = bySid(kn);
+  const localizedByLanguage = Object.fromEntries(Object.entries(localizedTables).map(([language, table]) => [language, bySid(table)]));
   const audioBySid = bySid(audioComposition);
   const imageBySid = bySid(imageComposition);
   const chapterIcons = new Map();
@@ -421,8 +421,7 @@ export function normalizeCollectionData({ sa, en, kn, sequence = null, audioComp
   }
   const sequenceIndexBySid = new Map(sourceRows.map((row, index) => [row.sid, index]));
   const rows = sourceRows.map((sourceRow) => {
-    const enRow = enBySid.get(sourceRow.sid);
-    const knRow = knBySid.get(sourceRow.sid);
+    const localizedRows = Object.fromEntries(Object.entries(localizedByLanguage).map(([language, index]) => [language, index.get(sourceRow.sid)]));
     const audioRef = audioBySid.get(sourceRow.sid);
     const imageRef = imageBySid.get(sourceRow.sid);
     let chantFullSaUrl = '';
@@ -532,10 +531,10 @@ export function normalizeCollectionData({ sa, en, kn, sequence = null, audioComp
         meaning: sourceRow.meaning,
         wordByWordMeaning: sourceRow.word_by_word_meaning
       },
-      languages: {
-        en: { chapterName: enRow.chapter_name, transliteration: enRow.transliteration, meaning: enRow.meaning, wordByWordMeaning: enRow.word_by_word_meaning },
-        kn: { chapterName: knRow.chapter_name, transliteration: knRow.transliteration, meaning: knRow.meaning, wordByWordMeaning: knRow.word_by_word_meaning }
-      },
+      languages: Object.fromEntries(Object.entries(localizedRows).map(([language, localizedRow]) => [language, {
+        chapterName: localizedRow.chapter_name, transliteration: localizedRow.transliteration,
+        meaning: localizedRow.meaning, wordByWordMeaning: localizedRow.word_by_word_meaning
+      }])),
       media: {
         primaryAudioCollection,
         primaryAudioOrder,
@@ -767,10 +766,14 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
   const configured = configuredVerseCollections(experience);
   const activeCollection = configured.includes(collectionId) ? collectionId : configured[0];
   const verseEntry = registryEntry(verseRegistry, activeCollection, 'Verse');
-  const localizedTables = Object.fromEntries(await Promise.all(['sa', 'en', 'kn'].map(async (language) => [language, await table(registryPath('verses', language), ['collection_id', 'name', 'short_name', 'description'])])));
+  const sourceLanguage = String(experience.sourceLanguage || 'sa');
+  const declaredLanguages = [...new Set((manifest ? Object.keys(manifest.verses?.masters || {}) : (experience.languages || ['sa', 'en', 'kn'])).filter(Boolean))];
+  const localizedTables = Object.fromEntries(await Promise.all(declaredLanguages.map(async (language) => [language, await table(registryPath('verses', language), ['collection_id', 'name', 'short_name', 'description'])])));
   const collections = localizedCollectionRows({ ...verseRegistry, rows: verseRegistry.rows.filter((row) => configured.includes(row.collection_id)) }, localizedTables);
   const verseCatalog = await table(verseEntry.catalog_url, ['language', 'content_type', 'content_url']);
-  const languageUrls = Object.fromEntries(['sa', 'en', 'kn'].map((language) => [language, languageFile(verseCatalog, language)]));
+  const catalogLanguages = [...new Set(verseCatalog.rows.map((row) => row.language).filter(Boolean))];
+  const languages = catalogLanguages.length ? catalogLanguages : declaredLanguages;
+  const languageUrls = Object.fromEntries(languages.map((language) => [language, languageFile(verseCatalog, language)]));
   Object.entries(languageUrls).forEach(([language, url]) => onLanguageFile(language, url));
   const sequenceUrl = optionalCatalogEntry(experienceCatalog, 'sequence');
   const deckCompositionUrl = optionalCatalogEntry(experienceCatalog, 'decks');
@@ -780,10 +783,8 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
   const collectionResources = experience.collectionResources?.[activeCollection] || {};
   const audioCompositionUrl = collectionResources.audio || catalogEntry(experienceCatalog, 'audio', experienceId);
   const imageCompositionUrl = collectionResources.images || catalogEntry(experienceCatalog, 'images', experienceId);
-  const [sa, en, kn, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition] = await Promise.all([
-    table(languageUrls.sa, MASTER_HEADERS.sa),
-    table(languageUrls.en, MASTER_HEADERS.en),
-    table(languageUrls.kn, MASTER_HEADERS.kn),
+  const [masters, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition] = await Promise.all([
+    Promise.all(languages.map(async (language) => [language, await table(languageUrls[language], language === sourceLanguage ? MASTER_HEADERS.sa : LOCALIZED_MASTER_HEADERS)])),
     sequenceUrl ? table(sequenceUrl, SEQUENCE_HEADERS) : null,
     table(audioCompositionUrl, audioCompositionHeaders(experience)),
     table(imageCompositionUrl, ['cid', 'snum', 'sid', 'chapter_icon_collection', 'chapter_icon_order']),
@@ -874,8 +875,12 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
       declaredIds: experience.contemplationCollections || []
     }) : new Map()
   ]);
+  const masterTables = Object.fromEntries(masters);
+  const sa = masterTables[sourceLanguage];
+  if (!sa) throw new Error(`Experience ${experienceId} does not define its source language ${sourceLanguage}.`);
+  const languageTables = Object.fromEntries(Object.entries(masterTables).filter(([language]) => language !== sourceLanguage));
   const dataset = normalizeCollectionData({
-    sa, en, kn, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition,
+    sa, languageTables, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition,
     audioCatalogs: audioCollections.catalogs,
     audioCueIndexes: audioCollections.cueIndexes,
     audioCueErrors: audioCollections.cueErrors,

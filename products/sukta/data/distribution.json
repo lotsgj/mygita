@@ -10,12 +10,28 @@
   "defaultExperience": "sukta-chant",
   "journeyExperience": "sukta-chant",
   "mediaOrigin": "https://media.gitajyoti.org",
+  "languages": {
+    "source": "sa",
+    "defaultContent": "en",
+    "content": ["en", "kn"],
+    "interface": ["en", "kn"],
+    "registry": {
+      "sa": { "name": "Sanskrit", "nativeName": "संस्कृतम्", "script": "Devanagari", "direction": "ltr" },
+      "en": { "name": "English", "nativeName": "English", "script": "Latin", "direction": "ltr" },
+      "kn": { "name": "Kannada", "nativeName": "ಕನ್ನಡ", "script": "Kannada", "direction": "ltr" }
+    }
+  },
   "experiences": [
     {
       "id": "sukta-chant",
       "bookId": "ganesha-atharva",
       "bookIds": ["ganesha-atharva", "purusha-sukta"],
       "renderer": "player-4",
+      "panels": [
+        { "id": "sanskrit", "binding": "source", "fields": ["shloka"] },
+        { "id": "primary", "binding": "preferred", "fields": ["transliteration"], "userSelectable": true },
+        { "id": "secondary", "binding": "alternate", "fields": ["transliteration"], "userSelectable": true }
+      ],
       "label": "Sukta Chant",
       "cardClass": "experience-chant",
       "kickerKey": "home.suktaChantKicker",

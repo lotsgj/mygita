@@ -3,6 +3,7 @@ import './build-local-workspace.mjs';
 
 const sources = [
   'js/products.js',
+  'js/language-model.js',
   'js/distribution.js',
   'js/i18n/en.js',
   'js/i18n/kn.js',

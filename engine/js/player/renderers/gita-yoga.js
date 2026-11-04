@@ -34,8 +34,21 @@ export function createGitaYogaRenderer() {
     '</div>';
   }
 
-  function render(row, contentLanguage) {
-    FIELDS.forEach(({ role, field, language }) => {
+  function render(row, contentLanguage, panelLanguages = {}) {
+    const primaryLanguage = panelLanguages.primary || contentLanguage;
+    const secondaryLanguage = panelLanguages.secondary || Object.keys(row.languages || {}).find((language) => language !== primaryLanguage) || primaryLanguage;
+    const primarySlot = primaryLanguage === 'kn' ? 'kn' : 'en';
+    const slotLanguages = primarySlot === 'kn'
+      ? { kn: primaryLanguage, en: secondaryLanguage }
+      : { en: primaryLanguage, kn: secondaryLanguage };
+    const fields = FIELDS.map((entry) => {
+      if (entry.language === 'kn' || entry.language === 'en') {
+        const language = slotLanguages[entry.language];
+        return { ...entry, field: entry.field.replace(`languages.${entry.language}.`, `languages.${language}.`), language };
+      }
+      return entry;
+    });
+    fields.forEach(({ role, field, language }) => {
       const element = root.querySelector('[data-role="' + role + '"]');
       const text = fieldValue(row, field);
       element.dataset.field = field;
@@ -43,8 +56,10 @@ export function createGitaYogaRenderer() {
       element.textContent = text || '—';
       element.classList.toggle('empty', !text);
     });
-    const primary = contentLanguage === 'kn' ? 'kn' : 'en';
-    root.dataset.primaryLanguage = primary;
+    // The existing CSS uses these slot names for visual order; the slot content is semantic.
+    root.dataset.primaryLanguage = primarySlot;
+    root.dataset.primaryContentLanguage = primaryLanguage;
+    root.dataset.secondaryContentLanguage = secondaryLanguage;
     requestAnimationFrame(fitText);
   }
 

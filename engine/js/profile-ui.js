@@ -1,13 +1,14 @@
 import { resizeProfilePhoto } from './profile-store.js';
 
 export class ProfileUI {
-  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {} }) {
+  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null }) {
     this.store = store;
     this.onSelected = onSelected;
     this.onCreated = onCreated;
     this.onChanged = onChanged;
     this.translate = translate;
     this.onInterfaceLanguagePreview = onInterfaceLanguagePreview;
+    this.languageModel = languageModel;
     this.editingPid = null;
     this.photo = '';
     this.bind();
@@ -50,7 +51,7 @@ export class ProfileUI {
       name.textContent = profile.name;
       const language = document.createElement('small');
       const interfaceName = profile.interfaceLanguage === 'kn' ? 'ಕನ್ನಡ' : 'English';
-      const contentName = profile.contentLanguage === 'kn' ? 'ಕನ್ನಡ' : 'English';
+      const contentName = this.languageModel()?.registry?.[profile.contentLanguage]?.nativeName || profile.contentLanguage;
       language.textContent = interfaceName + ' · ' + contentName;
       copy.append(name, language);
       select.appendChild(copy);
@@ -87,7 +88,16 @@ export class ProfileUI {
     document.getElementById('profile-dob').value = profile?.dob || '';
     document.getElementById('profile-gender').value = profile?.gender || '';
     document.getElementById('profile-interface-language').value = profile?.interfaceLanguage || '';
-    document.getElementById('profile-content-language').value = profile?.contentLanguage || 'en';
+    const contentSelect = document.getElementById('profile-content-language');
+    const model = this.languageModel();
+    if (model) {
+      contentSelect.replaceChildren(...model.content.map((language) => {
+        const option = document.createElement('option'); option.value = language;
+        option.textContent = model.registry[language]?.nativeName || model.registry[language]?.name || language;
+        return option;
+      }));
+    }
+    contentSelect.value = profile?.contentLanguage || model?.defaultContent || 'en';
     document.getElementById('profile-default').checked = profile ? (await this.store.defaultPid()) === profile.pid : true;
     document.getElementById('profile-form-cancel').hidden = !profile;
     document.getElementById('profile-form-error').textContent = '';

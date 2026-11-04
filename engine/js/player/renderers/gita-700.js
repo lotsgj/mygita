@@ -29,13 +29,14 @@ export function createGita700Renderer() {
     ).join('') + '</div>';
   }
 
-  function render(row, language) {
+  function render(row, language, panelLanguages = {}) {
     PANELS.forEach((panel) => {
-      const field = fieldFor(panel.role, language);
+      const panelLanguage = panelLanguages[panel.role] || (panel.role === 'shloka' ? 'sa' : language);
+      const field = fieldFor(panel.role, panelLanguage);
       const element = root.querySelector('[data-role="' + panel.role + '"]');
       const text = fieldValue(row, field);
       element.dataset.field = field;
-      element.lang = panel.role === 'shloka' ? 'sa' : language;
+      element.lang = panelLanguage;
       element.textContent = text || '—';
       element.classList.toggle('empty', !text);
     });

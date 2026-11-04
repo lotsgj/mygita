@@ -56,7 +56,96 @@ function productLabel(product, language = 'en') {
   };
 }
 
+// Source: js/language-model.js
+const LANGUAGE_CODE = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
+const BINDINGS = new Set(['source', 'preferred', 'alternate', 'next_available', 'none']);
+
+function code(value, label) {
+  const result = String(value || '').trim();
+  if (!LANGUAGE_CODE.test(result)) throw new Error(`${label} must be a valid language code.`);
+  return result;
+}
+
+function normalizeLanguageModel(input = {}) {
+  const registry = Object.fromEntries(Object.entries(input.registry || {}).map(([key, value]) => {
+    const language = code(key, 'Language');
+    return [language, Object.freeze({
+      code: language,
+      name: String(value?.name || language),
+      nativeName: String(value?.nativeName || value?.name || language),
+      script: String(value?.script || ''),
+      direction: value?.direction === 'rtl' ? 'rtl' : 'ltr'
+    })];
+  }));
+  const source = code(input.source || 'sa', 'Source language');
+  const content = [...new Set((input.content || ['en', 'kn']).map((value) => code(value, 'Content language')))];
+  const interfaceLanguages = [...new Set((input.interface || ['en', 'kn']).map((value) => code(value, 'Interface language')))];
+  const defaultContent = code(input.defaultContent || content[0], 'Default content language');
+  for (const language of [source, ...content, ...interfaceLanguages]) {
+    if (!registry[language]) throw new Error(`Language ${language} is not registered.`);
+  }
+  if (!content.includes(defaultContent)) throw new Error('The default content language must be a content language.');
+  return Object.freeze({ source, content: Object.freeze(content), interface: Object.freeze(interfaceLanguages), defaultContent, registry: Object.freeze(registry) });
+}
+
+function normalizePanels(panels = []) {
+  const ids = new Set();
+  return Object.freeze(panels.map((input) => {
+    const id = String(input.id || '').trim();
+    if (!/^[a-z][a-z0-9-]*$/.test(id) || ids.has(id)) throw new Error('Panel ids must be unique lowercase identifiers.');
+    ids.add(id);
+    const binding = String(input.binding || 'preferred');
+    if (!BINDINGS.has(binding) && !binding.startsWith('fixed:')) throw new Error(`Panel ${id} has an unsupported language binding.`);
+    return Object.freeze({
+      id,
+      binding,
+      fields: Object.freeze((input.fields || []).map(String)),
+      userSelectable: Boolean(input.userSelectable),
+      allowedLanguages: input.allowedLanguages || 'content'
+    });
+  }));
+}
+
+function allowedCodes(panel, model, available) {
+  const configured = panel.allowedLanguages === 'all'
+    ? [model.source, ...model.content]
+    : Array.isArray(panel.allowedLanguages) ? panel.allowedLanguages : model.content;
+  return [...new Set(configured)].filter((language) => model.registry[language] && available.has(language));
+}
+
+function resolvePanelLanguages({ panels = [], languageModel, preferred, overrides = {}, availableLanguages = [] }) {
+  const available = new Set(availableLanguages.length ? availableLanguages : [languageModel.source, ...languageModel.content]);
+  const preferredLanguage = available.has(preferred) && languageModel.content.includes(preferred)
+    ? preferred : languageModel.defaultContent;
+  const resolved = {};
+  for (const panel of panels) {
+    const allowed = allowedCodes(panel, languageModel, available);
+    const override = panel.userSelectable && allowed.includes(overrides[panel.id]) ? overrides[panel.id] : '';
+    if (override) resolved[panel.id] = override;
+    else if (panel.binding === 'source') resolved[panel.id] = languageModel.source;
+    else if (panel.binding === 'preferred') resolved[panel.id] = allowed.includes(preferredLanguage) ? preferredLanguage : allowed[0];
+    else if (panel.binding === 'alternate' || panel.binding === 'next_available') resolved[panel.id] = allowed.find((language) => language !== preferredLanguage && !Object.values(resolved).includes(language)) || allowed.find((language) => language !== preferredLanguage) || allowed[0];
+    else if (panel.binding.startsWith('fixed:')) resolved[panel.id] = panel.binding.slice(6);
+    else resolved[panel.id] = '';
+  }
+  return Object.freeze(resolved);
+}
+
+function languageLabel(model, language) {
+  const entry = model.registry[language];
+  return entry?.nativeName || entry?.name || language;
+}
+
 // Source: js/distribution.js
+const FALLBACK_LANGUAGES = {
+  source: 'sa', defaultContent: 'en', content: ['en', 'kn'], interface: ['en', 'kn'],
+  registry: {
+    sa: { name: 'Sanskrit', nativeName: 'संस्कृतम्', script: 'Devanagari' },
+    en: { name: 'English', nativeName: 'English', script: 'Latin' },
+    kn: { name: 'Kannada', nativeName: 'ಕನ್ನಡ', script: 'Kannada' }
+  }
+};
+
 const FALLBACK_DISTRIBUTION = Object.freeze({
   schemaVersion: 1,
   id: 'verses-local',
@@ -70,7 +159,8 @@ const FALLBACK_DISTRIBUTION = Object.freeze({
   mediaOrigin: '',
   experiences: [],
   translations: {},
-  branding: {}
+  branding: {},
+  languages: FALLBACK_LANGUAGES
 });
 
 let activeDistribution = normalizeDistribution(globalThis.__VERSES_DISTRIBUTION__ || FALLBACK_DISTRIBUTION);
@@ -84,11 +174,13 @@ function safeId(value, label) {
 function normalizeDistribution(input) {
   if (!input || Number(input.schemaVersion) !== 1) throw new Error('Unsupported distribution configuration.');
   const id = safeId(input.id, 'Distribution id');
+  const languages = normalizeLanguageModel(input.languages || FALLBACK_LANGUAGES);
   const experiences = (input.experiences || []).map((entry) => Object.freeze({
     ...entry,
     id: safeId(entry.id, 'Experience id'),
     renderer: safeId(entry.renderer, 'Renderer id'),
-    label: String(entry.label || entry.id).trim()
+    label: String(entry.label || entry.id).trim(),
+    panels: normalizePanels(entry.panels || [])
   }));
   if (new Set(experiences.map((entry) => entry.id)).size !== experiences.length) throw new Error('Distribution experience ids must be unique.');
   const ids = new Set(experiences.map((entry) => entry.id));
@@ -111,7 +203,8 @@ function normalizeDistribution(input) {
     journeyExperience,
     experiences: Object.freeze(experiences),
     translations: Object.freeze(translations),
-    branding: Object.freeze({ ...(input.branding || {}) })
+    branding: Object.freeze({ ...(input.branding || {}) }),
+    languages
   });
 }
 
@@ -171,11 +264,12 @@ const EN_MESSAGES = {
   'diksoochi.resumeExperience': 'Resume {experience} · Shloka {sid}', 'diksoochi.beginExperience': 'Begin with {experience}', 'diksoochi.resumeLabel': 'Continue {experience}', 'diksoochi.beginLabel': 'Begin your journey', 'diksoochi.shlokaLabel': 'Shloka {sid}', 'diksoochi.continue': 'Continue',
   'common.about': 'About Gitaverse', 'common.install': 'Install Gitaverse', 'common.close': 'Close', 'common.back': '← Back',
   'loading.title': 'Opening the Gita', 'loading.message': 'Preparing the verses…', 'error.title': 'Unable to open the player',
-  'menu.collections': 'Collections', 'menu.chapters': 'Chapters', 'menu.goto': 'Go to shloka', 'menu.contentLanguage': 'Content language ({language})',
+  'menu.collections': 'Collections', 'menu.chapters': 'Chapters', 'menu.goto': 'Go to shloka', 'menu.contentLanguage': 'Content language ({language})', 'menu.panelLanguages': 'Panel languages',
   'menu.fullscreen': 'Fullscreen', 'menu.exitFullscreen': 'Exit fullscreen',
   'menu.questionsOn': 'Questions (On)', 'menu.questionsOff': 'Questions (Off)',
   'menu.home': 'Diksoochi / Home', 'menu.journey': 'Your journey', 'menu.help': 'Help', 'menu.open': 'Open menu', 'menu.close': 'Close menu',
-  'dialog.collections': 'Collections', 'dialog.contentLanguage': 'Choose content language', 'dialog.goto': 'Go to a shloka', 'dialog.chapters': 'Chapters', 'dialog.shortcuts': 'Keyboard shortcuts',
+  'dialog.collections': 'Collections', 'dialog.contentLanguage': 'Choose content language', 'dialog.panelLanguages': 'Choose panel languages', 'dialog.goto': 'Go to a shloka', 'dialog.chapters': 'Chapters', 'dialog.shortcuts': 'Keyboard shortcuts',
+  'common.apply': 'Apply', 'common.reset': 'Use defaults',
   'about.body': 'Gitaverse is a verse and chanting experience from Gita Jyoti—a simple space to listen to, study and remain close to the Bhagavad Gita.',
   'about.version': 'Version',
   'about.history': 'Version history', 'about.back': '← Back to About', 'about.historyLoading': 'Loading version history…',
@@ -245,11 +339,12 @@ const KN_MESSAGES = {
   'diksoochi.resumeExperience': '{experience} ಮುಂದುವರಿಸಿ · ಶ್ಲೋಕ {sid}', 'diksoochi.beginExperience': '{experience} ಆರಂಭಿಸಿ', 'diksoochi.resumeLabel': '{experience} ಮುಂದುವರಿಸಿ', 'diksoochi.beginLabel': 'ನಿಮ್ಮ ಪಯಣ ಆರಂಭಿಸಿ', 'diksoochi.shlokaLabel': 'ಶ್ಲೋಕ {sid}', 'diksoochi.continue': 'ಮುಂದುವರಿಸಿ',
   'common.about': 'Gitaverse ಕುರಿತು', 'common.install': 'Gitaverse ಸ್ಥಾಪಿಸಿ', 'common.close': 'ಮುಚ್ಚಿ', 'common.back': '← ಹಿಂದೆ',
   'loading.title': 'ಗೀತೆಯನ್ನು ತೆರೆಯಲಾಗುತ್ತಿದೆ', 'loading.message': 'ಶ್ಲೋಕಗಳನ್ನು ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ…', 'error.title': 'ಪ್ಲೇಯರ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ',
-  'menu.collections': 'ಸಂಗ್ರಹಗಳು', 'menu.chapters': 'ಅಧ್ಯಾಯಗಳು', 'menu.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'menu.contentLanguage': 'ವಿಷಯ ಭಾಷೆ ({language})',
+  'menu.collections': 'ಸಂಗ್ರಹಗಳು', 'menu.chapters': 'ಅಧ್ಯಾಯಗಳು', 'menu.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'menu.contentLanguage': 'ವಿಷಯ ಭಾಷೆ ({language})', 'menu.panelLanguages': 'ಪ್ಯಾನಲ್ ಭಾಷೆಗಳು',
   'menu.fullscreen': 'ಪೂರ್ಣ ಪರದೆ', 'menu.exitFullscreen': 'ಪೂರ್ಣ ಪರದೆಯಿಂದ ಹೊರಗೆ',
   'menu.questionsOn': 'ಪ್ರಶ್ನೆಗಳು (ಆನ್)', 'menu.questionsOff': 'ಪ್ರಶ್ನೆಗಳು (ಆಫ್)',
   'menu.home': 'ದಿಕ್ಸೂಚಿ / ಮುಖಪುಟ', 'menu.journey': 'ನಿಮ್ಮ ಪಯಣ', 'menu.help': 'ಸಹಾಯ', 'menu.open': 'ಮೆನು ತೆರೆಯಿರಿ', 'menu.close': 'ಮೆನು ಮುಚ್ಚಿ',
-  'dialog.collections': 'ಸಂಗ್ರಹಗಳು', 'dialog.contentLanguage': 'ವಿಷಯ ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ', 'dialog.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'dialog.chapters': 'ಅಧ್ಯಾಯಗಳು', 'dialog.shortcuts': 'ಕೀಬೋರ್ಡ್ ಶಾರ್ಟ್‌ಕಟ್‌ಗಳು',
+  'dialog.collections': 'ಸಂಗ್ರಹಗಳು', 'dialog.contentLanguage': 'ವಿಷಯ ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ', 'dialog.panelLanguages': 'ಪ್ಯಾನಲ್ ಭಾಷೆಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ', 'dialog.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'dialog.chapters': 'ಅಧ್ಯಾಯಗಳು', 'dialog.shortcuts': 'ಕೀಬೋರ್ಡ್ ಶಾರ್ಟ್‌ಕಟ್‌ಗಳು',
+  'common.apply': 'ಅನ್ವಯಿಸಿ', 'common.reset': 'ಪೂರ್ವನಿಯೋಜಿತ ಆಯ್ಕೆಗಳು',
   'about.body': 'Gitaverse ಗೀತಾಜ್ಯೋತಿಯ ಶ್ಲೋಕ ಮತ್ತು ಪಠಣ ಅನುಭವ—ಭಗವದ್ಗೀತೆಯನ್ನು ಆಲಿಸಲು, ಅಧ್ಯಯನ ಮಾಡಲು ಮತ್ತು ಅದರ ಸಮೀಪದಲ್ಲಿರಲು ಸರಳ ಸ್ಥಳ.',
   'about.version': 'ಆವೃತ್ತಿ',
   'about.history': 'ಆವೃತ್ತಿ ಇತಿಹಾಸ', 'about.back': '← Gitaverse ಕುರಿತುಗೆ ಹಿಂತಿರುಗಿ', 'about.historyLoading': 'ಆವೃತ್ತಿ ಇತಿಹಾಸ ಲೋಡ್ ಆಗುತ್ತಿದೆ…',
@@ -473,8 +568,9 @@ function randomAnalyticsId() {
 }
 
 class ProfileStore {
-  constructor({ databaseName = 'verses-local-profiles' } = {}) {
+  constructor({ databaseName = 'verses-local-profiles', languageModel = () => ({ content: ['en', 'kn'], interface: ['en', 'kn'] }) } = {}) {
     this.databaseName = databaseName;
+    this.languageModel = languageModel;
     this.database = null;
   }
 
@@ -501,8 +597,9 @@ class ProfileStore {
     await this.open();
     const name = String(input.name || '').trim();
     if (!name) throw new Error('Enter a profile name.');
-    if (!['en', 'kn'].includes(input.interfaceLanguage)) throw new Error('Choose an app language.');
-    if (!['en', 'kn'].includes(input.contentLanguage)) throw new Error('Choose a preferred Gita content language.');
+    const languages = this.languageModel();
+    if (!languages.interface.includes(input.interfaceLanguage)) throw new Error('Choose an app language.');
+    if (!languages.content.includes(input.contentLanguage)) throw new Error('Choose a preferred content language.');
     const now = new Date().toISOString();
     const existing = input.pid ? await this.get(input.pid) : null;
     const profile = {
@@ -537,6 +634,14 @@ class ProfileStore {
     settings.delete(`journeyView:${Number(pid)}`);
     settings.delete(`gitaSaraView:${Number(pid)}`);
     settings.delete(`selectedProduct:${Number(pid)}`);
+    const panelPrefix = `panelLanguages:${Number(pid)}:`;
+    const settingsCursor = settings.openCursor();
+    settingsCursor.onsuccess = () => {
+      const cursor = settingsCursor.result;
+      if (!cursor) return;
+      if (String(cursor.key).startsWith(panelPrefix)) cursor.delete();
+      cursor.continue();
+    };
     transaction.objectStore(RESUME_STORE).delete(Number(pid));
     const engagement = transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid');
     const engagementCursor = engagement.openKeyCursor(IDBKeyRange.only(Number(pid)));
@@ -586,7 +691,7 @@ class ProfileStore {
       ...(existing || {}),
       pid,
       view: resume.view === 'experience' ? 'experience' : 'home',
-      language: resume.language === 'kn' ? 'kn' : 'en',
+      language: String(resume.language || this.languageModel().defaultContent || 'en'),
       savedAt: resume.savedAt || new Date().toISOString(),
       experiences: { ...(existing?.experiences || {}) },
       products: { ...(existing?.products || {}) }
@@ -623,7 +728,7 @@ class ProfileStore {
         record.lastExperience = {
           experience: existing.experience,
           sid: existing.sid,
-          language: existing.language === 'kn' ? 'kn' : 'en',
+          language: String(existing.language || this.languageModel().defaultContent || 'en'),
           savedAt: existing.savedAt
         };
       }
@@ -665,6 +770,24 @@ class ProfileStore {
     if (!Number.isInteger(Number(pid)) || !productId) return;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
     transaction.objectStore(SETTINGS_STORE).put({ key: `selectedProduct:${Number(pid)}`, value: String(productId) });
+    await transactionDone(transaction);
+  }
+
+  async getPanelLanguages(pid, productId, experienceId) {
+    await this.open();
+    const key = `panelLanguages:${Number(pid)}:${String(productId)}:${String(experienceId)}`;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(key));
+    return setting?.value && typeof setting.value === 'object' ? { ...setting.value } : {};
+  }
+
+  async setPanelLanguages(pid, productId, experienceId, value) {
+    await this.open();
+    const key = `panelLanguages:${Number(pid)}:${String(productId)}:${String(experienceId)}`;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
+    const store = transaction.objectStore(SETTINGS_STORE);
+    if (!value || !Object.keys(value).length) store.delete(key);
+    else store.put({ key, value: { ...value } });
     await transactionDone(transaction);
   }
 
@@ -777,13 +900,14 @@ async function resizeProfilePhoto(file) {
 
 // Source: js/profile-ui.js
 class ProfileUI {
-  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {} }) {
+  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null }) {
     this.store = store;
     this.onSelected = onSelected;
     this.onCreated = onCreated;
     this.onChanged = onChanged;
     this.translate = translate;
     this.onInterfaceLanguagePreview = onInterfaceLanguagePreview;
+    this.languageModel = languageModel;
     this.editingPid = null;
     this.photo = '';
     this.bind();
@@ -826,7 +950,7 @@ class ProfileUI {
       name.textContent = profile.name;
       const language = document.createElement('small');
       const interfaceName = profile.interfaceLanguage === 'kn' ? 'ಕನ್ನಡ' : 'English';
-      const contentName = profile.contentLanguage === 'kn' ? 'ಕನ್ನಡ' : 'English';
+      const contentName = this.languageModel()?.registry?.[profile.contentLanguage]?.nativeName || profile.contentLanguage;
       language.textContent = interfaceName + ' · ' + contentName;
       copy.append(name, language);
       select.appendChild(copy);
@@ -863,7 +987,16 @@ class ProfileUI {
     document.getElementById('profile-dob').value = profile?.dob || '';
     document.getElementById('profile-gender').value = profile?.gender || '';
     document.getElementById('profile-interface-language').value = profile?.interfaceLanguage || '';
-    document.getElementById('profile-content-language').value = profile?.contentLanguage || 'en';
+    const contentSelect = document.getElementById('profile-content-language');
+    const model = this.languageModel();
+    if (model) {
+      contentSelect.replaceChildren(...model.content.map((language) => {
+        const option = document.createElement('option'); option.value = language;
+        option.textContent = model.registry[language]?.nativeName || model.registry[language]?.name || language;
+        return option;
+      }));
+    }
+    contentSelect.value = profile?.contentLanguage || model?.defaultContent || 'en';
     document.getElementById('profile-default').checked = profile ? (await this.store.defaultPid()) === profile.pid : true;
     document.getElementById('profile-form-cancel').hidden = !profile;
     document.getElementById('profile-form-error').textContent = '';
@@ -1839,10 +1972,12 @@ function validateBookManifest(manifest, expectedBookId = '') {
     return path;
   };
   requireDeclared(manifest.verses?.catalog, 'verse catalog');
-  for (const language of ['sa', 'en', 'kn']) requireDeclared(manifest.verses?.masters?.[language], `${language} verse master`);
+  const masters = manifest.verses?.masters || {};
+  if (!Object.keys(masters).length) throw new Error(`Book manifest ${id} requires verse masters.`);
+  for (const [language, path] of Object.entries(masters)) requireDeclared(path, `${language} verse master`);
   const registries = manifest.registries || {};
   requireDeclared(registries.verses?.structural, 'verse registry');
-  for (const language of ['sa', 'en', 'kn']) requireDeclared(registries.verses?.localized?.[language], `${language} verse metadata`);
+  for (const [language, path] of Object.entries(registries.verses?.localized || {})) requireDeclared(path, `${language} verse metadata`);
   requireDeclared(registries.audio, 'audio registry');
   requireDeclared(registries.images, 'image registry');
   if (registries.deck) requireDeclared(registries.deck, 'deck registry');
@@ -2125,6 +2260,7 @@ const MASTER_HEADERS = {
   en: ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning'],
   kn: ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning']
 };
+const LOCALIZED_MASTER_HEADERS = ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning'];
 
 function decode(value) {
   return String(value ?? '').replace(/\\n/g, '\n');
@@ -2391,9 +2527,9 @@ function buildAudioCueIndex({ collectionId = 'audio collection', catalog, cuePur
   return { purposeById, cuesByAsset, errors };
 }
 
-function normalizeCollectionData({ sa, en, kn, sequence = null, audioComposition, imageComposition, deckComposition = null, illustrationComposition = null, contemplationComposition = null, mediaComposition = null, audioCatalogs, audioCueIndexes = new Map(), audioCueErrors = new Map(), imageCatalogs, deckCatalogs = new Map(), illustrationCatalogs = new Map(), contemplationCatalogs = new Map(), experience, resolveMediaUrl = (url) => url, resourceUrls = {} }) {
-  verifyIdentity(sa, en, 'English master');
-  verifyIdentity(sa, kn, 'Kannada master');
+function normalizeCollectionData({ sa, en, kn, languageTables = null, sequence = null, audioComposition, imageComposition, deckComposition = null, illustrationComposition = null, contemplationComposition = null, mediaComposition = null, audioCatalogs, audioCueIndexes = new Map(), audioCueErrors = new Map(), imageCatalogs, deckCatalogs = new Map(), illustrationCatalogs = new Map(), contemplationCatalogs = new Map(), experience, resolveMediaUrl = (url) => url, resourceUrls = {} }) {
+  const localizedTables = languageTables || { en, kn };
+  for (const [language, table] of Object.entries(localizedTables)) verifyIdentity(sa, table, `${language} master`);
   verifyIdentity(sa, imageComposition, 'Experience image composition');
   const sourceRows = selectedSourceRows(sa, sequence);
   verifyOrderedComposition(sourceRows, audioComposition, 'Experience audio composition');
@@ -2403,8 +2539,7 @@ function normalizeCollectionData({ sa, en, kn, sequence = null, audioComposition
   if (mediaComposition) verifyOrderedComposition(sourceRows, mediaComposition, 'Experience media composition', { multiple: true, sparse: true });
   const binding = audioBinding(experience);
   const bySid = (table) => new Map(table.rows.map((row) => [row.sid, row]));
-  const enBySid = bySid(en);
-  const knBySid = bySid(kn);
+  const localizedByLanguage = Object.fromEntries(Object.entries(localizedTables).map(([language, table]) => [language, bySid(table)]));
   const audioBySid = bySid(audioComposition);
   const imageBySid = bySid(imageComposition);
   const chapterIcons = new Map();
@@ -2516,8 +2651,7 @@ function normalizeCollectionData({ sa, en, kn, sequence = null, audioComposition
   }
   const sequenceIndexBySid = new Map(sourceRows.map((row, index) => [row.sid, index]));
   const rows = sourceRows.map((sourceRow) => {
-    const enRow = enBySid.get(sourceRow.sid);
-    const knRow = knBySid.get(sourceRow.sid);
+    const localizedRows = Object.fromEntries(Object.entries(localizedByLanguage).map(([language, index]) => [language, index.get(sourceRow.sid)]));
     const audioRef = audioBySid.get(sourceRow.sid);
     const imageRef = imageBySid.get(sourceRow.sid);
     let chantFullSaUrl = '';
@@ -2627,10 +2761,10 @@ function normalizeCollectionData({ sa, en, kn, sequence = null, audioComposition
         meaning: sourceRow.meaning,
         wordByWordMeaning: sourceRow.word_by_word_meaning
       },
-      languages: {
-        en: { chapterName: enRow.chapter_name, transliteration: enRow.transliteration, meaning: enRow.meaning, wordByWordMeaning: enRow.word_by_word_meaning },
-        kn: { chapterName: knRow.chapter_name, transliteration: knRow.transliteration, meaning: knRow.meaning, wordByWordMeaning: knRow.word_by_word_meaning }
-      },
+      languages: Object.fromEntries(Object.entries(localizedRows).map(([language, localizedRow]) => [language, {
+        chapterName: localizedRow.chapter_name, transliteration: localizedRow.transliteration,
+        meaning: localizedRow.meaning, wordByWordMeaning: localizedRow.word_by_word_meaning
+      }])),
       media: {
         primaryAudioCollection,
         primaryAudioOrder,
@@ -2862,10 +2996,14 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
   const configured = configuredVerseCollections(experience);
   const activeCollection = configured.includes(collectionId) ? collectionId : configured[0];
   const verseEntry = registryEntry(verseRegistry, activeCollection, 'Verse');
-  const localizedTables = Object.fromEntries(await Promise.all(['sa', 'en', 'kn'].map(async (language) => [language, await table(registryPath('verses', language), ['collection_id', 'name', 'short_name', 'description'])])));
+  const sourceLanguage = String(experience.sourceLanguage || 'sa');
+  const declaredLanguages = [...new Set((manifest ? Object.keys(manifest.verses?.masters || {}) : (experience.languages || ['sa', 'en', 'kn'])).filter(Boolean))];
+  const localizedTables = Object.fromEntries(await Promise.all(declaredLanguages.map(async (language) => [language, await table(registryPath('verses', language), ['collection_id', 'name', 'short_name', 'description'])])));
   const collections = localizedCollectionRows({ ...verseRegistry, rows: verseRegistry.rows.filter((row) => configured.includes(row.collection_id)) }, localizedTables);
   const verseCatalog = await table(verseEntry.catalog_url, ['language', 'content_type', 'content_url']);
-  const languageUrls = Object.fromEntries(['sa', 'en', 'kn'].map((language) => [language, languageFile(verseCatalog, language)]));
+  const catalogLanguages = [...new Set(verseCatalog.rows.map((row) => row.language).filter(Boolean))];
+  const languages = catalogLanguages.length ? catalogLanguages : declaredLanguages;
+  const languageUrls = Object.fromEntries(languages.map((language) => [language, languageFile(verseCatalog, language)]));
   Object.entries(languageUrls).forEach(([language, url]) => onLanguageFile(language, url));
   const sequenceUrl = optionalCatalogEntry(experienceCatalog, 'sequence');
   const deckCompositionUrl = optionalCatalogEntry(experienceCatalog, 'decks');
@@ -2875,10 +3013,8 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
   const collectionResources = experience.collectionResources?.[activeCollection] || {};
   const audioCompositionUrl = collectionResources.audio || catalogEntry(experienceCatalog, 'audio', experienceId);
   const imageCompositionUrl = collectionResources.images || catalogEntry(experienceCatalog, 'images', experienceId);
-  const [sa, en, kn, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition] = await Promise.all([
-    table(languageUrls.sa, MASTER_HEADERS.sa),
-    table(languageUrls.en, MASTER_HEADERS.en),
-    table(languageUrls.kn, MASTER_HEADERS.kn),
+  const [masters, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition] = await Promise.all([
+    Promise.all(languages.map(async (language) => [language, await table(languageUrls[language], language === sourceLanguage ? MASTER_HEADERS.sa : LOCALIZED_MASTER_HEADERS)])),
     sequenceUrl ? table(sequenceUrl, SEQUENCE_HEADERS) : null,
     table(audioCompositionUrl, audioCompositionHeaders(experience)),
     table(imageCompositionUrl, ['cid', 'snum', 'sid', 'chapter_icon_collection', 'chapter_icon_order']),
@@ -2969,8 +3105,12 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
       declaredIds: experience.contemplationCollections || []
     }) : new Map()
   ]);
+  const masterTables = Object.fromEntries(masters);
+  const sa = masterTables[sourceLanguage];
+  if (!sa) throw new Error(`Experience ${experienceId} does not define its source language ${sourceLanguage}.`);
+  const languageTables = Object.fromEntries(Object.entries(masterTables).filter(([language]) => language !== sourceLanguage));
   const dataset = normalizeCollectionData({
-    sa, en, kn, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition,
+    sa, languageTables, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition,
     audioCatalogs: audioCollections.catalogs,
     audioCueIndexes: audioCollections.cueIndexes,
     audioCueErrors: audioCollections.cueErrors,
@@ -3087,7 +3227,8 @@ async function loadMediaBookExperience(experienceId, {
   if (configuredBooks.length > 1) {
     dataset.collections = await Promise.all(configuredBooks.map(async (id, order) => {
       const book = id === manifest.book_id ? manifest : (mediaSource.books?.get(id) || await mediaSource.loadBook(id));
-      const localized = Object.fromEntries(['sa', 'en', 'kn'].map((language) => {
+      const languages = [...new Set([...Object.keys(book.verses?.masters || {}), ...Object.keys(book.name || {})])];
+      const localized = Object.fromEntries(languages.map((language) => {
         const name = String(book.name?.[language] || book.name?.en || id);
         return [language, { name, shortName: name, description: '' }];
       }));
@@ -3541,13 +3682,14 @@ function createGita700Renderer() {
     ).join('') + '</div>';
   }
 
-  function render(row, language) {
+  function render(row, language, panelLanguages = {}) {
     PANELS.forEach((panel) => {
-      const field = fieldFor(panel.role, language);
+      const panelLanguage = panelLanguages[panel.role] || (panel.role === 'shloka' ? 'sa' : language);
+      const field = fieldFor(panel.role, panelLanguage);
       const element = root.querySelector('[data-role="' + panel.role + '"]');
       const text = fieldValue(row, field);
       element.dataset.field = field;
-      element.lang = panel.role === 'shloka' ? 'sa' : language;
+      element.lang = panelLanguage;
       element.textContent = text || '—';
       element.classList.toggle('empty', !text);
     });
@@ -3631,8 +3773,21 @@ function createGitaYogaRenderer() {
     '</div>';
   }
 
-  function render(row, contentLanguage) {
-    FIELDS.forEach(({ role, field, language }) => {
+  function render(row, contentLanguage, panelLanguages = {}) {
+    const primaryLanguage = panelLanguages.primary || contentLanguage;
+    const secondaryLanguage = panelLanguages.secondary || Object.keys(row.languages || {}).find((language) => language !== primaryLanguage) || primaryLanguage;
+    const primarySlot = primaryLanguage === 'kn' ? 'kn' : 'en';
+    const slotLanguages = primarySlot === 'kn'
+      ? { kn: primaryLanguage, en: secondaryLanguage }
+      : { en: primaryLanguage, kn: secondaryLanguage };
+    const fields = FIELDS.map((entry) => {
+      if (entry.language === 'kn' || entry.language === 'en') {
+        const language = slotLanguages[entry.language];
+        return { ...entry, field: entry.field.replace(`languages.${entry.language}.`, `languages.${language}.`), language };
+      }
+      return entry;
+    });
+    fields.forEach(({ role, field, language }) => {
       const element = root.querySelector('[data-role="' + role + '"]');
       const text = fieldValue(row, field);
       element.dataset.field = field;
@@ -3640,8 +3795,10 @@ function createGitaYogaRenderer() {
       element.textContent = text || '—';
       element.classList.toggle('empty', !text);
     });
-    const primary = contentLanguage === 'kn' ? 'kn' : 'en';
-    root.dataset.primaryLanguage = primary;
+    // The existing CSS uses these slot names for visual order; the slot content is semantic.
+    root.dataset.primaryLanguage = primarySlot;
+    root.dataset.primaryContentLanguage = primaryLanguage;
+    root.dataset.secondaryContentLanguage = secondaryLanguage;
     requestAnimationFrame(fitText);
   }
 
@@ -3767,19 +3924,19 @@ function createGitaSaraRenderer({ translate = (_key, fallback) => fallback, gita
     return true;
   }
 
-  function render(row, contentLanguage) {
+  function render(row, contentLanguage, panelLanguages = {}) {
     const reset = renderedSid !== row.sid;
     renderedSid = row.sid;
-    const language = contentLanguage === 'kn' ? 'kn' : 'en';
     TEXT_FIELDS.forEach((specification) => {
+      const language = panelLanguages[specification.role] || (specification.role === 'shloka' ? 'sa' : contentLanguage);
       const field = specification.field(language);
       const element = root.querySelector(`[data-role="${specification.role}"]`);
       const text = fieldValue(row, field);
       element.dataset.field = field; element.lang = specification.language(language); element.textContent = text || '—';
       element.classList.toggle('empty', !text);
     });
-    mediaPlayer.render(row.media?.items || [], language, reset);
-    textPlayer.render(row.contemplation?.lines || [], language, reset);
+    mediaPlayer.render(row.media?.items || [], contentLanguage, reset);
+    textPlayer.render(row.contemplation?.lines || [], contentLanguage, reset);
     requestAnimationFrame(fitText);
   }
 
@@ -3863,18 +4020,17 @@ function createVerseChantRenderer() {
     globalThis.document?.fonts?.ready.then(scheduleFit);
   }
 
-  function panelFields(contentLanguage) {
-    const primary = contentLanguage === 'kn' ? 'kn' : 'en';
-    const secondary = primary === 'kn' ? 'en' : 'kn';
+  function panelFields(contentLanguage, panelLanguages = {}) {
+    const available = Object.keys(panelLanguages).length ? panelLanguages : { sanskrit: 'sa', primary: contentLanguage, secondary: contentLanguage === 'kn' ? 'en' : 'kn' };
     return [
-      { ...CHANT_PANELS[0] },
-      { ...CHANT_PANELS[1], field: `languages.${primary}.transliteration`, language: primary },
-      { ...CHANT_PANELS[2], field: `languages.${secondary}.transliteration`, language: secondary }
+      { ...CHANT_PANELS[0], language: available.sanskrit || 'sa' },
+      { ...CHANT_PANELS[1], field: `languages.${available.primary}.transliteration`, language: available.primary },
+      { ...CHANT_PANELS[2], field: `languages.${available.secondary}.transliteration`, language: available.secondary }
     ];
   }
 
-  function render(row, contentLanguage) {
-    const fields = panelFields(contentLanguage);
+  function render(row, contentLanguage, panelLanguages = {}) {
+    const fields = panelFields(contentLanguage, panelLanguages);
     const values = fields.map((panel) => chantFieldValue(row, panel.field));
     const sanskritLines = sourceLines(values[0]);
     const halfVerseLine = sanskritLines.findIndex((line) => /\u0964\s*$/u.test(line) && !/\u0965\s*$/u.test(line));
@@ -4024,7 +4180,7 @@ function configureExperiences(distribution) {
   experiences = Object.fromEntries(distribution.experiences.map((entry) => {
     const load = renderers[entry.renderer];
     if (!load) throw new Error(`Experience ${entry.id} references unavailable renderer ${entry.renderer}.`);
-    return [entry.id, { ...entry, available: true, load }];
+    return [entry.id, { ...entry, available: true, load: (options = {}) => load({ ...options, experience: entry }) }];
   }));
   return experiences;
 }
@@ -4059,7 +4215,9 @@ const state = {
   pendingLocalDestination: null,
   appMetadata: { version: 'dev' }
   ,collectionId: null,
-  activeProductId: null
+  activeProductId: null,
+  panelLanguageOverrides: {},
+  panelLanguages: {}
 };
 
 const params = new URLSearchParams(location.search);
@@ -4116,7 +4274,7 @@ const i18n = new I18n('en', mergedTranslations(distribution().translations));
 const translate = (key, fallback, values = {}) => i18n.t(key, values) === key ? fallback : i18n.t(key, values);
 
 configureExperiences(distribution());
-const profileStore = new ProfileStore({ databaseName: appConfig.databaseName || distribution().databaseName });
+const profileStore = new ProfileStore({ databaseName: appConfig.databaseName || distribution().databaseName, languageModel: () => distribution().languages });
 const platformId = appConfig.id || distribution().id;
 const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformId}-version-history` });
 const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-local-media` });
@@ -4151,8 +4309,10 @@ const profileUI = new ProfileUI({
   onCreated: createProfile,
   onChanged: handleProfileChange,
   translate,
-  onInterfaceLanguagePreview: setInterfaceLanguage
+  onInterfaceLanguagePreview: setInterfaceLanguage,
+  languageModel: () => distribution().languages
 });
+buildLanguageOptions();
 
 function setInterfaceLanguage(language) {
   i18n.setLanguage(language);
@@ -4527,7 +4687,42 @@ function activateDistribution(input) {
   aboutDialog.setBranding(appConfig.branding || {});
   renderExperienceCards();
   renderProductPills();
+  buildLanguageOptions();
   return configured;
+}
+
+function buildLanguageOptions() {
+  const container = document.getElementById('language-options');
+  if (!container) return;
+  const model = distribution().languages;
+  container.replaceChildren(...model.content.map((language) => {
+    const button = document.createElement('button');
+    button.className = 'language-option'; button.type = 'button'; button.dataset.language = language;
+    button.textContent = languageLabel(model, language);
+    return button;
+  }));
+}
+
+function selectablePanels() {
+  return (getExperience(play)?.panels || []).filter((panel) => panel.userSelectable);
+}
+
+function buildPanelLanguageOptions() {
+  const container = document.getElementById('panel-language-options');
+  const model = distribution().languages;
+  container.textContent = '';
+  selectablePanels().forEach((panel) => {
+    const row = document.createElement('label'); row.className = 'field-group';
+    const caption = document.createElement('span'); caption.className = 'field-label';
+    caption.textContent = panel.id.replace(/-/g, ' ').replace(/^./, (value) => value.toUpperCase());
+    const select = document.createElement('select'); select.dataset.panelId = panel.id;
+    const languages = panel.allowedLanguages === 'all' ? [model.source, ...model.content] : Array.isArray(panel.allowedLanguages) ? panel.allowedLanguages : model.content;
+    languages.forEach((language) => {
+      const option = document.createElement('option'); option.value = language; option.textContent = languageLabel(model, language); select.appendChild(option);
+    });
+    select.value = state.panelLanguageOverrides[panel.id] || state.panelLanguages[panel.id] || languages[0];
+    row.append(caption, select); container.appendChild(row);
+  });
 }
 
 function activateProduct(productId, { updateUrl = true } = {}) {
@@ -4761,7 +4956,7 @@ async function handleProfileChange(profile, options = {}) {
   if (state.profileReturnView === 'journey-details') return openJourneyDetails();
   if (state.dataset && state.profileReturnView === 'app') {
     showOnly('app');
-    state.language = requestedLanguage === 'kn' || requestedLanguage === 'en' ? requestedLanguage : profile.contentLanguage;
+    state.language = distribution().languages.content.includes(requestedLanguage) ? requestedLanguage : profile.contentLanguage;
     render();
   } else {
     play = null;
@@ -4778,7 +4973,7 @@ function goToExperienceSelection(profile = state.activeProfile, { source = 'home
   home.searchParams.delete('play');
   home.searchParams.delete('sid');
   home.searchParams.set('view', 'diksoochi');
-  if (requestedLanguage === 'kn') home.searchParams.set('lang', 'kn');
+  if (requestedLanguage && requestedLanguage !== distribution().languages.defaultContent) home.searchParams.set('lang', requestedLanguage);
   else home.searchParams.delete('lang');
   if (profile) home.searchParams.set('pid', profile.pid);
   history.replaceState(null, '', home);
@@ -4924,8 +5119,8 @@ async function startRequestedExperience() {
     if (resume?.sid) chooserUrl.searchParams.set('sid', resume.sid);
     else chooserUrl.searchParams.delete('sid');
     chooserUrl.searchParams.set('pid', state.activeProfile.pid);
-    const language = resume?.language || (requestedLanguage === 'kn' || requestedLanguage === 'en' ? requestedLanguage : state.activeProfile.contentLanguage);
-    if (language === 'kn') chooserUrl.searchParams.set('lang', 'kn');
+    const language = resume?.language || (distribution().languages.content.includes(requestedLanguage) ? requestedLanguage : state.activeProfile.contentLanguage);
+    if (language && language !== distribution().languages.defaultContent) chooserUrl.searchParams.set('lang', language);
     else chooserUrl.searchParams.delete('lang');
     document.getElementById(experienceId + '-link').href = chooserUrl.href;
     return [experienceId, chooserUrl];
@@ -5019,7 +5214,10 @@ async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
   document.documentElement.dataset.contentBook = dataset.contentSource?.bookId || '';
   document.documentElement.dataset.contentVersion = dataset.contentSource?.contentVersion || '';
   state.collectionId = dataset.collectionId || null;
-  state.language = requestedLanguage === 'kn' || requestedLanguage === 'en' ? requestedLanguage : state.activeProfile.contentLanguage;
+  const model = distribution().languages;
+  state.language = model.content.includes(requestedLanguage) ? requestedLanguage : (model.content.includes(state.activeProfile.contentLanguage) ? state.activeProfile.contentLanguage : model.defaultContent);
+  state.panelLanguageOverrides = await profileStore.getPanelLanguages(state.activeProfile.pid, state.activeProductId, play).catch(() => ({}));
+  state.panelLanguages = resolvePanelLanguages({ panels: experience.panels, languageModel: model, preferred: state.language, overrides: state.panelLanguageOverrides, availableLanguages: Object.keys(dataset.rows?.[0]?.languages || {}).concat(model.source) });
   const requestedIndex = sid ? findSid(sid) : -1;
   if (state.locationSource === 'resume' && sid && requestedIndex < 0) {
     state.locationSource = null;
@@ -5039,6 +5237,7 @@ async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
       }))
   });
   state.renderer.mount(document.getElementById('renderer-root'));
+  document.getElementById('panel-languages-button').hidden = !selectablePanels().length;
   syncQuestionsMenu();
 
   const defaultIndex = findSid('1.B');
@@ -5124,8 +5323,10 @@ function render(options = {}) {
   else chapterIcon.removeAttribute('src');
   document.getElementById('sid-label').textContent = row.sid;
   document.getElementById('position-label').textContent = (state.index + 1) + ' / ' + state.dataset.rows.length;
-  document.querySelector('#language-button .top-menu-label').textContent = i18n.t('menu.contentLanguage', { language: state.language === 'kn' ? 'ಕನ್ನಡ' : 'English' });
-  state.renderer.render(row, state.language);
+  document.querySelector('#language-button .top-menu-label').textContent = i18n.t('menu.contentLanguage', { language: languageLabel(distribution().languages, state.language) });
+  const experience = getExperience(play);
+  state.panelLanguages = resolvePanelLanguages({ panels: experience?.panels || [], languageModel: distribution().languages, preferred: state.language, overrides: state.panelLanguageOverrides, availableLanguages: Object.keys(row.languages || {}).concat(distribution().languages.source) });
+  state.renderer.render(row, state.language, state.panelLanguages);
   syncQuestionsMenu();
   document.getElementById('renderer-root').scrollTop = 0;
   state.experienceResumes.set(`${state.activeProductId}:${play}`, {
@@ -5191,7 +5392,7 @@ function updateUrl() {
   next.searchParams.set('sid', currentRow().sid);
   if (state.collectionId) next.searchParams.set('collection', state.collectionId);
   else next.searchParams.delete('collection');
-  if (state.language === 'kn') next.searchParams.set('lang', 'kn');
+  if (state.language !== distribution().languages.defaultContent) next.searchParams.set('lang', state.language);
   else next.searchParams.delete('lang');
   history.replaceState(null, '', next);
 }
@@ -5229,7 +5430,8 @@ function finishSwipe(event) {
 }
 
 function setLanguage(language) {
-  state.language = language === 'kn' ? 'kn' : 'en';
+  if (!distribution().languages.content.includes(language)) return;
+  state.language = language;
   requestedLanguage = state.language;
   state.activeProfile.contentLanguage = state.language;
   profileStore.save(state.activeProfile).then((profile) => {
@@ -5268,12 +5470,15 @@ function openOverlay(id) {
       button.setAttribute('aria-pressed', button.dataset.language === state.language ? 'true' : 'false');
     });
     requestAnimationFrame(() => document.querySelector('.language-option.active')?.focus());
+  } else if (id === 'panel-languages-overlay') {
+    buildPanelLanguageOptions();
+    requestAnimationFrame(() => document.querySelector('#panel-language-options select')?.focus());
   }
 }
 
 function closeOverlays({ restoreFocus = true } = {}) {
   let closed = false;
-  ['goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
+  ['goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'panel-languages-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
     const overlay = document.getElementById(id);
     if (!overlay.hidden) { overlay.hidden = true; closed = true; }
   });
@@ -5398,7 +5603,7 @@ function collectionSymbol(collection) {
   const label = collectionText(collection, 'shortName').trim();
   if (!label) return '•';
   if (globalThis.Intl?.Segmenter) {
-    return new Intl.Segmenter(state.language === 'kn' ? 'kn' : 'en', { granularity: 'grapheme' }).segment(label)[Symbol.iterator]().next().value?.segment || label[0];
+    return new Intl.Segmenter(state.language, { granularity: 'grapheme' }).segment(label)[Symbol.iterator]().next().value?.segment || label[0];
   }
   return Array.from(label)[0];
 }
@@ -5455,7 +5660,7 @@ function updateChapterSelection() {
   document.querySelectorAll('.chapter-button').forEach((button) => {
     button.classList.toggle('active', button.dataset.cid === currentRow().cid);
     const name = button.querySelector('.chapter-name');
-    name.textContent = state.language === 'kn' ? name.dataset.kn : name.dataset.en;
+    name.textContent = name.dataset[state.language] || name.dataset.en;
   });
 }
 
@@ -5592,6 +5797,18 @@ function bindEvents() {
   document.getElementById('language-options').addEventListener('click', (event) => {
     const option = event.target.closest('.language-option');
     if (option) chooseLanguage(option.dataset.language);
+  });
+  document.getElementById('panel-languages-button').addEventListener('click', () => openOverlay('panel-languages-overlay'));
+  document.getElementById('panel-languages-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    state.panelLanguageOverrides = Object.fromEntries([...document.querySelectorAll('#panel-language-options select')].map((select) => [select.dataset.panelId, select.value]));
+    await profileStore.setPanelLanguages(state.activeProfile.pid, state.activeProductId, play, state.panelLanguageOverrides);
+    closeOverlays(); render({ source: 'panel_language_change' });
+  });
+  document.getElementById('panel-languages-reset').addEventListener('click', async () => {
+    state.panelLanguageOverrides = {};
+    await profileStore.setPanelLanguages(state.activeProfile.pid, state.activeProductId, play, {});
+    closeOverlays(); render({ source: 'panel_language_reset' });
   });
   document.addEventListener('click', (event) => { if (!event.target.closest('.top-menu-wrap')) setMenuOpen(false); });
   document.querySelectorAll('.close-dialog').forEach((button) => button.addEventListener('click', closeOverlays));

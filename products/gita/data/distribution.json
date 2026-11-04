@@ -10,11 +10,27 @@
   "defaultExperience": "gita-yoga",
   "journeyExperience": "gita-700",
   "mediaOrigin": "https://media.gitajyoti.org",
+  "languages": {
+    "source": "sa",
+    "defaultContent": "en",
+    "content": ["en", "kn"],
+    "interface": ["en", "kn"],
+    "registry": {
+      "sa": { "name": "Sanskrit", "nativeName": "संस्कृतम्", "script": "Devanagari", "direction": "ltr" },
+      "en": { "name": "English", "nativeName": "English", "script": "Latin", "direction": "ltr" },
+      "kn": { "name": "Kannada", "nativeName": "ಕನ್ನಡ", "script": "Kannada", "direction": "ltr" }
+    }
+  },
   "experiences": [
     {
       "id": "gita-chant",
       "bookId": "bhagavad-gita",
       "renderer": "player-4",
+      "panels": [
+        { "id": "sanskrit", "binding": "source", "fields": ["shloka"] },
+        { "id": "primary", "binding": "preferred", "fields": ["transliteration"], "userSelectable": true },
+        { "id": "secondary", "binding": "alternate", "fields": ["transliteration"], "userSelectable": true }
+      ],
       "label": "Gita Chant",
       "cardClass": "experience-chant",
       "kickerKey": "home.gitaChantKicker",
@@ -27,6 +43,11 @@
       "id": "gita-yoga",
       "bookId": "bhagavad-gita",
       "renderer": "player-2",
+      "panels": [
+        { "id": "source", "binding": "source", "fields": ["shloka", "word_by_word"] },
+        { "id": "primary", "binding": "preferred", "fields": ["transliteration", "meaning", "word_by_word"], "userSelectable": true },
+        { "id": "secondary", "binding": "alternate", "fields": ["transliteration", "meaning", "word_by_word"], "userSelectable": true }
+      ],
       "label": "Gita Yoga",
       "cardClass": "experience-yoga",
       "kickerKey": "home.gitaYogaKicker",
@@ -39,6 +60,12 @@
       "id": "gita-sara",
       "bookId": "bhagavad-gita",
       "renderer": "player-3",
+      "panels": [
+        { "id": "shloka", "binding": "source", "fields": ["shloka"] },
+        { "id": "transliteration", "binding": "preferred", "fields": ["transliteration"], "userSelectable": true },
+        { "id": "meaning", "binding": "preferred", "fields": ["meaning"], "userSelectable": true },
+        { "id": "word", "binding": "preferred", "fields": ["word_by_word"], "userSelectable": true }
+      ],
       "label": "Gita Sara",
       "cardClass": "experience-sara",
       "kickerKey": "home.gitaSaraKicker",
@@ -51,6 +78,12 @@
       "id": "gita-700",
       "bookId": "bhagavad-gita",
       "renderer": "player-1",
+      "panels": [
+        { "id": "shloka", "binding": "source", "fields": ["shloka"] },
+        { "id": "transliteration", "binding": "preferred", "fields": ["transliteration"], "userSelectable": true },
+        { "id": "meaning", "binding": "preferred", "fields": ["meaning"], "userSelectable": true },
+        { "id": "word", "binding": "preferred", "fields": ["word_by_word"], "userSelectable": true }
+      ],
       "label": "Gita 700",
       "cardClass": "experience-700",
       "kickerKey": "home.gita700Kicker",

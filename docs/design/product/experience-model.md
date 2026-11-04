@@ -1,11 +1,19 @@
 # Experience model
 
 **Status:** Current  
-**Last updated:** 29 October 2026
+**Last updated:** 4 November 2026
 
 ## Model
 
 MyGita separates the shared application shell from product configuration, reusable collections and individual experiences. The shell owns profiles, experience selection, common navigation, language, fullscreen, help, audio controls, installation, updates, analytics, and resume. A registered renderer owns the panels and presentation rules of an experience. A product decides which collections and experiences are available in its distribution. Content authoring is outside the playback application.
+
+## Language and panel contract
+
+Each product distribution declares a language registry rather than relying on a fixed Sanskrit/English/Kannada list. The registry identifies the source language, ordered content languages, default content language, interface languages, native labels, script and writing direction. Book manifests declare whichever language masters they actually provide; normalization turns them into the same `languages.<code>` row model. Adding a registered master such as Hindi therefore does not require a new renderer branch.
+
+An experience declares semantic panels and binds each panel to `source`, `preferred`, `alternate`, `next_available`, `none`, or an explicit `fixed:<code>` language. It also declares the semantic fields used by that panel and whether the person may choose its language. The engine resolves these bindings against the active product, available book masters, global content preference and profile-specific overrides. Renderers receive only the resolved panel-to-language map and continue to own geometry, typography and responsive behavior.
+
+Selectable panels appear through the shared **Panel languages** dialog. The profile stores only overrides under product plus experience plus panel ID; changing a global content preference still updates every panel that remains on its experience default. Reset removes the overrides and immediately restores configured behavior. This contract is intended to be consumed by a future product/experience editor as well as the hand-maintained JSON configuration.
 
 ## Current Bhagavad Gita experiences
 
@@ -23,7 +31,7 @@ The application entry is `player.html`. Important query parameters are:
 
 - `play=gita-700` — open an experience.
 - `sid=6.7` — open a stable verse directly.
-- `lang=kn` — choose Kannada content; English content is `en`. Interface language always comes from the profile.
+- `lang=<code>` — choose any content language registered by the active product. Interface language always comes from the profile.
 - `pid=<number>` — identify the selected local profile.
 
 An explicit URL location takes precedence over a saved resume location. Otherwise, the selected profile can return to its most recently recorded home or experience location.

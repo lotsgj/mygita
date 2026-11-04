@@ -100,10 +100,12 @@ export function validateBookManifest(manifest, expectedBookId = '') {
     return path;
   };
   requireDeclared(manifest.verses?.catalog, 'verse catalog');
-  for (const language of ['sa', 'en', 'kn']) requireDeclared(manifest.verses?.masters?.[language], `${language} verse master`);
+  const masters = manifest.verses?.masters || {};
+  if (!Object.keys(masters).length) throw new Error(`Book manifest ${id} requires verse masters.`);
+  for (const [language, path] of Object.entries(masters)) requireDeclared(path, `${language} verse master`);
   const registries = manifest.registries || {};
   requireDeclared(registries.verses?.structural, 'verse registry');
-  for (const language of ['sa', 'en', 'kn']) requireDeclared(registries.verses?.localized?.[language], `${language} verse metadata`);
+  for (const [language, path] of Object.entries(registries.verses?.localized || {})) requireDeclared(path, `${language} verse metadata`);
   requireDeclared(registries.audio, 'audio registry');
   requireDeclared(registries.images, 'image registry');
   if (registries.deck) requireDeclared(registries.deck, 'deck registry');

@@ -17,6 +17,7 @@ import { AboutDialog } from '../shared/about-dialog.js';
 import { I18n } from '../i18n/i18n.js';
 import { VersionHistoryStore } from '../version-history.js';
 import { distribution, setDistribution } from '../distribution.js';
+import { resolvePanelLanguages, languageLabel } from '../language-model.js';
 
 const state = {
   dataset: null,
@@ -39,7 +40,9 @@ const state = {
   pendingLocalDestination: null,
   appMetadata: { version: 'dev' }
   ,collectionId: null,
-  activeProductId: null
+  activeProductId: null,
+  panelLanguageOverrides: {},
+  panelLanguages: {}
 };
 
 const params = new URLSearchParams(location.search);
@@ -96,7 +99,7 @@ const i18n = new I18n('en', mergedTranslations(distribution().translations));
 const translate = (key, fallback, values = {}) => i18n.t(key, values) === key ? fallback : i18n.t(key, values);
 
 configureExperiences(distribution());
-const profileStore = new ProfileStore({ databaseName: appConfig.databaseName || distribution().databaseName });
+const profileStore = new ProfileStore({ databaseName: appConfig.databaseName || distribution().databaseName, languageModel: () => distribution().languages });
 const platformId = appConfig.id || distribution().id;
 const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformId}-version-history` });
 const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-local-media` });
@@ -131,8 +134,10 @@ const profileUI = new ProfileUI({
   onCreated: createProfile,
   onChanged: handleProfileChange,
   translate,
-  onInterfaceLanguagePreview: setInterfaceLanguage
+  onInterfaceLanguagePreview: setInterfaceLanguage,
+  languageModel: () => distribution().languages
 });
+buildLanguageOptions();
 
 function setInterfaceLanguage(language) {
   i18n.setLanguage(language);
@@ -507,7 +512,42 @@ function activateDistribution(input) {
   aboutDialog.setBranding(appConfig.branding || {});
   renderExperienceCards();
   renderProductPills();
+  buildLanguageOptions();
   return configured;
+}
+
+function buildLanguageOptions() {
+  const container = document.getElementById('language-options');
+  if (!container) return;
+  const model = distribution().languages;
+  container.replaceChildren(...model.content.map((language) => {
+    const button = document.createElement('button');
+    button.className = 'language-option'; button.type = 'button'; button.dataset.language = language;
+    button.textContent = languageLabel(model, language);
+    return button;
+  }));
+}
+
+function selectablePanels() {
+  return (getExperience(play)?.panels || []).filter((panel) => panel.userSelectable);
+}
+
+function buildPanelLanguageOptions() {
+  const container = document.getElementById('panel-language-options');
+  const model = distribution().languages;
+  container.textContent = '';
+  selectablePanels().forEach((panel) => {
+    const row = document.createElement('label'); row.className = 'field-group';
+    const caption = document.createElement('span'); caption.className = 'field-label';
+    caption.textContent = panel.id.replace(/-/g, ' ').replace(/^./, (value) => value.toUpperCase());
+    const select = document.createElement('select'); select.dataset.panelId = panel.id;
+    const languages = panel.allowedLanguages === 'all' ? [model.source, ...model.content] : Array.isArray(panel.allowedLanguages) ? panel.allowedLanguages : model.content;
+    languages.forEach((language) => {
+      const option = document.createElement('option'); option.value = language; option.textContent = languageLabel(model, language); select.appendChild(option);
+    });
+    select.value = state.panelLanguageOverrides[panel.id] || state.panelLanguages[panel.id] || languages[0];
+    row.append(caption, select); container.appendChild(row);
+  });
 }
 
 function activateProduct(productId, { updateUrl = true } = {}) {
@@ -741,7 +781,7 @@ async function handleProfileChange(profile, options = {}) {
   if (state.profileReturnView === 'journey-details') return openJourneyDetails();
   if (state.dataset && state.profileReturnView === 'app') {
     showOnly('app');
-    state.language = requestedLanguage === 'kn' || requestedLanguage === 'en' ? requestedLanguage : profile.contentLanguage;
+    state.language = distribution().languages.content.includes(requestedLanguage) ? requestedLanguage : profile.contentLanguage;
     render();
   } else {
     play = null;
@@ -758,7 +798,7 @@ function goToExperienceSelection(profile = state.activeProfile, { source = 'home
   home.searchParams.delete('play');
   home.searchParams.delete('sid');
   home.searchParams.set('view', 'diksoochi');
-  if (requestedLanguage === 'kn') home.searchParams.set('lang', 'kn');
+  if (requestedLanguage && requestedLanguage !== distribution().languages.defaultContent) home.searchParams.set('lang', requestedLanguage);
   else home.searchParams.delete('lang');
   if (profile) home.searchParams.set('pid', profile.pid);
   history.replaceState(null, '', home);
@@ -904,8 +944,8 @@ async function startRequestedExperience() {
     if (resume?.sid) chooserUrl.searchParams.set('sid', resume.sid);
     else chooserUrl.searchParams.delete('sid');
     chooserUrl.searchParams.set('pid', state.activeProfile.pid);
-    const language = resume?.language || (requestedLanguage === 'kn' || requestedLanguage === 'en' ? requestedLanguage : state.activeProfile.contentLanguage);
-    if (language === 'kn') chooserUrl.searchParams.set('lang', 'kn');
+    const language = resume?.language || (distribution().languages.content.includes(requestedLanguage) ? requestedLanguage : state.activeProfile.contentLanguage);
+    if (language && language !== distribution().languages.defaultContent) chooserUrl.searchParams.set('lang', language);
     else chooserUrl.searchParams.delete('lang');
     document.getElementById(experienceId + '-link').href = chooserUrl.href;
     return [experienceId, chooserUrl];
@@ -999,7 +1039,10 @@ async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
   document.documentElement.dataset.contentBook = dataset.contentSource?.bookId || '';
   document.documentElement.dataset.contentVersion = dataset.contentSource?.contentVersion || '';
   state.collectionId = dataset.collectionId || null;
-  state.language = requestedLanguage === 'kn' || requestedLanguage === 'en' ? requestedLanguage : state.activeProfile.contentLanguage;
+  const model = distribution().languages;
+  state.language = model.content.includes(requestedLanguage) ? requestedLanguage : (model.content.includes(state.activeProfile.contentLanguage) ? state.activeProfile.contentLanguage : model.defaultContent);
+  state.panelLanguageOverrides = await profileStore.getPanelLanguages(state.activeProfile.pid, state.activeProductId, play).catch(() => ({}));
+  state.panelLanguages = resolvePanelLanguages({ panels: experience.panels, languageModel: model, preferred: state.language, overrides: state.panelLanguageOverrides, availableLanguages: Object.keys(dataset.rows?.[0]?.languages || {}).concat(model.source) });
   const requestedIndex = sid ? findSid(sid) : -1;
   if (state.locationSource === 'resume' && sid && requestedIndex < 0) {
     state.locationSource = null;
@@ -1019,6 +1062,7 @@ async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
       }))
   });
   state.renderer.mount(document.getElementById('renderer-root'));
+  document.getElementById('panel-languages-button').hidden = !selectablePanels().length;
   syncQuestionsMenu();
 
   const defaultIndex = findSid('1.B');
@@ -1104,8 +1148,10 @@ function render(options = {}) {
   else chapterIcon.removeAttribute('src');
   document.getElementById('sid-label').textContent = row.sid;
   document.getElementById('position-label').textContent = (state.index + 1) + ' / ' + state.dataset.rows.length;
-  document.querySelector('#language-button .top-menu-label').textContent = i18n.t('menu.contentLanguage', { language: state.language === 'kn' ? 'ಕನ್ನಡ' : 'English' });
-  state.renderer.render(row, state.language);
+  document.querySelector('#language-button .top-menu-label').textContent = i18n.t('menu.contentLanguage', { language: languageLabel(distribution().languages, state.language) });
+  const experience = getExperience(play);
+  state.panelLanguages = resolvePanelLanguages({ panels: experience?.panels || [], languageModel: distribution().languages, preferred: state.language, overrides: state.panelLanguageOverrides, availableLanguages: Object.keys(row.languages || {}).concat(distribution().languages.source) });
+  state.renderer.render(row, state.language, state.panelLanguages);
   syncQuestionsMenu();
   document.getElementById('renderer-root').scrollTop = 0;
   state.experienceResumes.set(`${state.activeProductId}:${play}`, {
@@ -1171,7 +1217,7 @@ function updateUrl() {
   next.searchParams.set('sid', currentRow().sid);
   if (state.collectionId) next.searchParams.set('collection', state.collectionId);
   else next.searchParams.delete('collection');
-  if (state.language === 'kn') next.searchParams.set('lang', 'kn');
+  if (state.language !== distribution().languages.defaultContent) next.searchParams.set('lang', state.language);
   else next.searchParams.delete('lang');
   history.replaceState(null, '', next);
 }
@@ -1209,7 +1255,8 @@ function finishSwipe(event) {
 }
 
 function setLanguage(language) {
-  state.language = language === 'kn' ? 'kn' : 'en';
+  if (!distribution().languages.content.includes(language)) return;
+  state.language = language;
   requestedLanguage = state.language;
   state.activeProfile.contentLanguage = state.language;
   profileStore.save(state.activeProfile).then((profile) => {
@@ -1248,12 +1295,15 @@ function openOverlay(id) {
       button.setAttribute('aria-pressed', button.dataset.language === state.language ? 'true' : 'false');
     });
     requestAnimationFrame(() => document.querySelector('.language-option.active')?.focus());
+  } else if (id === 'panel-languages-overlay') {
+    buildPanelLanguageOptions();
+    requestAnimationFrame(() => document.querySelector('#panel-language-options select')?.focus());
   }
 }
 
 function closeOverlays({ restoreFocus = true } = {}) {
   let closed = false;
-  ['goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
+  ['goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'panel-languages-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
     const overlay = document.getElementById(id);
     if (!overlay.hidden) { overlay.hidden = true; closed = true; }
   });
@@ -1378,7 +1428,7 @@ function collectionSymbol(collection) {
   const label = collectionText(collection, 'shortName').trim();
   if (!label) return '•';
   if (globalThis.Intl?.Segmenter) {
-    return new Intl.Segmenter(state.language === 'kn' ? 'kn' : 'en', { granularity: 'grapheme' }).segment(label)[Symbol.iterator]().next().value?.segment || label[0];
+    return new Intl.Segmenter(state.language, { granularity: 'grapheme' }).segment(label)[Symbol.iterator]().next().value?.segment || label[0];
   }
   return Array.from(label)[0];
 }
@@ -1435,7 +1485,7 @@ function updateChapterSelection() {
   document.querySelectorAll('.chapter-button').forEach((button) => {
     button.classList.toggle('active', button.dataset.cid === currentRow().cid);
     const name = button.querySelector('.chapter-name');
-    name.textContent = state.language === 'kn' ? name.dataset.kn : name.dataset.en;
+    name.textContent = name.dataset[state.language] || name.dataset.en;
   });
 }
 
@@ -1572,6 +1622,18 @@ function bindEvents() {
   document.getElementById('language-options').addEventListener('click', (event) => {
     const option = event.target.closest('.language-option');
     if (option) chooseLanguage(option.dataset.language);
+  });
+  document.getElementById('panel-languages-button').addEventListener('click', () => openOverlay('panel-languages-overlay'));
+  document.getElementById('panel-languages-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    state.panelLanguageOverrides = Object.fromEntries([...document.querySelectorAll('#panel-language-options select')].map((select) => [select.dataset.panelId, select.value]));
+    await profileStore.setPanelLanguages(state.activeProfile.pid, state.activeProductId, play, state.panelLanguageOverrides);
+    closeOverlays(); render({ source: 'panel_language_change' });
+  });
+  document.getElementById('panel-languages-reset').addEventListener('click', async () => {
+    state.panelLanguageOverrides = {};
+    await profileStore.setPanelLanguages(state.activeProfile.pid, state.activeProductId, play, {});
+    closeOverlays(); render({ source: 'panel_language_reset' });
   });
   document.addEventListener('click', (event) => { if (!event.target.closest('.top-menu-wrap')) setMenuOpen(false); });
   document.querySelectorAll('.close-dialog').forEach((button) => button.addEventListener('click', closeOverlays));

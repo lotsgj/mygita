@@ -1,17 +1,17 @@
 # Profiles and local storage
 
 **Status:** Current  
-**Last updated:** 12 October 2026
+**Last updated:** 4 November 2026
 
 ## Storage model
 
 Profiles and resume locations are stored in the browser’s IndexedDB for the Gitaverse origin. The store supports multiple profiles, incremental numeric IDs, a default profile, profile editing, deletion/management, the current screen, and one resume point per profile and experience.
 
-Small presentation preferences also live in the settings store under profile-specific keys. These include Your journey card/table view and Gita Sara’s `two_panel`/`three_panel` view. They are presentation state rather than content and are removed with the profile.
+Small presentation preferences also live in the settings store under profile-specific keys. These include Your journey card/table view, Gita Sara’s `two_panel`/`three_panel` view, and sparse panel-language overrides keyed by profile, product, experience and panel. They are presentation state rather than content and are removed or reset independently of canonical content.
 
 Diksoochi keeps one aggregate engagement record per profile, experience and SID in `diksoochiEngagement`. It stores chapter identity, first and latest meaningful engagement times, meaningful visit count, and the highest observed engagement threshold. This is bounded summary state, not an analytics event queue. Deleting a profile deletes its Diksoochi records.
 
-Profile photos are device-local data. Each profile stores separate `interfaceLanguage` and `contentLanguage` preferences. Existing profiles are migrated by using their former language value for both fields. Name, exact birth date, gender selection, and photo are never added to page URLs or analytics payloads.
+Profile photos are device-local data. Each profile stores separate `interfaceLanguage` and `contentLanguage` preferences validated against the active product language registry. Existing profiles are migrated by using their former language value for both fields. Panel-language settings store only explicit overrides; experience defaults remain configuration, so newly added languages and changed defaults do not require profile migration. Name, exact birth date, gender selection, and photo are never added to page URLs or analytics payloads.
 
 ## URL and profile state
 

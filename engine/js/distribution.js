@@ -1,3 +1,14 @@
+import { normalizeLanguageModel, normalizePanels } from './language-model.js';
+
+const FALLBACK_LANGUAGES = {
+  source: 'sa', defaultContent: 'en', content: ['en', 'kn'], interface: ['en', 'kn'],
+  registry: {
+    sa: { name: 'Sanskrit', nativeName: 'संस्कृतम्', script: 'Devanagari' },
+    en: { name: 'English', nativeName: 'English', script: 'Latin' },
+    kn: { name: 'Kannada', nativeName: 'ಕನ್ನಡ', script: 'Kannada' }
+  }
+};
+
 const FALLBACK_DISTRIBUTION = Object.freeze({
   schemaVersion: 1,
   id: 'verses-local',
@@ -11,7 +22,8 @@ const FALLBACK_DISTRIBUTION = Object.freeze({
   mediaOrigin: '',
   experiences: [],
   translations: {},
-  branding: {}
+  branding: {},
+  languages: FALLBACK_LANGUAGES
 });
 
 let activeDistribution = normalizeDistribution(globalThis.__VERSES_DISTRIBUTION__ || FALLBACK_DISTRIBUTION);
@@ -25,11 +37,13 @@ function safeId(value, label) {
 export function normalizeDistribution(input) {
   if (!input || Number(input.schemaVersion) !== 1) throw new Error('Unsupported distribution configuration.');
   const id = safeId(input.id, 'Distribution id');
+  const languages = normalizeLanguageModel(input.languages || FALLBACK_LANGUAGES);
   const experiences = (input.experiences || []).map((entry) => Object.freeze({
     ...entry,
     id: safeId(entry.id, 'Experience id'),
     renderer: safeId(entry.renderer, 'Renderer id'),
-    label: String(entry.label || entry.id).trim()
+    label: String(entry.label || entry.id).trim(),
+    panels: normalizePanels(entry.panels || [])
   }));
   if (new Set(experiences.map((entry) => entry.id)).size !== experiences.length) throw new Error('Distribution experience ids must be unique.');
   const ids = new Set(experiences.map((entry) => entry.id));
@@ -52,7 +66,8 @@ export function normalizeDistribution(input) {
     journeyExperience,
     experiences: Object.freeze(experiences),
     translations: Object.freeze(translations),
-    branding: Object.freeze({ ...(input.branding || {}) })
+    branding: Object.freeze({ ...(input.branding || {}) }),
+    languages
   });
 }
 

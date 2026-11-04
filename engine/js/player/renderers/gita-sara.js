@@ -63,19 +63,19 @@ export function createGitaSaraRenderer({ translate = (_key, fallback) => fallbac
     return true;
   }
 
-  function render(row, contentLanguage) {
+  function render(row, contentLanguage, panelLanguages = {}) {
     const reset = renderedSid !== row.sid;
     renderedSid = row.sid;
-    const language = contentLanguage === 'kn' ? 'kn' : 'en';
     TEXT_FIELDS.forEach((specification) => {
+      const language = panelLanguages[specification.role] || (specification.role === 'shloka' ? 'sa' : contentLanguage);
       const field = specification.field(language);
       const element = root.querySelector(`[data-role="${specification.role}"]`);
       const text = fieldValue(row, field);
       element.dataset.field = field; element.lang = specification.language(language); element.textContent = text || '—';
       element.classList.toggle('empty', !text);
     });
-    mediaPlayer.render(row.media?.items || [], language, reset);
-    textPlayer.render(row.contemplation?.lines || [], language, reset);
+    mediaPlayer.render(row.media?.items || [], contentLanguage, reset);
+    textPlayer.render(row.contemplation?.lines || [], contentLanguage, reset);
     requestAnimationFrame(fitText);
   }
 

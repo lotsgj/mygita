@@ -66,8 +66,9 @@ function randomAnalyticsId() {
 }
 
 export class ProfileStore {
-  constructor({ databaseName = 'verses-local-profiles' } = {}) {
+  constructor({ databaseName = 'verses-local-profiles', languageModel = () => ({ content: ['en', 'kn'], interface: ['en', 'kn'] }) } = {}) {
     this.databaseName = databaseName;
+    this.languageModel = languageModel;
     this.database = null;
   }
 
@@ -94,8 +95,9 @@ export class ProfileStore {
     await this.open();
     const name = String(input.name || '').trim();
     if (!name) throw new Error('Enter a profile name.');
-    if (!['en', 'kn'].includes(input.interfaceLanguage)) throw new Error('Choose an app language.');
-    if (!['en', 'kn'].includes(input.contentLanguage)) throw new Error('Choose a preferred Gita content language.');
+    const languages = this.languageModel();
+    if (!languages.interface.includes(input.interfaceLanguage)) throw new Error('Choose an app language.');
+    if (!languages.content.includes(input.contentLanguage)) throw new Error('Choose a preferred content language.');
     const now = new Date().toISOString();
     const existing = input.pid ? await this.get(input.pid) : null;
     const profile = {
@@ -130,6 +132,14 @@ export class ProfileStore {
     settings.delete(`journeyView:${Number(pid)}`);
     settings.delete(`gitaSaraView:${Number(pid)}`);
     settings.delete(`selectedProduct:${Number(pid)}`);
+    const panelPrefix = `panelLanguages:${Number(pid)}:`;
+    const settingsCursor = settings.openCursor();
+    settingsCursor.onsuccess = () => {
+      const cursor = settingsCursor.result;
+      if (!cursor) return;
+      if (String(cursor.key).startsWith(panelPrefix)) cursor.delete();
+      cursor.continue();
+    };
     transaction.objectStore(RESUME_STORE).delete(Number(pid));
     const engagement = transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid');
     const engagementCursor = engagement.openKeyCursor(IDBKeyRange.only(Number(pid)));
@@ -179,7 +189,7 @@ export class ProfileStore {
       ...(existing || {}),
       pid,
       view: resume.view === 'experience' ? 'experience' : 'home',
-      language: resume.language === 'kn' ? 'kn' : 'en',
+      language: String(resume.language || this.languageModel().defaultContent || 'en'),
       savedAt: resume.savedAt || new Date().toISOString(),
       experiences: { ...(existing?.experiences || {}) },
       products: { ...(existing?.products || {}) }
@@ -216,7 +226,7 @@ export class ProfileStore {
         record.lastExperience = {
           experience: existing.experience,
           sid: existing.sid,
-          language: existing.language === 'kn' ? 'kn' : 'en',
+          language: String(existing.language || this.languageModel().defaultContent || 'en'),
           savedAt: existing.savedAt
         };
       }
@@ -258,6 +268,24 @@ export class ProfileStore {
     if (!Number.isInteger(Number(pid)) || !productId) return;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
     transaction.objectStore(SETTINGS_STORE).put({ key: `selectedProduct:${Number(pid)}`, value: String(productId) });
+    await transactionDone(transaction);
+  }
+
+  async getPanelLanguages(pid, productId, experienceId) {
+    await this.open();
+    const key = `panelLanguages:${Number(pid)}:${String(productId)}:${String(experienceId)}`;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(key));
+    return setting?.value && typeof setting.value === 'object' ? { ...setting.value } : {};
+  }
+
+  async setPanelLanguages(pid, productId, experienceId, value) {
+    await this.open();
+    const key = `panelLanguages:${Number(pid)}:${String(productId)}:${String(experienceId)}`;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
+    const store = transaction.objectStore(SETTINGS_STORE);
+    if (!value || !Object.keys(value).length) store.delete(key);
+    else store.put({ key, value: { ...value } });
     await transactionDone(transaction);
   }
 

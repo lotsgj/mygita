@@ -57,7 +57,8 @@ export async function loadMediaBookExperience(experienceId, {
   if (configuredBooks.length > 1) {
     dataset.collections = await Promise.all(configuredBooks.map(async (id, order) => {
       const book = id === manifest.book_id ? manifest : (mediaSource.books?.get(id) || await mediaSource.loadBook(id));
-      const localized = Object.fromEntries(['sa', 'en', 'kn'].map((language) => {
+      const languages = [...new Set([...Object.keys(book.verses?.masters || {}), ...Object.keys(book.name || {})])];
+      const localized = Object.fromEntries(languages.map((language) => {
         const name = String(book.name?.[language] || book.name?.en || id);
         return [language, { name, shortName: name, description: '' }];
       }));

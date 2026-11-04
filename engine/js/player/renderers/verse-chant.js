@@ -51,18 +51,17 @@ export function createVerseChantRenderer() {
     globalThis.document?.fonts?.ready.then(scheduleFit);
   }
 
-  function panelFields(contentLanguage) {
-    const primary = contentLanguage === 'kn' ? 'kn' : 'en';
-    const secondary = primary === 'kn' ? 'en' : 'kn';
+  function panelFields(contentLanguage, panelLanguages = {}) {
+    const available = Object.keys(panelLanguages).length ? panelLanguages : { sanskrit: 'sa', primary: contentLanguage, secondary: contentLanguage === 'kn' ? 'en' : 'kn' };
     return [
-      { ...CHANT_PANELS[0] },
-      { ...CHANT_PANELS[1], field: `languages.${primary}.transliteration`, language: primary },
-      { ...CHANT_PANELS[2], field: `languages.${secondary}.transliteration`, language: secondary }
+      { ...CHANT_PANELS[0], language: available.sanskrit || 'sa' },
+      { ...CHANT_PANELS[1], field: `languages.${available.primary}.transliteration`, language: available.primary },
+      { ...CHANT_PANELS[2], field: `languages.${available.secondary}.transliteration`, language: available.secondary }
     ];
   }
 
-  function render(row, contentLanguage) {
-    const fields = panelFields(contentLanguage);
+  function render(row, contentLanguage, panelLanguages = {}) {
+    const fields = panelFields(contentLanguage, panelLanguages);
     const values = fields.map((panel) => chantFieldValue(row, panel.field));
     const sanskritLines = sourceLines(values[0]);
     const halfVerseLine = sanskritLines.findIndex((line) => /\u0964\s*$/u.test(line) && !/\u0965\s*$/u.test(line));
