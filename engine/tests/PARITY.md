@@ -25,7 +25,7 @@ The collection player must pass this matrix before each public release.
 | Help and About dialogs | Browser regression | Yes | Pass |
 | Audio association and controls | Node + browser smoke | Yes | Pass |
 | Edit, save and language-file export | Node + browser regression | Yes | Pass |
-| Gita-Yoga eight-field editing and language-file routing | Unit + structural browser checks | End-to-end writable-folder save pending | Partial |
+| Playback contains no inline content editor | Contract + browser checks | External local editor is a separate future workflow | Complete |
 | Resume by profile | Browser regression | Yes | Pass |
 | Profile create, edit, switch, manage and delete | Browser regression | Yes | Pass |
 | Mobile portrait/landscape stacking and sticky controls | Browser regression | Yes | Pass |

@@ -33,6 +33,7 @@
         { "title": "Profiles and first use", "route": "profiles-and-first-use", "path": "design/experiences/profiles-and-first-use.md" },
         { "title": "Home and experience selection", "route": "home-and-experience-selection", "path": "design/experiences/home-and-experience-selection.md" },
         { "title": "Shared player", "route": "shared-player", "path": "design/experiences/shared-player.md" },
+        { "title": "Gita Chant", "route": "gita-chant", "path": "design/experiences/gita-chant.md" },
         { "title": "Gita Yoga", "route": "gita-yoga", "path": "design/experiences/gita-yoga.md" },
         { "title": "Gita 700", "route": "gita-700", "path": "design/experiences/gita-700.md" },
         { "title": "Gita Sara", "route": "gita-sara", "path": "design/experiences/gita-sara.md" },

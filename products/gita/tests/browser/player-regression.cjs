@@ -376,7 +376,7 @@ async function run() {
     assert.equal(await page.locator('.chapter-button').count(), 19);
     assert.equal(await page.locator('.chapter-list-icon').count(), 19, 'curated Gita Sara chapters must retain every shared chapter icon');
     await page.keyboard.press('Escape');
-    assert.equal(await page.locator('#edit-button').isHidden(), true, 'product playback does not offer editing until media authoring is designed');
+    assert.equal(await page.locator('#edit-button, #workspace-overlay, #download-reminder').count(), 0, 'product playback contains no inline authoring UI');
     assert.equal(await page.locator('.gita-sara-deck-frame').count(), 1);
     assert.equal(await page.locator('.gita-sara-media-error').count(), 0);
 
@@ -488,8 +488,9 @@ async function run() {
     assert.notEqual(deployedVersion, 'dev');
     await page.getByRole('button', { name: 'Version history' }).click();
     await page.locator('.about-history-item').first().waitFor();
-    assert.equal(await page.locator('.about-history-item h3').first().innerText(), deployedVersion);
-    assert.ok((await page.locator('.about-history-item p').first().innerText()).length > 0);
+    assert.ok((await page.locator('.about-history-item h3').first().innerText()).length > 0);
+    assert.match(await page.locator('.about-history-metadata').first().innerText(), new RegExp(deployedVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.equal(await page.locator('.about-history-current').first().innerText(), 'Current');
     assert.match(await page.locator('.about-history-item').first().innerText(), /Seen on this device/);
     await page.getByRole('button', { name: '← Back to About' }).click();
     assert.equal(await page.getByRole('heading', { name: 'About MyGita' }).isVisible(), true);
@@ -518,7 +519,7 @@ async function run() {
     assert.deepEqual(accessibilityProblems, { visibleButtonsWithoutNames: 0, invalidDialogs: 0 });
 
     await page.goto(`${base}/player.html?play=gita-700&sid=6.7&pid=1`, { waitUntil: 'networkidle' });
-    assert.equal(await page.locator('#edit-button').isHidden(), true, 'clean products do not expose the legacy product-data editor');
+    assert.equal(await page.locator('#edit-button, #workspace-overlay, #download-reminder').count(), 0, 'clean products do not include the legacy product-data editor');
 
     await page.goto(`${base}/player.html?pid=1`, { waitUntil: 'networkidle' });
     assert.equal(await page.locator('#sid-label').innerText(), '6.7');
@@ -795,8 +796,11 @@ async function run() {
     filePage.on('pageerror', (error) => fileRuntimeErrors.push(error.stack || error.message));
     filePage.on('console', (message) => { if (message.type() === 'error') fileRuntimeErrors.push(message.text()); });
     console.log('CHECK: file-mode harness');
-    const fileUrl = pathToFileURL(path.join(process.env.VERSES_ENGINE_ROOT || path.resolve(root, '../../engine'), 'player.html')).href + '?play=gita-700&sid=6.7';
+    const engineRoot = process.env.VERSES_ENGINE_ROOT || path.resolve(root, '../../engine');
+    const fileUrl = pathToFileURL(path.resolve(engineRoot, '../index.html')).href + '?play=gita-700&sid=6.7#file-regression';
     await filePage.goto(fileUrl, { waitUntil: 'domcontentloaded' });
+    await filePage.waitForURL(/\/engine\/player\.html\?play=gita-700&sid=6\.7#file-regression$/);
+    assert.equal(new URL(filePage.url()).hash, '#file-regression', 'the root launcher preserves the URL fragment');
     await filePage.evaluate(() => document.fonts.ready);
     await filePage.evaluate(() => document.fonts.load('16px "Gitaverse Noto Sans Kannada"', 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ'));
     assert.equal(await filePage.evaluate(() => document.fonts.check('16px "Gitaverse Noto Sans Kannada"', 'ಶ್ರೀಮದ್ಭಗವದ್ಗೀತೆ')), true, 'file mode must load bundled Noto Sans Kannada');
@@ -836,7 +840,7 @@ async function run() {
     assert.equal(await filePage.locator('#journey-table-body .journey-table-row').count(), 1, 'file-mode journey details must reuse the Home collection choice');
     await filePage.getByRole('button', { name: '← Back' }).click();
     await filePage.keyboard.press('e');
-    assert.equal(await filePage.locator('#workspace-overlay').isVisible(), false, 'edit shortcut is inactive on Home');
+    assert.equal(await filePage.locator('#workspace-overlay').count(), 0, 'Home contains no inline editing workspace');
     await filePage.locator('#home-collections-input').setInputFiles(mediaRoot);
     console.log('CHECK: file-mode media reselected');
     await filePage.locator('#home-collections').waitFor();
@@ -846,7 +850,7 @@ async function run() {
     await filePage.locator('#sid-label').waitFor();
     assert.match(await filePage.locator('#audio').getAttribute('src'), /^blob:/, 'reselecting media recreates a playable local blob URL');
     await filePage.keyboard.press('e');
-    assert.equal(await filePage.locator('#workspace-overlay').isVisible(), false, 'media-folder playback does not open the legacy product-data editor');
+    assert.equal(await filePage.locator('#workspace-overlay').count(), 0, 'media-folder playback contains no legacy product-data editor');
     console.log('CHECK: file-mode media-only playback verified');
     assert.deepEqual(fileRuntimeErrors, [], 'direct file-mode player must not emit manifest, version, or catalog CORS errors');
     await fileContext.close();
@@ -870,7 +874,7 @@ async function run() {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.locator('#sid-label').waitFor();
     assert.equal(await page.locator('#sid-label').innerText(), '6.7');
-    console.log('PASS: collection player browser parity, direct workspace editing, download fallback, profiles, file mode, mobile layout/swipe, resume, and offline reload');
+    console.log('PASS: collection player browser parity, playback-only media selection, profiles, file mode, mobile layout/swipe, resume, and offline reload');
   } finally {
     if (server.listening) await new Promise((resolve) => server.close(resolve));
     await context.close();

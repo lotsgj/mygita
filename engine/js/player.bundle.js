@@ -155,7 +155,6 @@ const EN_MESSAGES = {
   'gitaSara.media': 'Illustration', 'gitaSara.previousMedia': 'Previous illustration', 'gitaSara.nextMedia': 'Next illustration', 'gitaSara.mediaUnavailable': 'Illustration unavailable',
   'gitaSara.questions': 'Contemplation questions', 'gitaSara.previousQuestion': 'Previous question', 'gitaSara.nextQuestion': 'Next question', 'gitaSara.showAllQuestions': 'Show all questions', 'gitaSara.showOneQuestion': 'Show one question',
   'gitaSara.showQuestions': 'Show contemplation questions', 'gitaSara.hideQuestions': 'Hide contemplation questions',
-  'gitaSara.mediaType': 'Media type', 'gitaSara.image': 'Image', 'gitaSara.animatedImage': 'Animated image', 'gitaSara.googleDeck': 'Google Deck', 'gitaSara.mediaUrl': 'Relative or HTTPS URL', 'gitaSara.title': 'Title', 'gitaSara.addMedia': 'Add media', 'gitaSara.addQuestion': 'Add question', 'gitaSara.chooseFile': 'Choose local media file', 'gitaSara.fileType': 'Choose a WebP image or GIF matching the selected media type.', 'gitaSara.mediaRequired': 'Every media item needs a URL.', 'gitaSara.questionRequired': 'Every question needs English and Kannada text.', 'gitaSara.videoComing': 'Video support is coming',
   'diksoochi.title': 'Diksoochi', 'diksoochi.greeting': 'Namaste, {name}',
   'diksoochi.know': 'Know', 'diksoochi.able': 'Able', 'diksoochi.use': 'Use',
   'diksoochi.knowEmpty': 'Your map of the Gita will unfold here as you explore its chapters and spend time with its shlokas.',
@@ -173,37 +172,27 @@ const EN_MESSAGES = {
   'common.about': 'About Gitaverse', 'common.install': 'Install Gitaverse', 'common.close': 'Close', 'common.back': '← Back',
   'loading.title': 'Opening the Gita', 'loading.message': 'Preparing the verses…', 'error.title': 'Unable to open the player',
   'menu.collections': 'Collections', 'menu.chapters': 'Chapters', 'menu.goto': 'Go to shloka', 'menu.contentLanguage': 'Content language ({language})',
-  'menu.fullscreen': 'Fullscreen', 'menu.exitFullscreen': 'Exit fullscreen', 'menu.edit': 'Edit this shloka', 'menu.leaveEdit': 'Leave edit mode',
+  'menu.fullscreen': 'Fullscreen', 'menu.exitFullscreen': 'Exit fullscreen',
   'menu.questionsOn': 'Questions (On)', 'menu.questionsOff': 'Questions (Off)',
   'menu.home': 'Diksoochi / Home', 'menu.journey': 'Your journey', 'menu.help': 'Help', 'menu.open': 'Open menu', 'menu.close': 'Close menu',
   'dialog.collections': 'Collections', 'dialog.contentLanguage': 'Choose content language', 'dialog.goto': 'Go to a shloka', 'dialog.chapters': 'Chapters', 'dialog.shortcuts': 'Keyboard shortcuts',
   'about.body': 'Gitaverse is a verse and chanting experience from Gita Jyoti—a simple space to listen to, study and remain close to the Bhagavad Gita.',
   'about.version': 'Version',
   'about.history': 'Version history', 'about.back': '← Back to About', 'about.historyLoading': 'Loading version history…',
-  'about.currentBuild': 'Current Gitaverse build', 'about.seen': 'Seen on this device', 'about.installed': 'Installed on this device',
+  'about.currentBuild': 'Current Gitaverse build', 'about.current': 'Current', 'about.releaseFallback': 'MyGita improvements and refinements', 'about.seen': 'Seen on this device', 'about.installed': 'Installed on this device',
   'pwa.ready': 'A new Gitaverse version is ready.', 'pwa.update': 'Update now',
   'audio.play': 'Play audio', 'audio.pause': 'Pause audio', 'audio.unavailable': 'Audio unavailable', 'audio.none': 'No audio',
   'audio.shortcut': 'P or Space',
   'audio.onlineError': 'Audio is currently unavailable.', 'audio.offlineError': 'This audio is not available offline yet.',
   'help.previous': 'Previous shloka', 'help.next': 'Next shloka', 'help.goto': 'Go to a shloka', 'help.collections': 'Open collections', 'help.chapters': 'Open chapters',
   'help.language': 'Choose content language', 'help.home': 'Return to Diksoochi / Home', 'help.journey': 'Open Your journey', 'help.play': 'Play or pause audio', 'help.fullscreen': 'Enter or exit fullscreen',
-  'help.help': 'Open this help', 'help.about': 'Open About Gitaverse', 'help.menu': 'Open or close menu', 'help.edit': 'Enter or leave edit mode', 'help.escape': 'Close a dialog or exit fullscreen',
+  'help.help': 'Open this help', 'help.about': 'Open About Gitaverse', 'help.menu': 'Open or close menu', 'help.escape': 'Close a dialog or exit fullscreen',
   'help.questions': 'Show or hide Gita Sara questions',
   'data.title': 'Unable to load the Gita collections', 'data.description': 'Gitaverse could not load its language and media collections automatically. Choose the local data/collections folder to continue.',
   'data.choose': 'Choose collections folder', 'data.retry': 'Try automatic loading again', 'data.localNote': 'Selected files stay in this browser session and are not uploaded or modified.',
   'collections.title': 'Local collections', 'collections.message': 'Choose this repository’s data/collections folder to use Gitaverse locally.',
-  'collections.load': 'Load collections', 'collections.readyTitle': 'Local collections ready', 'collections.readyMessage': 'Using: {name}', 'collections.change': 'Change collections', 'collections.invalid': 'The selected collections folder could not be loaded.',
-  'workspace.title': 'Open local collections', 'workspace.open': 'Open collections folder', 'workspace.downloadOnly': 'Edit with downloads only',
-  'workspace.note': 'The folder stays on your device. Gitaverse requests read and write access only after you choose it.',
-  'workspace.unsupported': 'Direct folder saving is not supported by this browser. Use a current Chrome or Edge browser, or choose “Edit with downloads only”.',
-  'workspace.opening': 'Opening and validating the collections folder…', 'workspace.permission': 'Read and write access to the collections folder was not granted.',
-  'workspace.openFailed': 'The selected collections folder could not be opened.',
+  'collections.load': 'Load collections', 'collections.readyTitle': 'Local collections ready', 'collections.readyMessage': 'Using: {name}', 'collections.change': 'Change collections', 'collections.changeFolder': 'Change folder', 'collections.reconnect': 'Continue with remembered media', 'collections.forget': 'Forget', 'collections.rememberedTitle': 'Remembered media', 'collections.rememberedMessage': 'Reconnect {name} to continue.', 'collections.permission': 'Permission to read the remembered media folder was not granted.', 'collections.invalid': 'The selected collections folder could not be loaded.',
   'goto.note': 'Enter a stable shloka ID, such as 6.B, 6.7, or 6.E.', 'goto.notFound': 'That shloka ID was not found.',
-  'editor.editVisible': 'Edit the visible fields', 'editor.cancel': 'Cancel', 'editor.save': 'Save row', 'editor.unsaved': 'Unsaved changes', 'editor.removeHash': 'Remove # before saving',
-  'editor.noChanges': 'No changes to save', 'editor.savingFiles': 'Saving to collections…', 'editor.savingBrowser': 'Saving in this browser…', 'editor.savedBrowser': 'Saved in this browser session', 'editor.savedFiles': 'Saved to {files}', 'editor.saveFailed': 'The local collections could not be saved.', 'editor.downloaded': 'Downloaded edited collection data',
-  'editor.discard': 'Discard the unsaved edits to this shloka?', 'editor.discardNavigate': 'Discard the unsaved edits to this shloka and continue?',
-  'editor.download': '↓ Download edited collection files', 'editor.downloadAgain': '↓ Download again',
-  'editor.returnHome': 'Changes have not been downloaded. Are you sure you want to return Home?', 'editor.dismissDownload': 'Changes have not been downloaded. Are you sure you want to dismiss this reminder?',
   'fullscreen.enter': 'Enter fullscreen', 'fullscreen.exit': 'Exit fullscreen',
   'validation.name': 'Enter a profile name.', 'validation.dob': 'Enter a valid date of birth.', 'validation.appLanguage': 'Choose an app language.', 'validation.contentLanguage': 'Choose a preferred Gita content language.', 'validation.profileSave': 'The profile could not be saved.'
 };
@@ -240,7 +229,6 @@ const KN_MESSAGES = {
   'gitaSara.media': 'ಚಿತ್ರಣ', 'gitaSara.previousMedia': 'ಹಿಂದಿನ ಚಿತ್ರಣ', 'gitaSara.nextMedia': 'ಮುಂದಿನ ಚಿತ್ರಣ', 'gitaSara.mediaUnavailable': 'ಚಿತ್ರಣ ಲಭ್ಯವಿಲ್ಲ',
   'gitaSara.questions': 'ಚಿಂತನೆಯ ಪ್ರಶ್ನೆಗಳು', 'gitaSara.previousQuestion': 'ಹಿಂದಿನ ಪ್ರಶ್ನೆ', 'gitaSara.nextQuestion': 'ಮುಂದಿನ ಪ್ರಶ್ನೆ', 'gitaSara.showAllQuestions': 'ಎಲ್ಲ ಪ್ರಶ್ನೆಗಳನ್ನು ತೋರಿಸಿ', 'gitaSara.showOneQuestion': 'ಒಂದು ಪ್ರಶ್ನೆಯನ್ನು ತೋರಿಸಿ',
   'gitaSara.showQuestions': 'ಚಿಂತನೆಯ ಪ್ರಶ್ನೆಗಳನ್ನು ತೋರಿಸಿ', 'gitaSara.hideQuestions': 'ಚಿಂತನೆಯ ಪ್ರಶ್ನೆಗಳನ್ನು ಮರೆಮಾಡಿ',
-  'gitaSara.mediaType': 'ಮಾಧ್ಯಮದ ವಿಧ', 'gitaSara.image': 'ಚಿತ್ರ', 'gitaSara.animatedImage': 'ಚಲಿಸುವ ಚಿತ್ರ', 'gitaSara.googleDeck': 'ಗೂಗಲ್ ಡೆಕ್', 'gitaSara.mediaUrl': 'ಸಾಪೇಕ್ಷ ಅಥವಾ HTTPS URL', 'gitaSara.title': 'ಶೀರ್ಷಿಕೆ', 'gitaSara.addMedia': 'ಮಾಧ್ಯಮ ಸೇರಿಸಿ', 'gitaSara.addQuestion': 'ಪ್ರಶ್ನೆ ಸೇರಿಸಿ', 'gitaSara.chooseFile': 'ಸ್ಥಳೀಯ ಮಾಧ್ಯಮ ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ', 'gitaSara.fileType': 'ಆಯ್ದ ಮಾಧ್ಯಮ ವಿಧಕ್ಕೆ ಹೊಂದುವ WebP ಚಿತ್ರ ಅಥವಾ GIF ಆಯ್ಕೆಮಾಡಿ.', 'gitaSara.mediaRequired': 'ಪ್ರತಿ ಮಾಧ್ಯಮಕ್ಕೂ URL ಅಗತ್ಯ.', 'gitaSara.questionRequired': 'ಪ್ರತಿ ಪ್ರಶ್ನೆಗೂ ಇಂಗ್ಲಿಷ್ ಮತ್ತು ಕನ್ನಡ ಪಠ್ಯ ಅಗತ್ಯ.', 'gitaSara.videoComing': 'ವೀಡಿಯೊ ಬೆಂಬಲ ಶೀಘ್ರದಲ್ಲೇ ಬರಲಿದೆ',
   'diksoochi.title': 'ದಿಕ್ಸೂಚಿ', 'diksoochi.greeting': 'ನಮಸ್ತೆ, {name}',
   'diksoochi.know': 'ತಿಳಿದಿದೆ', 'diksoochi.able': 'ಸಾಧ್ಯವಾಗಿದೆ', 'diksoochi.use': 'ಬಳಸಬಲ್ಲೆ',
   'diksoochi.knowEmpty': 'ಅಧ್ಯಾಯಗಳನ್ನು ಅನ್ವೇಷಿಸಿ ಶ್ಲೋಕಗಳೊಂದಿಗೆ ಸಮಯ ಕಳೆದಂತೆ ನಿಮ್ಮ ಗೀತೆಯ ನಕ್ಷೆ ಇಲ್ಲಿ ತೆರೆದುಕೊಳ್ಳುತ್ತದೆ.',
@@ -258,37 +246,27 @@ const KN_MESSAGES = {
   'common.about': 'Gitaverse ಕುರಿತು', 'common.install': 'Gitaverse ಸ್ಥಾಪಿಸಿ', 'common.close': 'ಮುಚ್ಚಿ', 'common.back': '← ಹಿಂದೆ',
   'loading.title': 'ಗೀತೆಯನ್ನು ತೆರೆಯಲಾಗುತ್ತಿದೆ', 'loading.message': 'ಶ್ಲೋಕಗಳನ್ನು ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ…', 'error.title': 'ಪ್ಲೇಯರ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ',
   'menu.collections': 'ಸಂಗ್ರಹಗಳು', 'menu.chapters': 'ಅಧ್ಯಾಯಗಳು', 'menu.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'menu.contentLanguage': 'ವಿಷಯ ಭಾಷೆ ({language})',
-  'menu.fullscreen': 'ಪೂರ್ಣ ಪರದೆ', 'menu.exitFullscreen': 'ಪೂರ್ಣ ಪರದೆಯಿಂದ ಹೊರಗೆ', 'menu.edit': 'ಈ ಶ್ಲೋಕ ಸಂಪಾದಿಸಿ', 'menu.leaveEdit': 'ಸಂಪಾದನೆ ಮುಗಿಸಿ',
+  'menu.fullscreen': 'ಪೂರ್ಣ ಪರದೆ', 'menu.exitFullscreen': 'ಪೂರ್ಣ ಪರದೆಯಿಂದ ಹೊರಗೆ',
   'menu.questionsOn': 'ಪ್ರಶ್ನೆಗಳು (ಆನ್)', 'menu.questionsOff': 'ಪ್ರಶ್ನೆಗಳು (ಆಫ್)',
   'menu.home': 'ದಿಕ್ಸೂಚಿ / ಮುಖಪುಟ', 'menu.journey': 'ನಿಮ್ಮ ಪಯಣ', 'menu.help': 'ಸಹಾಯ', 'menu.open': 'ಮೆನು ತೆರೆಯಿರಿ', 'menu.close': 'ಮೆನು ಮುಚ್ಚಿ',
   'dialog.collections': 'ಸಂಗ್ರಹಗಳು', 'dialog.contentLanguage': 'ವಿಷಯ ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ', 'dialog.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'dialog.chapters': 'ಅಧ್ಯಾಯಗಳು', 'dialog.shortcuts': 'ಕೀಬೋರ್ಡ್ ಶಾರ್ಟ್‌ಕಟ್‌ಗಳು',
   'about.body': 'Gitaverse ಗೀತಾಜ್ಯೋತಿಯ ಶ್ಲೋಕ ಮತ್ತು ಪಠಣ ಅನುಭವ—ಭಗವದ್ಗೀತೆಯನ್ನು ಆಲಿಸಲು, ಅಧ್ಯಯನ ಮಾಡಲು ಮತ್ತು ಅದರ ಸಮೀಪದಲ್ಲಿರಲು ಸರಳ ಸ್ಥಳ.',
   'about.version': 'ಆವೃತ್ತಿ',
   'about.history': 'ಆವೃತ್ತಿ ಇತಿಹಾಸ', 'about.back': '← Gitaverse ಕುರಿತುಗೆ ಹಿಂತಿರುಗಿ', 'about.historyLoading': 'ಆವೃತ್ತಿ ಇತಿಹಾಸ ಲೋಡ್ ಆಗುತ್ತಿದೆ…',
-  'about.currentBuild': 'ಪ್ರಸ್ತುತ Gitaverse ಬಿಲ್ಡ್', 'about.seen': 'ಈ ಸಾಧನದಲ್ಲಿ ಕಂಡದ್ದು', 'about.installed': 'ಈ ಸಾಧನದಲ್ಲಿ ಸ್ಥಾಪಿಸಿದ್ದು',
+  'about.currentBuild': 'ಪ್ರಸ್ತುತ Gitaverse ಬಿಲ್ಡ್', 'about.current': 'Current', 'about.releaseFallback': 'MyGita improvements and refinements', 'about.seen': 'ಈ ಸಾಧನದಲ್ಲಿ ಕಂಡದ್ದು', 'about.installed': 'ಈ ಸಾಧನದಲ್ಲಿ ಸ್ಥಾಪಿಸಿದ್ದು',
   'pwa.ready': 'Gitaverse ನ ಹೊಸ ಆವೃತ್ತಿ ಸಿದ್ಧವಾಗಿದೆ.', 'pwa.update': 'ಈಗ ನವೀಕರಿಸಿ',
   'audio.play': 'ಆಡಿಯೊ ಪ್ಲೇ ಮಾಡಿ', 'audio.pause': 'ಆಡಿಯೊ ವಿರಾಮಗೊಳಿಸಿ', 'audio.unavailable': 'ಆಡಿಯೊ ಲಭ್ಯವಿಲ್ಲ', 'audio.none': 'ಆಡಿಯೊ ಇಲ್ಲ',
   'audio.shortcut': 'P ಅಥವಾ Space',
   'audio.onlineError': 'ಆಡಿಯೊ ಈಗ ಲಭ್ಯವಿಲ್ಲ.', 'audio.offlineError': 'ಈ ಆಡಿಯೊ ಇನ್ನೂ ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ.',
   'help.previous': 'ಹಿಂದಿನ ಶ್ಲೋಕ', 'help.next': 'ಮುಂದಿನ ಶ್ಲೋಕ', 'help.goto': 'ಶ್ಲೋಕಕ್ಕೆ ಹೋಗಿ', 'help.collections': 'ಸಂಗ್ರಹಗಳನ್ನು ತೆರೆಯಿರಿ', 'help.chapters': 'ಅಧ್ಯಾಯಗಳನ್ನು ತೆರೆಯಿರಿ',
   'help.language': 'ವಿಷಯ ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ', 'help.home': 'ದಿಕ್ಸೂಚಿ / ಮುಖಪುಟಕ್ಕೆ ಹಿಂತಿರುಗಿ', 'help.journey': 'ನಿಮ್ಮ ಪಯಣವನ್ನು ತೆರೆಯಿರಿ', 'help.play': 'ಆಡಿಯೊ ಪ್ಲೇ ಅಥವಾ ವಿರಾಮ', 'help.fullscreen': 'ಪೂರ್ಣ ಪರದೆಗೆ ಹೋಗಿ ಅಥವಾ ಹೊರಬನ್ನಿ',
-  'help.help': 'ಈ ಸಹಾಯ ತೆರೆಯಿರಿ', 'help.about': 'Gitaverse ಕುರಿತು ತೆರೆಯಿರಿ', 'help.menu': 'ಮೆನು ತೆರೆಯಿರಿ ಅಥವಾ ಮುಚ್ಚಿ', 'help.edit': 'ಸಂಪಾದನೆಗೆ ಹೋಗಿ ಅಥವಾ ಹೊರಬನ್ನಿ', 'help.escape': 'ಸಂವಾದ ಮುಚ್ಚಿ ಅಥವಾ ಪೂರ್ಣ ಪರದೆಯಿಂದ ಹೊರಬನ್ನಿ',
+  'help.help': 'ಈ ಸಹಾಯ ತೆರೆಯಿರಿ', 'help.about': 'Gitaverse ಕುರಿತು ತೆರೆಯಿರಿ', 'help.menu': 'ಮೆನು ತೆರೆಯಿರಿ ಅಥವಾ ಮುಚ್ಚಿ', 'help.escape': 'ಸಂವಾದ ಮುಚ್ಚಿ ಅಥವಾ ಪೂರ್ಣ ಪರದೆಯಿಂದ ಹೊರಬನ್ನಿ',
   'help.questions': 'ಗೀತಾ ಸಾರ ಪ್ರಶ್ನೆಗಳನ್ನು ತೋರಿಸಿ ಅಥವಾ ಮರೆಮಾಡಿ',
   'data.title': 'ಗೀತಾ ಸಂಗ್ರಹಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ', 'data.description': 'Gitaverse ಭಾಷೆ ಮತ್ತು ಮಾಧ್ಯಮ ಸಂಗ್ರಹಗಳನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ. ಮುಂದುವರಿಸಲು ಸ್ಥಳೀಯ data/collections ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ.',
   'data.choose': 'ಸಂಗ್ರಹಗಳ ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ', 'data.retry': 'ಸ್ವಯಂಚಾಲಿತ ಲೋಡ್ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ', 'data.localNote': 'ಆಯ್ಕೆಮಾಡಿದ ಫೈಲ್‌ಗಳು ಈ ಬ್ರೌಸರ್ ಅವಧಿಯಲ್ಲೇ ಇರುತ್ತವೆ; ಅಪ್‌ಲೋಡ್ ಅಥವಾ ಬದಲಾವಣೆ ಆಗುವುದಿಲ್ಲ.',
   'collections.title': 'ಸ್ಥಳೀಯ ಸಂಗ್ರಹಗಳು', 'collections.message': 'Gitaverse ಅನ್ನು ಸ್ಥಳೀಯವಾಗಿ ಬಳಸಲು ಈ ರೆಪೊಸಿಟರಿಯ data/collections ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ.',
-  'collections.load': 'ಸಂಗ್ರಹಗಳನ್ನು ಲೋಡ್ ಮಾಡಿ', 'collections.readyTitle': 'ಸ್ಥಳೀಯ ಸಂಗ್ರಹಗಳು ಸಿದ್ಧವಾಗಿವೆ', 'collections.readyMessage': 'ಬಳಸಲಾಗುತ್ತಿದೆ: {name}', 'collections.change': 'ಸಂಗ್ರಹಗಳನ್ನು ಬದಲಿಸಿ', 'collections.invalid': 'ಆಯ್ಕೆಮಾಡಿದ ಸಂಗ್ರಹಗಳ ಫೋಲ್ಡರ್ ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
-  'workspace.title': 'ಸ್ಥಳೀಯ ಸಂಗ್ರಹಗಳನ್ನು ತೆರೆಯಿರಿ', 'workspace.open': 'ಸಂಗ್ರಹಗಳ ಫೋಲ್ಡರ್ ತೆರೆಯಿರಿ', 'workspace.downloadOnly': 'ಡೌನ್‌ಲೋಡ್ ಮೂಲಕ ಮಾತ್ರ ಸಂಪಾದಿಸಿ',
-  'workspace.note': 'ಫೋಲ್ಡರ್ ನಿಮ್ಮ ಸಾಧನದಲ್ಲೇ ಇರುತ್ತದೆ. ಆಯ್ಕೆಮಾಡಿದ ನಂತರ ಮಾತ್ರ Gitaverse ಓದು ಮತ್ತು ಬರವಣಿಗೆ ಅನುಮತಿ ಕೇಳುತ್ತದೆ.',
-  'workspace.unsupported': 'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಫೋಲ್ಡರ್‌ಗೆ ನೇರವಾಗಿ ಉಳಿಸುವುದು ಬೆಂಬಲಿತವಾಗಿಲ್ಲ. ಇತ್ತೀಚಿನ Chrome ಅಥವಾ Edge ಬಳಸಿ, ಅಥವಾ “ಡೌನ್‌ಲೋಡ್ ಮೂಲಕ ಮಾತ್ರ ಸಂಪಾದಿಸಿ” ಆಯ್ಕೆಮಾಡಿ.',
-  'workspace.opening': 'ಸಂಗ್ರಹಗಳ ಫೋಲ್ಡರ್ ತೆರೆಯಲಾಗುತ್ತಿದೆ ಮತ್ತು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…', 'workspace.permission': 'ಸಂಗ್ರಹಗಳ ಫೋಲ್ಡರ್‌ಗೆ ಓದು ಮತ್ತು ಬರವಣಿಗೆ ಅನುಮತಿ ನೀಡಲಾಗಿಲ್ಲ.',
-  'workspace.openFailed': 'ಆಯ್ಕೆಮಾಡಿದ ಸಂಗ್ರಹಗಳ ಫೋಲ್ಡರ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
+  'collections.load': 'ಸಂಗ್ರಹಗಳನ್ನು ಲೋಡ್ ಮಾಡಿ', 'collections.readyTitle': 'ಸ್ಥಳೀಯ ಸಂಗ್ರಹಗಳು ಸಿದ್ಧವಾಗಿವೆ', 'collections.readyMessage': 'ಬಳಸಲಾಗುತ್ತಿದೆ: {name}', 'collections.change': 'ಸಂಗ್ರಹಗಳನ್ನು ಬದಲಿಸಿ', 'collections.changeFolder': 'ಫೋಲ್ಡರ್ ಬದಲಿಸಿ', 'collections.reconnect': 'ನೆನಪಿಟ್ಟ ಮಾಧ್ಯಮದೊಂದಿಗೆ ಮುಂದುವರಿಸಿ', 'collections.forget': 'ಮರೆತುಬಿಡಿ', 'collections.rememberedTitle': 'ನೆನಪಿಟ್ಟ ಮಾಧ್ಯಮ', 'collections.rememberedMessage': 'ಮುಂದುವರಿಸಲು {name} ಅನ್ನು ಮರುಸಂಪರ್ಕಿಸಿ.', 'collections.permission': 'ನೆನಪಿಟ್ಟ ಮಾಧ್ಯಮ ಫೋಲ್ಡರ್ ಓದಲು ಅನುಮತಿ ನೀಡಲಾಗಿಲ್ಲ.', 'collections.invalid': 'ಆಯ್ಕೆಮಾಡಿದ ಸಂಗ್ರಹಗಳ ಫೋಲ್ಡರ್ ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.',
   'goto.note': '6.B, 6.7 ಅಥವಾ 6.E ನಂತಹ ಸ್ಥಿರ ಶ್ಲೋಕ ID ನಮೂದಿಸಿ.', 'goto.notFound': 'ಆ ಶ್ಲೋಕ ID ಕಂಡುಬಂದಿಲ್ಲ.',
-  'editor.editVisible': 'ಕಾಣುವ ಕ್ಷೇತ್ರಗಳನ್ನು ಸಂಪಾದಿಸಿ', 'editor.cancel': 'ರದ್ದುಮಾಡಿ', 'editor.save': 'ಸಾಲು ಉಳಿಸಿ', 'editor.unsaved': 'ಉಳಿಸದ ಬದಲಾವಣೆಗಳು', 'editor.removeHash': 'ಉಳಿಸುವ ಮೊದಲು # ತೆಗೆದುಹಾಕಿ',
-  'editor.noChanges': 'ಉಳಿಸಲು ಬದಲಾವಣೆಗಳಿಲ್ಲ', 'editor.savingFiles': 'ಸಂಗ್ರಹಗಳಿಗೆ ಉಳಿಸಲಾಗುತ್ತಿದೆ…', 'editor.savingBrowser': 'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಉಳಿಸಲಾಗುತ್ತಿದೆ…', 'editor.savedBrowser': 'ಈ ಬ್ರೌಸರ್ ಅವಧಿಯಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ', 'editor.savedFiles': '{files} ಗೆ ಉಳಿಸಲಾಗಿದೆ', 'editor.saveFailed': 'ಸ್ಥಳೀಯ ಸಂಗ್ರಹಗಳನ್ನು ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.', 'editor.downloaded': 'ಸಂಪಾದಿತ ಸಂಗ್ರಹ ಡೇಟಾ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ',
-  'editor.discard': 'ಈ ಶ್ಲೋಕದ ಉಳಿಸದ ಸಂಪಾದನೆಗಳನ್ನು ತ್ಯಜಿಸುವುದೇ?', 'editor.discardNavigate': 'ಈ ಶ್ಲೋಕದ ಉಳಿಸದ ಸಂಪಾದನೆಗಳನ್ನು ತ್ಯಜಿಸಿ ಮುಂದುವರಿಯುವುದೇ?',
-  'editor.download': '↓ ಸಂಪಾದಿತ ಸಂಗ್ರಹ ಫೈಲ್‌ಗಳನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ', 'editor.downloadAgain': '↓ ಮತ್ತೆ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ',
-  'editor.returnHome': 'ಬದಲಾವಣೆಗಳನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿಲ್ಲ. ಮುಖಪುಟಕ್ಕೆ ಹಿಂತಿರುಗುವುದೇ?', 'editor.dismissDownload': 'ಬದಲಾವಣೆಗಳನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿಲ್ಲ. ಈ ಜ್ಞಾಪನೆಯನ್ನು ಮುಚ್ಚುವುದೇ?',
   'fullscreen.enter': 'ಪೂರ್ಣ ಪರದೆಗೆ ಹೋಗಿ', 'fullscreen.exit': 'ಪೂರ್ಣ ಪರದೆಯಿಂದ ಹೊರಬನ್ನಿ',
   'validation.name': 'ಪ್ರೊಫೈಲ್ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.', 'validation.dob': 'ಮಾನ್ಯ ಜನ್ಮ ದಿನಾಂಕವನ್ನು ನಮೂದಿಸಿ.', 'validation.appLanguage': 'ಆ್ಯಪ್ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ.', 'validation.contentLanguage': 'ಆದ್ಯತೆಯ ಗೀತಾ ವಿಷಯ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ.', 'validation.profileSave': 'ಪ್ರೊಫೈಲ್ ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.'
 };
@@ -354,7 +332,8 @@ function validateVersionHistory(records) {
     if (!record || typeof record !== 'object' || Array.isArray(record)) throw new Error(`Version history record ${index + 1} is invalid.`);
     if (!/^\d+\.\d{2}[A-Z][a-z]{2}\d{4}-\d{6}$/.test(record.version || '')) throw new Error(`Version history record ${index + 1} has an invalid version.`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(record.date || '')) throw new Error(`Version history record ${index + 1} has an invalid date.`);
-    if (!String(record.message || '').trim()) throw new Error(`Version history record ${index + 1} has no change message.`);
+    if (!String(record.title || '').trim()) throw new Error(`Version history record ${index + 1} has no release title.`);
+    if (record.message != null && typeof record.message !== 'string') throw new Error(`Version history record ${index + 1} has an invalid release message.`);
     if (seen.has(record.version)) throw new Error(`Version history contains duplicate version ${record.version}.`);
     seen.add(record.version);
   });
@@ -380,7 +359,7 @@ function releaseOrder(record) {
   return Date.parse(`${record.date || '1970-01-01'}T00:00:00Z`) || 0;
 }
 
-function mergeVersionHistory(deployed = [], local = [], currentVersion = '', currentMessage = 'Current Gitaverse build') {
+function mergeVersionHistory(deployed = [], local = [], currentVersion = '', currentTitle = 'MyGita improvements and refinements') {
   const merged = new Map();
   deployed.forEach((record) => merged.set(record.version, { ...record }));
   local.forEach((record) => merged.set(record.version, { ...(merged.get(record.version) || {}), ...record }));
@@ -389,7 +368,9 @@ function mergeVersionHistory(deployed = [], local = [], currentVersion = '', cur
     merged.set(currentVersion, {
       version: currentVersion,
       date: current.date || new Date().toISOString().slice(0, 10),
-      message: current.message || currentMessage,
+      title: current.title || currentTitle,
+      message: current.message || '',
+      current: true,
       ...current
     });
   }
@@ -1656,7 +1637,7 @@ class AboutDialog {
       deployed,
       local,
       this.version,
-      this.translate('about.currentBuild', 'Current Gitaverse build')
+      this.translate('about.releaseFallback', 'MyGita improvements and refinements')
     ));
     requestAnimationFrame(() => this.overlay.querySelector('[data-version-history-back]')?.focus());
   }
@@ -1668,13 +1649,27 @@ class AboutDialog {
       const item = document.createElement('article');
       item.className = 'about-history-item';
       const title = document.createElement('h3');
-      title.textContent = record.version;
+      title.textContent = record.title || this.translate('about.releaseFallback', 'MyGita improvements and refinements');
+      const metadata = document.createElement('div');
+      metadata.className = 'about-history-metadata';
+      const version = document.createElement('span');
+      version.textContent = `${this.translate('about.version', 'Version')} ${record.version}`;
       const date = document.createElement('time');
       date.dateTime = record.date || '';
       date.textContent = record.date ? new Intl.DateTimeFormat(document.documentElement.lang === 'kn' ? 'kn-IN' : 'en-IN', { dateStyle: 'long' }).format(new Date(`${record.date}T00:00:00`)) : '';
-      const message = document.createElement('p');
-      message.textContent = record.message || this.translate('about.currentBuild', 'Current Gitaverse build');
-      item.append(title, date, message);
+      metadata.append(version, date);
+      if (record.current) {
+        const badge = document.createElement('span');
+        badge.className = 'about-history-current';
+        badge.textContent = this.translate('about.current', 'Current');
+        metadata.appendChild(badge);
+      }
+      item.append(title, metadata);
+      if (record.message) {
+        const message = document.createElement('p');
+        message.textContent = record.message;
+        item.appendChild(message);
+      }
       if (record.dateSeen) {
         const seen = document.createElement('small');
         seen.textContent = `${this.translate('about.seen', 'Seen on this device')}: ${new Date(record.dateSeen).toLocaleString()}`;
@@ -2032,6 +2027,73 @@ class DirectoryMediaSource extends LocalMediaSource {
   }
 }
 
+// Source: js/media-folder-store.js
+const MEDIA_FOLDER_DATABASE = 'mygita-local-media';
+const MEDIA_FOLDER_DATABASE_VERSION = 1;
+const MEDIA_FOLDER_STORE = 'folders';
+const ACTIVE_MEDIA_FOLDER = 'active-media-root';
+
+function requestResult(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Local media folder storage is unavailable.'));
+  });
+}
+
+class MediaFolderStore {
+  constructor({ indexedDBImpl = globalThis.indexedDB, databaseName = MEDIA_FOLDER_DATABASE } = {}) {
+    this.indexedDB = indexedDBImpl;
+    this.databaseName = databaseName;
+    this.database = null;
+  }
+
+  async open() {
+    if (this.database) return this.database;
+    if (!this.indexedDB) throw new Error('Local media folder storage is unavailable.');
+    const request = this.indexedDB.open(this.databaseName, MEDIA_FOLDER_DATABASE_VERSION);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(MEDIA_FOLDER_STORE)) request.result.createObjectStore(MEDIA_FOLDER_STORE, { keyPath: 'key' });
+    };
+    this.database = await requestResult(request);
+    return this.database;
+  }
+
+  async get() {
+    const database = await this.open();
+    return requestResult(database.transaction(MEDIA_FOLDER_STORE, 'readonly').objectStore(MEDIA_FOLDER_STORE).get(ACTIVE_MEDIA_FOLDER));
+  }
+
+  async remember(handle, selectedAt = new Date().toISOString()) {
+    if (!handle || handle.kind !== 'directory') throw new Error('A directory handle is required.');
+    const database = await this.open();
+    const transaction = database.transaction(MEDIA_FOLDER_STORE, 'readwrite');
+    transaction.objectStore(MEDIA_FOLDER_STORE).put({ key: ACTIVE_MEDIA_FOLDER, handle, label: handle.name || 'media', selectedAt });
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve({ handle, label: handle.name || 'media', selectedAt });
+      transaction.onerror = () => reject(transaction.error || new Error('The local media folder could not be remembered.'));
+      transaction.onabort = () => reject(transaction.error || new Error('The local media folder could not be remembered.'));
+    });
+  }
+
+  async forget() {
+    const database = await this.open();
+    const transaction = database.transaction(MEDIA_FOLDER_STORE, 'readwrite');
+    transaction.objectStore(MEDIA_FOLDER_STORE).delete(ACTIVE_MEDIA_FOLDER);
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error('The remembered media folder could not be removed.'));
+    });
+  }
+}
+
+async function directoryPermission(handle, { request = false } = {}) {
+  if (!handle || handle.kind !== 'directory') return 'denied';
+  const options = { mode: 'read' };
+  if (request && typeof handle.requestPermission === 'function') return handle.requestPermission(options);
+  if (typeof handle.queryPermission === 'function') return handle.queryPermission(options);
+  return request ? 'denied' : 'prompt';
+}
+
 // Source: js/player/collection-data.js
 let COLLECTION_ROOT = 'data/collections';
 let EXPERIENCE_ROOT = 'data/experiences';
@@ -2066,12 +2128,6 @@ const MASTER_HEADERS = {
 
 function decode(value) {
   return String(value ?? '').replace(/\\n/g, '\n');
-}
-
-function encode(value) {
-  const encoded = String(value ?? '').replace(/\r\n?/g, '\n').replace(/\n/g, '\\n');
-  if (encoded.includes('#')) throw new Error('The # character is not allowed in collection data.');
-  return encoded;
 }
 
 function parseCollectionTable(text, expectedHeaders, label = 'collection data') {
@@ -2974,193 +3030,6 @@ async function readCollectionTextFromDirectory(rootHandle, url) {
   return (await (await fileHandleAt(rootHandle, url)).getFile()).text();
 }
 
-async function hasDataMarker(handle) {
-  try {
-    const experiences = await handle.getDirectoryHandle('experiences');
-    await experiences.getFileHandle('collection.csv');
-    const collections = await handle.getDirectoryHandle('collections');
-    await collections.getDirectoryHandle('verses');
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-async function resolveDataDirectoryHandle(directoryHandle) {
-  if (!directoryHandle || directoryHandle.kind !== 'directory') throw new Error('Choose the distribution data folder.');
-  if (await hasDataMarker(directoryHandle)) return directoryHandle;
-  try {
-    const data = await directoryHandle.getDirectoryHandle('data');
-    if (await hasDataMarker(data)) return data;
-  } catch (_) {}
-  throw new Error('The selected folder does not contain distribution data. Choose the distribution root or its data folder.');
-}
-
-async function writableFileHandleAt(rootHandle, url) {
-  const parts = relativeDataPath(url).split('/').filter(Boolean);
-  const filename = parts.pop();
-  let directory = rootHandle;
-  for (const part of parts) directory = await directory.getDirectoryHandle(part, { create: true });
-  return directory.getFileHandle(filename, { create: true });
-}
-
-class WritableCollectionWorkspace {
-  constructor(rootHandle) {
-    this.rootHandle = rootHandle;
-    this.languageFiles = new Map();
-    this.baselines = new Map();
-    this.objectUrls = new Map();
-  }
-
-  async readFile(url) {
-    try {
-      return await (await fileHandleAt(this.rootHandle, url)).getFile();
-    } catch (error) {
-      throw new Error('The selected data folder is missing ' + relativeDataPath(url) + '.');
-    }
-  }
-
-  async readText(url) {
-    return (await this.readFile(url)).text();
-  }
-
-  async load(experienceId, { collectionId = '' } = {}) {
-    this.languageFiles.clear();
-    this.baselines.clear();
-    const dataset = await loadCollectionExperienceWithReader(experienceId, {
-      text: async (url) => {
-        const value = await this.readText(url);
-        this.baselines.set(url, value);
-        return value;
-      },
-      onLanguageFile: (language, url) => this.languageFiles.set(language, url),
-      collectionId,
-      resolveMediaUrl: (url) => {
-        const remote = remoteMediaUrl(url);
-        if (remote) return remote;
-        if (!this.objectUrls.has(url)) {
-          const promise = this.readFile(url).then((file) => URL.createObjectURL(file));
-          this.objectUrls.set(url, promise);
-        }
-        return this.objectUrls.get(url);
-      }
-    });
-    for (const [cid, iconUrl] of dataset.chapterIcons || []) {
-      if (iconUrl instanceof Promise) dataset.chapterIcons.set(cid, await iconUrl);
-    }
-    for (const row of dataset.rows) {
-      for (const field of ['primaryAudioUrl', 'chantFullSaUrl', 'chapterIconUrl']) {
-        if (row.media[field] instanceof Promise) row.media[field] = await row.media[field];
-      }
-      const resolveIllustration = async (illustration) => {
-        if (!illustration) return;
-        if (illustration.resolvedUrl instanceof Promise) illustration.resolvedUrl = await illustration.resolvedUrl;
-        if (illustration.imageUrl instanceof Promise) illustration.imageUrl = await illustration.imageUrl;
-        await resolveIllustration(illustration.fallback);
-      };
-      for (const illustration of row.media.illustrations || []) await resolveIllustration(illustration);
-      for (const item of row.media.items || []) {
-        if (item.resolvedUrl instanceof Promise) item.resolvedUrl = await item.resolvedUrl;
-        if (item.imageUrl instanceof Promise) item.imageUrl = await item.imageUrl;
-        await resolveIllustration(item.fallback);
-      }
-    }
-    return dataset;
-  }
-
-  async saveLanguageMasters(dataset, languages) {
-    const pending = [];
-    for (const language of [...new Set(languages)].sort()) {
-      const url = this.languageFiles.get(language);
-      if (!url) throw new Error('The workspace does not define master data for ' + language + '.');
-      const handle = await fileHandleAt(this.rootHandle, url);
-      const current = await (await handle.getFile()).text();
-      if (current !== this.baselines.get(url)) {
-        const error = new Error('The local ' + url.split('/').pop() + ' changed outside the app. Reload the collections folder before saving.');
-        error.code = 'WORKSPACE_CONFLICT';
-        throw error;
-      }
-      pending.push({ language, url, handle, content: serializeLanguageMaster(dataset, language) });
-    }
-    for (const entry of pending) {
-      const writable = await entry.handle.createWritable();
-      await writable.write(entry.content);
-      await writable.close();
-      const verified = await (await entry.handle.getFile()).text();
-      if (verified !== entry.content) throw new Error('Could not verify the saved ' + entry.url.split('/').pop() + '.');
-      this.baselines.set(entry.url, verified);
-    }
-    return pending.map((entry) => entry.url.split('/').pop());
-  }
-
-  async saveCollectionTables(entries) {
-    const pending = [];
-    for (const entry of entries) {
-      if (!entry?.url || !entry.table) throw new Error('Collection table save target is incomplete.');
-      const handle = await fileHandleAt(this.rootHandle, entry.url);
-      const current = await (await handle.getFile()).text();
-      if (current !== this.baselines.get(entry.url)) {
-        const error = new Error('The local ' + entry.url.split('/').pop() + ' changed outside the app. Reload the collections folder before saving.');
-        error.code = 'WORKSPACE_CONFLICT';
-        throw error;
-      }
-      pending.push({ ...entry, handle, content: serializeCollectionTable(entry.table) });
-    }
-    for (const entry of pending) {
-      const writable = await entry.handle.createWritable();
-      await writable.write(entry.content);
-      await writable.close();
-      const verified = await (await entry.handle.getFile()).text();
-      if (verified !== entry.content) throw new Error('Could not verify the saved ' + entry.url.split('/').pop() + '.');
-      this.baselines.set(entry.url, verified);
-    }
-    return pending.map((entry) => entry.url.split('/').pop());
-  }
-
-  async saveAssets(entries) {
-    const saved = [];
-    for (const entry of entries) {
-      if (!entry?.url || !entry.file) throw new Error('Media asset save target is incomplete.');
-      const handle = await writableFileHandleAt(this.rootHandle, entry.url);
-      const writable = await handle.createWritable();
-      await writable.write(entry.file);
-      await writable.close();
-      const verified = await handle.getFile();
-      if (verified.size !== entry.file.size) throw new Error('Could not verify the saved ' + entry.url.split('/').pop() + '.');
-      saved.push(entry.url.split('/').pop());
-    }
-    return saved;
-  }
-}
-
-async function openWritableCollectionWorkspace(experienceId, directoryHandle, { collectionId = '' } = {}) {
-  const dataHandle = await resolveDataDirectoryHandle(directoryHandle);
-  const workspace = new WritableCollectionWorkspace(dataHandle);
-  const dataset = await workspace.load(experienceId, { collectionId });
-  return { dataset, workspace };
-}
-
-function serializeLanguageMaster(dataset, language) {
-  const headers = MASTER_HEADERS[language];
-  if (!headers) throw new Error('Unsupported language master: ' + language + '.');
-  const rows = dataset.rows.map((row) => {
-    if (language === 'sa') {
-      return [row.cid, row.snum, row.sid, row.source.chapterName, row.source.shlokaRaw, row.source.shloka, row.source.wordByWord, row.source.meaning, row.source.wordByWordMeaning];
-    }
-    const content = row.languages[language];
-    return [row.cid, row.snum, row.sid, content.chapterName, content.transliteration, content.meaning, content.wordByWordMeaning];
-  });
-  return [headers, ...rows].map((row) => row.map(encode).join('#')).join('\n') + '\n';
-}
-
-function serializeCollectionTable(table) {
-  if (!table?.headers?.length || !Array.isArray(table.rows)) throw new Error('Collection table cannot be serialized.');
-  return [
-    table.headers,
-    ...table.rows.map((row) => table.headers.map((header) => row[header] ?? ''))
-  ].map((row) => row.map(encode).join('#')).join('\n') + '\n';
-}
-
 // Source: js/media-experience-adapter.js
 function createMediaResourceReader({ mediaSource, productText }) {
   return async (path) => {
@@ -3307,8 +3176,6 @@ class CollectionSource {
     this.clear({ releaseMedia: true });
     this.mediaSource = source;
   }
-
-  workspaceFor() { return null; }
 
   async productText(url) {
     if (this.productTextReader) return this.productTextReader(url);
@@ -3652,7 +3519,6 @@ const PANELS = [
 
 function createGita700Renderer() {
   let root;
-  let editing = false;
 
   function fieldFor(role, language) {
     if (role === 'shloka') return 'source.shloka';
@@ -3684,33 +3550,8 @@ function createGita700Renderer() {
       element.lang = panel.role === 'shloka' ? 'sa' : language;
       element.textContent = text || '—';
       element.classList.toggle('empty', !text);
-      if (editing) makeEditable(element);
     });
-    if (!editing) requestAnimationFrame(fitText);
-  }
-
-  function makeEditable(element) {
-    element.contentEditable = 'true';
-    element.spellcheck = false;
-    element.dataset.editField = element.dataset.field;
-    element.classList.remove('empty');
-    if (element.textContent === '—') element.textContent = '';
-  }
-
-  function setEditing(enabled) {
-    editing = enabled;
-    root.querySelectorAll('[data-role]').forEach((element) => {
-      if (enabled) makeEditable(element);
-      else {
-        element.contentEditable = 'false';
-        delete element.dataset.editField;
-      }
-    });
-    if (!enabled) requestAnimationFrame(fitText);
-  }
-
-  function editableElements() {
-    return Array.from(root.querySelectorAll('[data-edit-field]'));
+    requestAnimationFrame(fitText);
   }
 
   function fitElement(panel, text, maxSize, minSize) {
@@ -3732,7 +3573,7 @@ function createGita700Renderer() {
   }
 
   function fitText() {
-    if (editing || !root) return;
+    if (!root) return;
     const mobile = matchMedia('(max-width: 760px)').matches;
     PANELS.forEach((panel) => {
       fitElement(
@@ -3748,8 +3589,6 @@ function createGita700Renderer() {
     id: 'gita-700',
     mount,
     render,
-    setEditing,
-    editableElements,
     fitText,
     destroy() { if (root) root.textContent = ''; root = null; }
   };
@@ -3773,7 +3612,6 @@ function fieldValue(row, field) {
 
 function createGitaYogaRenderer() {
   let root;
-  let editing = false;
 
   function mount(container) {
     root = container;
@@ -3793,14 +3631,6 @@ function createGitaYogaRenderer() {
     '</div>';
   }
 
-  function makeEditable(element) {
-    element.contentEditable = 'true';
-    element.spellcheck = false;
-    element.dataset.editField = element.dataset.field;
-    element.classList.remove('empty');
-    if (element.textContent === '—') element.textContent = '';
-  }
-
   function render(row, contentLanguage) {
     FIELDS.forEach(({ role, field, language }) => {
       const element = root.querySelector('[data-role="' + role + '"]');
@@ -3809,27 +3639,10 @@ function createGitaYogaRenderer() {
       element.lang = language;
       element.textContent = text || '—';
       element.classList.toggle('empty', !text);
-      if (editing) makeEditable(element);
     });
     const primary = contentLanguage === 'kn' ? 'kn' : 'en';
     root.dataset.primaryLanguage = primary;
-    if (!editing) requestAnimationFrame(fitText);
-  }
-
-  function setEditing(enabled) {
-    editing = enabled;
-    root.querySelectorAll('[data-role]').forEach((element) => {
-      if (enabled) makeEditable(element);
-      else {
-        element.contentEditable = 'false';
-        delete element.dataset.editField;
-      }
-    });
-    if (!enabled) requestAnimationFrame(fitText);
-  }
-
-  function editableElements() {
-    return Array.from(root.querySelectorAll('[data-edit-field]'));
+    requestAnimationFrame(fitText);
   }
 
   function fitGroup(specifications) {
@@ -3860,7 +3673,7 @@ function createGitaYogaRenderer() {
   }
 
   function fitText() {
-    if (editing || !root) return;
+    if (!root) return;
     const allText = root.querySelectorAll('[data-role]');
     allText.forEach((element) => { element.style.fontSize = ''; });
     if (matchMedia('(max-width: 760px)').matches || globalThis.document?.documentElement.classList.contains('mobile-layout')) return;
@@ -3880,8 +3693,6 @@ function createGitaYogaRenderer() {
     id: 'gita-yoga',
     mount,
     render,
-    setEditing,
-    editableElements,
     fitText,
     destroy() {
       if (root) {
@@ -3905,17 +3716,7 @@ function fieldValue(row, field) { return field.split('.').reduce((value, part) =
 
 function createGitaSaraRenderer({ translate = (_key, fallback) => fallback, gitaSaraView = 'three_panel', onGitaSaraViewChange = () => {} } = {}) {
   let root;
-  let editing = false;
   let renderedSid = '';
-  let renderedRow = null;
-  let mediaDraft = [];
-  let questionDraft = [];
-  let draftBaseline = '';
-  let fallbackMedia = null;
-  let fallbackQuestion = null;
-  let editingLanguage = 'en';
-  let activeMediaIndex = 0;
-  let activeQuestionIndex = 0;
   let questionsVisible = gitaSaraView !== 'two_panel';
   const mediaPlayer = createMediaPlayer({ translate });
   const textPlayer = createTextPlayer({ translate });
@@ -3936,25 +3737,16 @@ function createGitaSaraRenderer({ translate = (_key, fallback) => fallback, gita
           <p class="gita-sara-media-caption" data-role="media-caption" hidden></p>
           <button class="gita-sara-corner-nav previous" type="button" data-media-action="previous" aria-label="${translate('gitaSara.previousMedia', 'Previous illustration')}">‹</button>
           <button class="gita-sara-corner-nav next" type="button" data-media-action="next" aria-label="${translate('gitaSara.nextMedia', 'Next illustration')}">›</button>
-          <div class="gita-sara-collection-editor" data-role="media-editor" hidden></div>
         </section>
         <section class="gita-sara-panel gita-sara-question-panel" data-sara-panel="questions" aria-label="${translate('gitaSara.questions', 'Contemplation questions')}">
           <button class="gita-sara-question-toggle" type="button" data-text-action="toggle-all" aria-label="${translate('gitaSara.showAllQuestions', 'Show all questions')}" aria-pressed="false">✦</button>
           <div class="gita-sara-question-stage" data-role="question-stage"></div>
           <button class="gita-sara-corner-nav previous" type="button" data-text-action="previous" aria-label="${translate('gitaSara.previousQuestion', 'Previous question')}">‹</button>
           <button class="gita-sara-corner-nav next" type="button" data-text-action="next" aria-label="${translate('gitaSara.nextQuestion', 'Next question')}">›</button>
-          <div class="gita-sara-collection-editor" data-role="question-editor" hidden></div>
         </section>
       </div>`;
     mediaPlayer.mount(root.querySelector('[data-sara-panel="media"]'));
     textPlayer.mount(root.querySelector('[data-sara-panel="questions"]'));
-    const mediaEditor = root.querySelector('[data-role="media-editor"]');
-    const questionEditor = root.querySelector('[data-role="question-editor"]');
-    mediaEditor.addEventListener('click', handleMediaAction);
-    questionEditor.addEventListener('click', handleQuestionAction);
-    mediaEditor.addEventListener('input', (event) => { updateMediaPreview(event); markDirty(mediaEditor); });
-    questionEditor.addEventListener('input', () => markDirty(questionEditor));
-    mediaEditor.addEventListener('change', handleMediaFile);
     applyQuestionView();
   }
 
@@ -3963,11 +3755,11 @@ function createGitaSaraRenderer({ translate = (_key, fallback) => fallback, gita
     const questionPanel = root.querySelector('[data-sara-panel="questions"]');
     root.classList.toggle('gita-sara-questions-hidden', !questionsVisible);
     questionPanel.hidden = !questionsVisible;
-    if (!editing) requestAnimationFrame(fitText);
+    requestAnimationFrame(fitText);
   }
 
   async function toggleQuestions() {
-    if (editing || !root) return false;
+    if (!root) return false;
     const nextVisible = !questionsVisible;
     await onGitaSaraViewChange(nextVisible ? 'three_panel' : 'two_panel');
     questionsVisible = nextVisible;
@@ -3975,300 +3767,22 @@ function createGitaSaraRenderer({ translate = (_key, fallback) => fallback, gita
     return true;
   }
 
-  const clean = (value) => String(value ?? '').replace(/\r/g, '');
-  const html = (value) => clean(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-  function markDirty(container) {
-    const field = root.querySelector('[data-edit-field]') || container.querySelector('input, textarea, select');
-    if (field) field.dispatchEvent(new Event('input'));
-  }
-  function readMediaDraft() {
-    return Array.from(root.querySelectorAll('[data-media-edit-row]')).map((entry, index) => {
-      const current = { ...(mediaDraft[index] || {}), order: index + 1 };
-      const type = entry.querySelector('[data-media-field="type"]');
-      if (!type) return current;
-      return {
-        ...current, mediaType: type.value,
-        url: clean(entry.querySelector('[data-media-field="url"]').value),
-        title: clean(entry.querySelector('[data-media-field="title"]').value),
-        [editingLanguage === 'kn' ? 'altKn' : 'altEn']: clean(entry.querySelector('[data-media-field="alt"]').value),
-        [editingLanguage === 'kn' ? 'captionKn' : 'captionEn']: clean(entry.querySelector('[data-media-field="caption"]').value)
-      };
-    });
-  }
-  function readQuestionDraft() {
-    return Array.from(root.querySelectorAll('[data-question-edit-row]')).map((entry, index) => {
-      const current = { ...(questionDraft[index] || {}), order: index + 1 };
-      const text = entry.querySelector('[data-question-field="text"]');
-      return text ? { ...current, [editingLanguage]: clean(text.value) } : current;
-    });
-  }
-  function paintMediaEditor() {
-    const editor = root.querySelector('[data-role="media-editor"]');
-    editor.innerHTML = mediaDraft.map((item, index) => `<fieldset data-media-edit-row data-editor-card="${index}" class="${index === activeMediaIndex ? 'is-active' : ''}">
-      <legend>${index + 1} / ${mediaDraft.length}</legend>
-      <div class="gita-sara-edit-preview">${item.mediaType === 'google_deck'
-        ? `<iframe src="${html(item.previewUrl || (() => { try { return normalizeGoogleDeckUrl(item.url); } catch { return ''; } })())}" title="${html(item.title)}"></iframe>`
-        : `<img src="${html(item.previewUrl || item.url)}" alt="${html(editingLanguage === 'kn' ? item.altKn : item.altEn)}">`}</div>
-      ${index === activeMediaIndex ? `<div class="gita-sara-card-actions"><button type="button" data-media-edit-action="up" aria-label="Move earlier">↑</button><button type="button" data-media-edit-action="down" aria-label="Move later">↓</button><button type="button" data-media-edit-action="remove">${translate('common.remove', 'Remove')}</button></div>
-      <select data-media-field="type" aria-label="${translate('gitaSara.mediaType', 'Media type')}">
-        <option value="image"${item.mediaType === 'image' ? ' selected' : ''}>${translate('gitaSara.image', 'Image')}</option>
-        <option value="animated_image"${item.mediaType === 'animated_image' ? ' selected' : ''}>${translate('gitaSara.animatedImage', 'Animated image')}</option>
-        <option value="google_deck"${item.mediaType === 'google_deck' ? ' selected' : ''}>${translate('gitaSara.googleDeck', 'Google Deck')}</option>
-      </select>
-      <input data-media-field="url" value="${html(item.url)}" placeholder="${translate('gitaSara.mediaUrl', 'Relative or HTTPS URL')}">
-      <input data-media-field="title" value="${html(item.title)}" placeholder="${translate('gitaSara.title', 'Title')}">
-      <input data-media-field="alt" lang="${editingLanguage}" value="${html(editingLanguage === 'kn' ? item.altKn : item.altEn)}" placeholder="${editingLanguage === 'kn' ? 'ಕನ್ನಡ ಪರ್ಯಾಯ ಪಠ್ಯ' : 'English alt text'}">
-      <input data-media-field="caption" lang="${editingLanguage}" value="${html(editingLanguage === 'kn' ? item.captionKn : item.captionEn)}" placeholder="${editingLanguage === 'kn' ? 'ಕನ್ನಡ ಶೀರ್ಷಿಕೆ' : 'English caption'}">
-      ${(item.mediaType === 'image' || item.mediaType === 'animated_image') ? `<input type="file" data-media-file accept="${item.mediaType === 'animated_image' ? 'image/gif' : 'image/webp'}" aria-label="${translate('gitaSara.chooseFile', 'Choose local media file')}">` : ''}
-      ` : ''}
-    </fieldset>`).join('') + `<button class="gita-sara-add-row" type="button" data-media-edit-action="add">＋ ${translate('gitaSara.addMedia', 'Add media')}</button>`;
-  }
-  function handleMediaFile(event) {
-    const input = event.target.closest('[data-media-file]');
-    if (!input?.files?.[0]) return;
-    mediaDraft = readMediaDraft();
-    const row = input.closest('[data-media-edit-row]');
-    const index = Array.from(row.parentNode.querySelectorAll('[data-media-edit-row]')).indexOf(row);
-    const file = input.files[0];
-    const expected = mediaDraft[index].mediaType === 'animated_image' ? 'image/gif' : 'image/webp';
-    if (file.type !== expected) { input.value = ''; window.alert(translate('gitaSara.fileType', 'Choose a WebP image or GIF matching the selected media type.')); return; }
-    const extension = expected === 'image/gif' ? 'gif' : 'webp';
-    if (mediaDraft[index].previewUrl?.startsWith('blob:')) URL.revokeObjectURL(mediaDraft[index].previewUrl);
-    mediaDraft[index].file = file;
-    mediaDraft[index].url = `data/collections/images/gita-sara-illustrations/${renderedRow.sid}-${index + 1}.${extension}`;
-    mediaDraft[index].previewUrl = URL.createObjectURL(file);
-    paintMediaEditor(); markDirty(root.querySelector('[data-role="media-editor"]'));
-  }
-  function updateMediaPreview(event) {
-    const row = event.target.closest('[data-media-edit-row]');
-    if (!row) return;
-    const type = row.querySelector('[data-media-field="type"]').value;
-    const url = row.querySelector('[data-media-field="url"]').value;
-    const preview = row.querySelector('.gita-sara-edit-preview');
-    if (!preview || event.target.matches('[data-media-file]')) return;
-    if (event.target.matches('[data-media-field="type"]')) { mediaDraft = readMediaDraft(); paintMediaEditor(); return; }
-    if (type === 'google_deck') {
-      const frame = preview.querySelector('iframe');
-      if (frame && event.target.matches('[data-media-field="url"]')) { try { frame.src = normalizeGoogleDeckUrl(url); } catch { frame.removeAttribute('src'); } }
-    } else {
-      const image = preview.querySelector('img');
-      if (image && event.target.matches('[data-media-field="url"]')) image.src = url;
-      if (image && event.target.matches('[data-media-field="alt"]')) image.alt = event.target.value;
-    }
-  }
-  function paintQuestionEditor() {
-    const editor = root.querySelector('[data-role="question-editor"]');
-    editor.innerHTML = questionDraft.map((item, index) => `<fieldset data-question-edit-row data-editor-card="${index}" class="${index === activeQuestionIndex ? 'is-active' : ''}">
-      <legend>${index + 1} / ${questionDraft.length}</legend>
-      <p class="gita-sara-question-preview" lang="${editingLanguage}">${html(item[editingLanguage]) || '—'}</p>
-      ${index === activeQuestionIndex ? `<div class="gita-sara-card-actions"><button type="button" data-question-edit-action="up" aria-label="Move earlier">↑</button><button type="button" data-question-edit-action="down" aria-label="Move later">↓</button><button type="button" data-question-edit-action="remove">${translate('common.remove', 'Remove')}</button></div>
-      <textarea data-question-field="text" lang="${editingLanguage}" placeholder="${editingLanguage === 'kn' ? 'ಕನ್ನಡ' : 'English'}">${html(item[editingLanguage])}</textarea>` : ''}
-    </fieldset>`).join('') + `<button class="gita-sara-add-row" type="button" data-question-edit-action="add">＋ ${translate('gitaSara.addQuestion', 'Add question')}</button>`;
-  }
-  function handleMediaAction(event) {
-    const action = event.target.closest('[data-media-edit-action]')?.dataset.mediaEditAction;
-    mediaDraft = readMediaDraft();
-    const row = event.target.closest('[data-media-edit-row]');
-    const index = row ? Array.from(row.parentNode.querySelectorAll('[data-media-edit-row]')).indexOf(row) : -1;
-    if (!action && index >= 0) { if (activeMediaIndex !== index) { activeMediaIndex = index; paintMediaEditor(); } return; }
-    if (!action) return;
-    if (action === 'add') { mediaDraft.push({ mediaType: 'image', url: `data/collections/images/gita-sara-illustrations/${renderedRow.sid}-${mediaDraft.length + 1}.webp`, title: '', altEn: '', altKn: '', captionEn: '', captionKn: '' }); activeMediaIndex = mediaDraft.length - 1; }
-    if (action === 'remove' && index >= 0) { mediaDraft.splice(index, 1); activeMediaIndex = Math.min(index, mediaDraft.length - 1); }
-    if (action === 'up' && index > 0) { [mediaDraft[index - 1], mediaDraft[index]] = [mediaDraft[index], mediaDraft[index - 1]]; activeMediaIndex = index - 1; }
-    if (action === 'down' && index >= 0 && index < mediaDraft.length - 1) { [mediaDraft[index + 1], mediaDraft[index]] = [mediaDraft[index], mediaDraft[index + 1]]; activeMediaIndex = index + 1; }
-    paintMediaEditor(); markDirty(root.querySelector('[data-role="media-editor"]'));
-  }
-  function handleQuestionAction(event) {
-    const action = event.target.closest('[data-question-edit-action]')?.dataset.questionEditAction;
-    questionDraft = readQuestionDraft();
-    const row = event.target.closest('[data-question-edit-row]');
-    const index = row ? Array.from(row.parentNode.querySelectorAll('[data-question-edit-row]')).indexOf(row) : -1;
-    if (!action && index >= 0) { if (activeQuestionIndex !== index) { activeQuestionIndex = index; paintQuestionEditor(); } return; }
-    if (!action) return;
-    if (action === 'add') { questionDraft.push({ en: '', kn: '' }); activeQuestionIndex = questionDraft.length - 1; }
-    if (action === 'remove' && index >= 0) { questionDraft.splice(index, 1); activeQuestionIndex = Math.min(index, questionDraft.length - 1); }
-    if (action === 'up' && index > 0) { [questionDraft[index - 1], questionDraft[index]] = [questionDraft[index], questionDraft[index - 1]]; activeQuestionIndex = index - 1; }
-    if (action === 'down' && index >= 0 && index < questionDraft.length - 1) { [questionDraft[index + 1], questionDraft[index]] = [questionDraft[index], questionDraft[index + 1]]; activeQuestionIndex = index + 1; }
-    paintQuestionEditor(); markDirty(root.querySelector('[data-role="question-editor"]'));
-  }
-
-  function prepareDrafts(row) {
-    fallbackMedia = (row.media?.items || []).find((item) => item.isFallback) || (row.media?.items || []).find((item) => item.fallback)?.fallback || null;
-    fallbackQuestion = row.contemplation?.fallback || (row.contemplation?.lines || []).find((item) => item.isFallback) || null;
-    mediaDraft = (row.media?.items || []).filter((item) => !item.isFallback && !item.reserved).map((item) => ({
-      original: item, mediaType: item.mediaType, url: item.sourceUrl || '', title: item.title || '',
-      altEn: item.localized?.en?.altText || '', altKn: item.localized?.kn?.altText || '',
-      captionEn: item.localized?.en?.caption || '', captionKn: item.localized?.kn?.caption || ''
-    }));
-    questionDraft = (row.contemplation?.lines || []).filter((item) => !item.isFallback).map((item) => ({ original: item, en: item.localized.en, kn: item.localized.kn }));
-    activeMediaIndex = Math.max(0, Math.min(activeMediaIndex, mediaDraft.length - 1));
-    activeQuestionIndex = Math.max(0, Math.min(activeQuestionIndex, questionDraft.length - 1));
-    draftBaseline = JSON.stringify({ media: mediaDraft.map(({ original, ...item }) => item), questions: questionDraft.map(({ original, ...item }) => item) });
-    paintMediaEditor(); paintQuestionEditor();
-  }
-
-  function makeEditable(element) {
-    element.contentEditable = 'true'; element.spellcheck = false; element.dataset.editField = element.dataset.field;
-    element.classList.remove('empty'); if (element.textContent === '—') element.textContent = '';
-  }
-
   function render(row, contentLanguage) {
     const reset = renderedSid !== row.sid;
-    if (reset) { activeMediaIndex = 0; activeQuestionIndex = 0; }
     renderedSid = row.sid;
-    renderedRow = row;
     const language = contentLanguage === 'kn' ? 'kn' : 'en';
-    editingLanguage = language;
     TEXT_FIELDS.forEach((specification) => {
       const field = specification.field(language);
       const element = root.querySelector(`[data-role="${specification.role}"]`);
       const text = fieldValue(row, field);
       element.dataset.field = field; element.lang = specification.language(language); element.textContent = text || '—';
-      element.classList.toggle('empty', !text); if (editing) makeEditable(element);
+      element.classList.toggle('empty', !text);
     });
     mediaPlayer.render(row.media?.items || [], language, reset);
     textPlayer.render(row.contemplation?.lines || [], language, reset);
-    if (reset || editing) prepareDrafts(row);
-    if (!editing) requestAnimationFrame(fitText);
+    requestAnimationFrame(fitText);
   }
 
-  function setEditing(enabled) {
-    editing = enabled;
-    root.querySelectorAll('[data-field]').forEach((element) => {
-      if (enabled) makeEditable(element); else { element.contentEditable = 'false'; delete element.dataset.editField; }
-    });
-    root.querySelectorAll('.gita-sara-collection-editor').forEach((element) => { element.hidden = !enabled; });
-    root.querySelectorAll('.gita-sara-media-stage, .gita-sara-media-caption, [data-media-action], .gita-sara-question-stage, [data-text-action]').forEach((element) => { element.hidden = enabled; });
-    if (enabled && renderedRow) prepareDrafts(renderedRow);
-    if (!enabled) applyQuestionView();
-  }
-
-  function editableElements() { return Array.from(root.querySelectorAll('[data-edit-field]')); }
-  function additionalEditableElements() { return Array.from(root.querySelectorAll('.gita-sara-collection-editor input, .gita-sara-collection-editor textarea, .gita-sara-collection-editor select')); }
-  const nextOrder = (rows, sid) => Math.max(0, ...rows.filter((entry) => entry.sid === sid).map((entry) => Number(entry.order) || 0)) + 1;
-  function replaceSidRows(table, sid, replacements, changes) {
-    const previous = table.rows;
-    const first = previous.findIndex((entry) => entry.sid === sid);
-    const retained = previous.filter((entry) => entry.sid !== sid);
-    const sequenceIndex = renderedRow?.authoring?.sequenceIndexBySid || new Map();
-    const targetIndex = sequenceIndex.get(sid) ?? Number.MAX_SAFE_INTEGER;
-    const later = retained.findIndex((entry) => (sequenceIndex.get(entry.sid) ?? Number.MAX_SAFE_INTEGER) > targetIndex);
-    const at = first >= 0 ? first : (later >= 0 ? later : retained.length);
-    const value = [...retained.slice(0, at), ...replacements, ...retained.slice(at)];
-    changes.push({ target: table, property: 'rows', previous, value }); table.rows = value;
-  }
-  function collectAdditionalEdits() {
-    if (!renderedRow) return { changes: [], files: [] };
-    const authoring = renderedRow.authoring;
-    const nextMedia = readMediaDraft();
-    const nextQuestions = readQuestionDraft();
-    if (nextMedia.some((item) => !item.url)) throw new Error(translate('gitaSara.mediaRequired', 'Every media item needs a URL.'));
-    if (nextMedia.some((item) => item.mediaType !== 'google_deck' && !/^https:\/\//i.test(item.url) && !item.file && item.url !== item.original?.sourceUrl)) {
-      throw new Error(translate('gitaSara.localFileRequired', 'Choose a local WebP or GIF file before saving a new local illustration.'));
-    }
-    const nextShape = JSON.stringify({ media: nextMedia.map(({ original, ...item }) => item), questions: nextQuestions.map(({ original, ...item }) => item) });
-    if (draftBaseline === nextShape) return { changes: [], files: [] };
-    const changes = []; const files = []; const assets = []; const addFile = (url, table) => { if (url && !files.some((entry) => entry.url === url)) files.push({ url, table }); };
-    const imageBundle = authoring.illustrationCatalogs.get('gita-sara-illustrations');
-    const deckBundle = authoring.deckCatalogs.get('gita-sara-google-decks');
-    const textBundle = authoring.contemplationCatalogs.get('gita-sara-contemplations');
-    const snapped = new Set();
-    const snapshot = (table) => {
-      if (!table || snapped.has(table)) return;
-      snapped.add(table);
-      changes.push({ target: table, property: 'rows', previous: table.rows.map((row) => ({ ...row })) });
-    };
-    snapshot(imageBundle?.catalog); snapshot(deckBundle?.table);
-    snapshot(imageBundle?.localized.en); snapshot(imageBundle?.localized.kn);
-    snapshot(textBundle?.catalog); snapshot(textBundle?.localized.en); snapshot(textBundle?.localized.kn);
-    const mediaRows = []; const illustrationRows = []; const deckRows = [];
-    const newItems = nextMedia.map((item, index) => {
-      const isDeck = item.mediaType === 'google_deck';
-      const bundle = isDeck ? deckBundle : imageBundle;
-      if (!bundle) throw new Error('The editable media collection is unavailable.');
-      const catalog = bundle.table || bundle.catalog;
-      const order = item.original?.assetOrder || nextOrder(catalog.rows, renderedRow.sid);
-      let catalogRow = item.original?.authoring?.catalogRow;
-      if (!catalogRow || item.original.collectionId !== (isDeck ? 'gita-sara-google-decks' : 'gita-sara-illustrations')) catalogRow = isDeck
-        ? { sid: renderedRow.sid, order: String(order), language: '', deck_url: '', title: '' }
-        : { sid: renderedRow.sid, order: String(order), image_url: '' };
-      if (!catalog.rows.includes(catalogRow)) catalog.rows.push(catalogRow);
-      if (isDeck) { catalogRow.deck_url = item.url; catalogRow.title = item.title; }
-      else catalogRow.image_url = item.url;
-      addFile(bundle.url || bundle.catalogUrl, catalog);
-      const localizedRows = {};
-      if (!isDeck) {
-        for (const language of ['en', 'kn']) {
-          const table = imageBundle.localized[language];
-          let metadata = item.original?.authoring?.localizedRows?.[language];
-          if (!metadata) { metadata = { sid: renderedRow.sid, order: String(order), alt_text: '', caption: '' }; table.rows.push(metadata); }
-          if (language === editingLanguage) {
-            metadata.alt_text = language === 'en' ? item.altEn : item.altKn;
-            metadata.caption = language === 'en' ? item.captionEn : item.captionKn;
-          }
-          localizedRows[language] = metadata;
-          addFile(imageBundle.localizedUrls[language], table);
-        }
-      }
-      const collectionId = isDeck ? 'gita-sara-google-decks' : 'gita-sara-illustrations';
-      if (item.file) assets.push({ url: item.url, file: item.file });
-      if (isDeck) {
-        deckRows.push({ cid: renderedRow.cid, snum: renderedRow.snum, sid: renderedRow.sid, order: String(deckRows.length + 1), deck_collection: collectionId, deck_order: String(order) });
-      } else {
-        illustrationRows.push({ cid: renderedRow.cid, snum: renderedRow.snum, sid: renderedRow.sid, order: String(illustrationRows.length + 1), image_collection: collectionId, image_order: String(order) });
-      }
-      mediaRows.push({ cid: renderedRow.cid, snum: renderedRow.snum, sid: renderedRow.sid, order: String(index + 1), media_type: item.mediaType, collection: collectionId, asset_order: String(order) });
-      let resolvedUrl = item.url;
-      const unchangedSource = item.original?.sourceUrl === item.url;
-      try {
-        resolvedUrl = isDeck
-          ? normalizeGoogleDeckUrl(item.url)
-          : item.previewUrl || (unchangedSource ? (item.original.resolvedUrl || item.original.imageUrl) : '') || normalizeImageUrl(item.url).resolvedUrl;
-      } catch { resolvedUrl = item.previewUrl || item.url; }
-      return {
-        mediaType: item.mediaType, order: index + 1, collectionId, assetSid: renderedRow.sid, assetOrder: String(order),
-        sourceUrl: item.url, resolvedUrl, imageUrl: resolvedUrl, title: item.title,
-        localized: { en: { altText: item.altEn, caption: item.captionEn }, kn: { altText: item.altKn, caption: item.captionKn } },
-        isExternal: /^https:/i.test(item.url), isFallback: false,
-        fallback: isDeck ? null : (item.original?.fallback || fallbackMedia || null),
-        authoring: isDeck
-          ? { catalogRow, catalog, catalogUrl: bundle.url || bundle.catalogUrl || '' }
-          : { catalogRow, catalog, catalogUrl: bundle.url || bundle.catalogUrl || '', localizedRows, localizedTables: imageBundle.localized, localizedUrls: imageBundle.localizedUrls },
-        compositionRow: mediaRows.at(-1)
-      };
-    });
-    replaceSidRows(authoring.illustrationComposition.table, renderedRow.sid, illustrationRows, changes); addFile(authoring.illustrationComposition.url, authoring.illustrationComposition.table);
-    replaceSidRows(authoring.deckComposition.table, renderedRow.sid, deckRows, changes); addFile(authoring.deckComposition.url, authoring.deckComposition.table);
-    replaceSidRows(authoring.mediaComposition.table, renderedRow.sid, mediaRows, changes); addFile(authoring.mediaComposition.url, authoring.mediaComposition.table);
-    const questionRows = []; const newLines = nextQuestions.map((item, index) => {
-      const order = item.original?.assetOrder || nextOrder(textBundle.catalog.rows, renderedRow.sid);
-      let catalogRow = item.original?.authoring?.catalogRow;
-      if (!catalogRow) { catalogRow = { sid: renderedRow.sid, order: String(order), line_type: 'question' }; textBundle.catalog.rows.push(catalogRow); }
-      addFile(textBundle.catalog.url, textBundle.catalog);
-      const localizedRows = {};
-      for (const language of ['en', 'kn']) {
-        const table = textBundle.localized[language];
-        let localized = item.original?.authoring?.localizedRows?.[language];
-        if (!localized) { localized = { sid: renderedRow.sid, order: String(order), text: '' }; table.rows.push(localized); }
-        if (language === editingLanguage) localized.text = item[language];
-        localizedRows[language] = localized; addFile(textBundle.localizedUrls[language], table);
-      }
-      questionRows.push({ cid: renderedRow.cid, snum: renderedRow.snum, sid: renderedRow.sid, order: String(index + 1), text_collection: 'gita-sara-contemplations', text_order: String(order) });
-      return {
-        collectionId: 'gita-sara-contemplations', assetSid: renderedRow.sid, assetOrder: String(order), type: 'question',
-        localized: { en: item.en, kn: item.kn },
-        authoring: { catalogRow, catalog: textBundle.catalog, catalogUrl: textBundle.catalog.url || '', localizedRows, localizedTables: textBundle.localized, localizedUrls: textBundle.localizedUrls },
-        isFallback: false
-      };
-    });
-    replaceSidRows(authoring.contemplationComposition.table, renderedRow.sid, questionRows, changes); addFile(authoring.contemplationComposition.url, authoring.contemplationComposition.table);
-    const displayedItems = newItems.length ? newItems : (fallbackMedia ? [fallbackMedia] : []);
-    const displayedLines = newLines.length ? newLines : (fallbackQuestion ? [fallbackQuestion] : []);
-    changes.push({ target: renderedRow.media, property: 'items', previous: renderedRow.media.items, value: displayedItems }); renderedRow.media.items = displayedItems;
-    changes.push({ target: renderedRow.contemplation, property: 'lines', previous: renderedRow.contemplation.lines, value: displayedLines }); renderedRow.contemplation.lines = displayedLines;
-    mediaDraft = nextMedia; questionDraft = nextQuestions;
-    return { changes, files, assets };
-  }
   function fitElement(role, maximum, minimum) {
     const element = root.querySelector(`[data-role="${role}"]`);
     if (!element?.clientHeight || getComputedStyle(element).display === 'none') return;
@@ -4280,7 +3794,7 @@ function createGitaSaraRenderer({ translate = (_key, fallback) => fallback, gita
     element.style.fontSize = `${best}px`;
   }
   function fitText() {
-    if (editing || !root) return;
+    if (!root) return;
     root.querySelectorAll('[data-field]').forEach((element) => { element.style.fontSize = ''; });
     if (matchMedia('(max-width: 760px)').matches || globalThis.document?.documentElement?.classList.contains('mobile-layout')) return;
     const expanded = !questionsVisible;
@@ -4290,8 +3804,7 @@ function createGitaSaraRenderer({ translate = (_key, fallback) => fallback, gita
 
   return {
     id: 'gita-sara', supportsQuestions: true, questionsVisible: () => questionsVisible,
-    mount, render, setEditing, editableElements, fitText, toggleQuestions,
-    additionalEditableElements, collectAdditionalEdits, refreshAdditionalData() { if (renderedRow) prepareDrafts(renderedRow); },
+    mount, render, fitText, toggleQuestions,
     destroy() { if (root) { root.classList.remove('gita-sara-root'); root.textContent = ''; } root = null; }
   };
 }
@@ -4319,13 +3832,12 @@ function chantFieldValue(row, field) {
 
 function createVerseChantRenderer() {
   let root;
-  let editing = false;
   let resizeObserver = null;
   let fitFrame = 0;
   const handleViewportChange = () => scheduleFit();
 
   function scheduleFit() {
-    if (editing || !root) return;
+    if (!root) return;
     if (fitFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(fitFrame);
     fitFrame = requestAnimationFrame(() => {
       fitText();
@@ -4361,14 +3873,6 @@ function createVerseChantRenderer() {
     ];
   }
 
-  function makeEditable(element) {
-    element.contentEditable = 'true';
-    element.spellcheck = false;
-    element.dataset.editField = element.dataset.field;
-    element.classList.remove('empty');
-    if (element.textContent === '—') element.textContent = '';
-  }
-
   function render(row, contentLanguage) {
     const fields = panelFields(contentLanguage);
     const values = fields.map((panel) => chantFieldValue(row, panel.field));
@@ -4396,7 +3900,6 @@ function createVerseChantRenderer() {
         return lineElement;
       }));
       element.classList.toggle('empty', !text);
-      if (editing) makeEditable(element);
     });
     scheduleFit();
   }
@@ -4478,7 +3981,7 @@ function createVerseChantRenderer() {
   }
 
   function fitText() {
-    if (editing || !root) return;
+    if (!root) return;
     panelFields(root.dataset.primaryLanguage).forEach((panel) => fitElement(
       root.querySelector('[data-panel="' + panel.role + '"]'),
       root.querySelector('[data-role="' + panel.role + '"]'),
@@ -4487,24 +3990,10 @@ function createVerseChantRenderer() {
     ));
   }
 
-  function setEditing(enabled) {
-    editing = enabled;
-    root.querySelectorAll('[data-role]').forEach((element) => {
-      if (enabled) makeEditable(element);
-      else {
-        element.contentEditable = 'false';
-        delete element.dataset.editField;
-      }
-    });
-    if (!enabled) scheduleFit();
-  }
-
   return {
     id: 'verse-chant',
     mount,
     render,
-    setEditing,
-    editableElements: () => Array.from(root.querySelectorAll('[data-edit-field]')),
     fitText,
     destroy() {
       if (fitFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(fitFrame);
@@ -4548,255 +4037,14 @@ function availableExperiences() {
   return Object.entries(experiences).filter(([, experience]) => experience.available);
 }
 
-// Source: js/player/editor.js
-class InlineEditor {
-  constructor({ dataset, renderer, currentRow, rerender, workspace = null, onStateChange, translate = (key, fallback) => fallback }) {
-    this.dataset = dataset;
-    this.renderer = renderer;
-    this.currentRow = currentRow;
-    this.rerender = rerender;
-    this.onStateChange = onStateChange || (() => {});
-    this.workspace = workspace;
-    this.translate = translate;
-    this.active = false;
-    this.dirty = false;
-    this.savedChanges = false;
-    this.pendingDownload = false;
-    this.savedRevision = 0;
-    this.changedLanguages = new Set();
-    this.changedDataFiles = new Map();
-    this.changedAssets = new Map();
-    this.toolbar = this.createToolbar();
-    this.handleInput = this.handleInput.bind(this);
-    this.beforeUnload = this.beforeUnload.bind(this);
-    window.addEventListener('beforeunload', this.beforeUnload);
-  }
-
-  createToolbar() {
-    const toolbar = document.createElement('div');
-    toolbar.className = 'edit-toolbar';
-    toolbar.hidden = true;
-    toolbar.innerHTML =
-      '<span class="edit-status">' + this.translate('editor.editVisible', 'Edit the visible fields') + '</span>' +
-      '<button class="cancel-edit" type="button">' + this.translate('editor.cancel', 'Cancel') + '</button>' +
-      '<button class="save-edit" type="button">' + this.translate('editor.save', 'Save row') + '</button>';
-    document.body.appendChild(toolbar);
-    toolbar.querySelector('.cancel-edit').addEventListener('click', () => this.cancel());
-    toolbar.querySelector('.save-edit').addEventListener('click', () => this.save());
-    return toolbar;
-  }
-
-  enter() {
-    if (this.active) return;
-    this.active = true;
-    this.dirty = false;
-    document.body.classList.add('editing');
-    this.toolbar.hidden = false;
-    this.renderer.setEditing(true);
-    this.allEditableElements().forEach((element) => element.addEventListener('input', this.handleInput));
-    const first = this.allEditableElements()[0];
-    if (first) first.focus();
-    this.updateUi();
-  }
-
-  exit() {
-    if (!this.active) return;
-    this.allEditableElements().forEach((element) => element.removeEventListener('input', this.handleInput));
-    this.active = false;
-    this.dirty = false;
-    document.body.classList.remove('editing');
-    this.toolbar.hidden = true;
-    this.renderer.setEditing(false);
-    this.updateUi();
-  }
-
-  async toggle() {
-    if (!this.active) this.enter();
-    else if (!this.dirty || await this.save()) {
-      this.exit();
-      this.rerender();
-    }
-  }
-
-  handleInput(event) {
-    this.dirty = true;
-    const value = 'value' in event.currentTarget ? event.currentTarget.value : event.currentTarget.innerText;
-    const invalid = String(value || '').includes('#');
-    event.currentTarget.setAttribute('aria-invalid', invalid ? 'true' : 'false');
-    this.toolbar.querySelector('.edit-status').textContent = invalid
-      ? this.translate('editor.removeHash', 'Remove # before saving')
-      : this.translate('editor.unsaved', 'Unsaved changes');
-    this.updateUi();
-  }
-
-  async save() {
-    if (!this.active) return true;
-    const elements = this.renderer.editableElements();
-    const invalid = this.allEditableElements().find((element) => String('value' in element ? element.value : element.innerText || '').includes('#'));
-    if (invalid) {
-      invalid.focus();
-      this.toolbar.querySelector('.edit-status').textContent = this.translate('editor.removeHash', 'Remove # before saving');
-      return false;
-    }
-    const row = this.currentRow();
-    const changes = [];
-    const languages = new Set();
-    elements.forEach((element) => {
-      const field = element.dataset.editField;
-      const parts = field.split('.');
-      const property = parts.pop();
-      const target = parts.reduce((value, part) => value[part], row);
-      const value = element.innerText.replace(/\r/g, '').replace(/\n$/, '');
-      const displayedTarget = String(target[property] ?? '').replace(/\r/g, '').replace(/\n$/, '');
-      if (displayedTarget !== value) {
-        changes.push({ target, property, previous: target[property], value });
-        target[property] = value;
-        languages.add(field.startsWith('source.') ? 'sa' : field.split('.')[1]);
-      }
-      element.setAttribute('aria-invalid', 'false');
-    });
-    let additional = { changes: [], files: [], assets: [] };
-    try {
-      additional = this.renderer.collectAdditionalEdits?.() || additional;
-    } catch (error) {
-      changes.forEach(({ target, property, previous }) => { target[property] = previous; });
-      this.toolbar.querySelector('.edit-status').textContent = error.message || this.translate('editor.saveFailed', 'The local collections could not be saved.');
-      return false;
-    }
-    const allChanges = [...changes, ...additional.changes];
-    if (!allChanges.length) {
-      this.dirty = false;
-      this.toolbar.querySelector('.edit-status').textContent = this.translate('editor.noChanges', 'No changes to save');
-      this.updateUi();
-      return true;
-    }
-    const saveButton = this.toolbar.querySelector('.save-edit');
-    saveButton.disabled = true;
-    this.toolbar.querySelector('.edit-status').textContent = this.workspace ? this.translate('editor.savingFiles', 'Saving to collections…') : this.translate('editor.savingBrowser', 'Saving in this browser…');
-    try {
-      let savedFiles = [];
-      if (this.workspace && languages.size) savedFiles.push(...await this.workspace.saveLanguageMasters(this.dataset, languages));
-      if (this.workspace && additional.assets?.length) savedFiles.push(...await this.workspace.saveAssets(additional.assets));
-      if (this.workspace && additional.files.length) savedFiles.push(...await this.workspace.saveCollectionTables(additional.files));
-      languages.forEach((language) => this.changedLanguages.add(language));
-      additional.files.forEach((entry) => this.changedDataFiles.set(entry.url, entry.table));
-      (additional.assets || []).forEach((entry) => this.changedAssets.set(entry.url, entry.file));
-      this.dirty = false;
-      this.savedChanges = true;
-      this.pendingDownload = !this.workspace;
-      this.savedRevision += 1;
-      this.toolbar.querySelector('.edit-status').textContent = this.workspace
-        ? this.translate('editor.savedFiles', 'Saved to {files}', { files: savedFiles.join(' and ') })
-        : this.translate('editor.savedBrowser', 'Saved in this browser session');
-      this.rerender({ keepEditing: true });
-      this.updateUi();
-      return true;
-    } catch (error) {
-      allChanges.forEach(({ target, property, previous }) => { target[property] = previous; });
-      this.renderer.refreshAdditionalData?.();
-      this.toolbar.querySelector('.edit-status').textContent = error.message || this.translate('editor.saveFailed', 'The local collections could not be saved.');
-      this.dirty = true;
-      this.updateUi();
-      return false;
-    }
-  }
-
-  cancel() {
-    if (this.dirty && !window.confirm(this.translate('editor.discard', 'Discard the unsaved edits to this shloka?'))) return false;
-    this.dirty = false;
-    this.exit();
-    this.rerender();
-    return true;
-  }
-
-  canNavigate() {
-    if (!this.active || !this.dirty) return true;
-    if (!window.confirm(this.translate('editor.discardNavigate', 'Discard the unsaved edits to this shloka and continue?'))) return false;
-    this.dirty = false;
-    this.exit();
-    return true;
-  }
-
-  async download() {
-    if (this.dirty && !await this.save()) return;
-    Array.from(this.changedLanguages).sort().forEach((language) => {
-      const blob = new Blob([serializeLanguageMaster(this.dataset, language)], { type: 'text/csv;charset=utf-8' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.href = url;
-      link.download = 'master_' + language + '.csv';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    });
-    for (const [path, table] of this.changedDataFiles) {
-      const blob = new Blob([serializeCollectionTable(table)], { type: 'text/csv;charset=utf-8' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      const parts = path.split('/');
-      link.href = url;
-      link.download = parts.slice(-2).join('-');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    }
-    for (const [path, file] of this.changedAssets) {
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(file);
-      link.href = url;
-      link.download = path.split('/').pop();
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    }
-    this.pendingDownload = false;
-    this.toolbar.querySelector('.edit-status').textContent = this.translate('editor.downloaded', 'Downloaded edited language data');
-    this.updateUi();
-  }
-
-  updateUi() {
-    this.toolbar.querySelector('.save-edit').disabled = !this.dirty;
-    this.onStateChange({
-      active: this.active,
-      dirty: this.dirty,
-      savedChanges: this.savedChanges,
-      pendingDownload: this.pendingDownload,
-      workspace: Boolean(this.workspace),
-      savedRevision: this.savedRevision
-    });
-  }
-
-  allEditableElements() {
-    return [...this.renderer.editableElements(), ...(this.renderer.additionalEditableElements?.() || [])];
-  }
-
-  beforeUnload(event) {
-    if (!this.dirty && !this.pendingDownload) return;
-    event.preventDefault();
-    event.returnValue = '';
-  }
-
-  destroy() {
-    window.removeEventListener('beforeunload', this.beforeUnload);
-    document.body.classList.remove('editing');
-    this.toolbar.remove();
-  }
-}
-
 // Source: js/player/player-core.js
 const state = {
   dataset: null,
   index: 0,
   language: 'en',
   renderer: null,
-  editor: null,
   eventsBound: false,
   overlayOpener: null,
-  downloadReminderDismissed: false,
-  lastSavedRevision: 0,
   activeProfile: null,
   profileSelectionMode: 'initial',
   profileReturnView: 'diksoochi',
@@ -4871,6 +4119,8 @@ configureExperiences(distribution());
 const profileStore = new ProfileStore({ databaseName: appConfig.databaseName || distribution().databaseName });
 const platformId = appConfig.id || distribution().id;
 const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformId}-version-history` });
+const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-local-media` });
+let rememberedMediaFolder = null;
 const eventBus = new EventBus({
   appVersion,
   contextProvider: () => ({
@@ -4908,7 +4158,7 @@ function setInterfaceLanguage(language) {
   i18n.setLanguage(language);
   aboutDialog.refresh();
   if (state.dataset && state.renderer) {
-    render({ trackLocation: false, keepEditing: Boolean(state.editor?.active) });
+    render({ trackLocation: false });
     syncFullscreenUi();
   }
 }
@@ -5180,11 +4430,20 @@ function syncHomeCollectionSource() {
   section.hidden = location.protocol !== 'file:';
   if (section.hidden) return;
   const ready = collectionSource.isReady;
+  const remembered = Boolean(rememberedMediaFolder?.handle);
   document.getElementById('home-collections-title').textContent = i18n.t(ready ? 'collections.readyTitle' : 'collections.title');
   document.getElementById('home-collections-message').textContent = ready
     ? i18n.t('collections.readyMessage', { name: collectionSource.label })
     : i18n.t('collections.message');
-  document.getElementById('home-collections-button').textContent = i18n.t(ready ? 'collections.change' : 'collections.load');
+  document.getElementById('home-collections-button').textContent = i18n.t(ready ? 'collections.change' : (remembered ? 'collections.reconnect' : 'collections.load'));
+  document.getElementById('home-collections-change-button').hidden = ready || !remembered;
+  document.getElementById('home-collections-change-button').textContent = i18n.t('collections.changeFolder');
+  document.getElementById('home-collections-forget-button').hidden = !remembered;
+  document.getElementById('home-collections-forget-button').textContent = i18n.t('collections.forget');
+  if (!ready && remembered) {
+    document.getElementById('home-collections-title').textContent = i18n.t('collections.rememberedTitle');
+    document.getElementById('home-collections-message').textContent = i18n.t('collections.rememberedMessage', { name: rememberedMediaFolder.label || rememberedMediaFolder.handle.name || 'media' });
+  }
   document.getElementById('home-collections-error').textContent = '';
   document.querySelectorAll('#continue-journey-link, [data-experience-card]').forEach((link) => {
     link.classList.toggle('needs-collections', !ready);
@@ -5359,7 +4618,7 @@ async function useSelectedCollections(fileList) {
   }
 }
 
-async function useSelectedCollectionsDirectory(handle) {
+async function useSelectedCollectionsDirectory(handle, { remember = true } = {}) {
   const error = document.getElementById('home-collections-error');
   const section = document.getElementById('home-collections');
   error.textContent = '';
@@ -5372,13 +4631,24 @@ async function useSelectedCollectionsDirectory(handle) {
     if (state.pendingLocalDestination) {
       ({ play, requestedSid, requestedLanguage } = state.pendingLocalDestination);
       state.pendingLocalDestination = null;
-      return startRequestedExperience();
+      await startRequestedExperience();
+      if (remember) {
+        try { rememberedMediaFolder = await mediaFolderStore.remember(handle); } catch (_) { rememberedMediaFolder = null; }
+      }
+      syncHomeCollectionSource();
+      return true;
     }
-    return startRequestedExperience();
+    await startRequestedExperience();
+    if (remember) {
+      try { rememberedMediaFolder = await mediaFolderStore.remember(handle); } catch (_) { rememberedMediaFolder = null; }
+    }
+    syncHomeCollectionSource();
+    return true;
   } catch (failure) {
     collectionSource.clear({ releaseMedia: true });
     syncHomeCollectionSource();
     error.textContent = failure.message || i18n.t('collections.invalid');
+    return false;
   } finally {
     section.setAttribute('aria-busy', 'false');
   }
@@ -5389,11 +4659,60 @@ async function chooseHomeCollections() {
     document.getElementById('home-collections-input').click();
     return;
   }
+  if (rememberedMediaFolder?.handle && collectionSource.requiresSelection) {
+    try {
+      const permission = await directoryPermission(rememberedMediaFolder.handle, { request: true });
+      if (permission !== 'granted') throw new Error(i18n.t('collections.permission'));
+      await useSelectedCollectionsDirectory(rememberedMediaFolder.handle, { remember: false });
+    } catch (error) {
+      if (error?.name !== 'AbortError') document.getElementById('home-collections-error').textContent = error.message || i18n.t('collections.invalid');
+    }
+    return;
+  }
+  return chooseDifferentMediaFolder();
+}
+
+async function chooseDifferentMediaFolder() {
+  if (typeof window.showDirectoryPicker !== 'function') {
+    document.getElementById('home-collections-input').click();
+    return;
+  }
+  const previous = rememberedMediaFolder?.handle || null;
   try {
     const handle = await window.showDirectoryPicker({ id: 'mygita-media', mode: 'read' });
-    await useSelectedCollectionsDirectory(handle);
+    const selected = await useSelectedCollectionsDirectory(handle);
+    if (!selected && previous) {
+      try {
+        await collectionSource.selectMediaDirectory(previous);
+        syncHomeCollectionSource();
+      } catch (_) {}
+    }
   } catch (error) {
     if (error?.name !== 'AbortError') document.getElementById('home-collections-error').textContent = error.message || i18n.t('collections.invalid');
+  }
+}
+
+async function forgetRememberedMediaFolder() {
+  try { await mediaFolderStore.forget(); } catch (_) {}
+  rememberedMediaFolder = null;
+  collectionSource.clear({ releaseMedia: true });
+  state.dataset?.release?.();
+  state.dataset = null;
+  state.journeyDataset = null;
+  syncHomeCollectionSource();
+}
+
+async function restoreRememberedMediaFolder() {
+  if (location.protocol !== 'file:' || typeof window.showDirectoryPicker !== 'function') return;
+  try {
+    const saved = await mediaFolderStore.get();
+    if (!saved?.handle || saved.handle.kind !== 'directory') return;
+    rememberedMediaFolder = saved;
+    if (await directoryPermission(saved.handle) === 'granted') {
+      await collectionSource.selectMediaDirectory(saved.handle);
+    }
+  } catch (_) {
+    rememberedMediaFolder = null;
   }
 }
 
@@ -5683,7 +5002,7 @@ async function startRequestedExperience() {
   showOnly('loading');
   try {
     const dataset = await collectionSource.loadExperience(play, { collectionId: requestedCollection || '' });
-    await startPlayer(dataset, experience, { workspace: collectionSource.workspaceFor(play, dataset.collectionId) });
+    await startPlayer(dataset, experience);
   } catch (error) {
     emitEvent('data_load_failed', {
       context: { experience: play, language: requestedLanguage || state.activeProfile.contentLanguage },
@@ -5693,8 +5012,7 @@ async function startRequestedExperience() {
   }
 }
 
-async function startPlayer(dataset, experience, { workspace = null, sid = requestedSid } = {}) {
-  if (state.editor) state.editor.destroy();
+async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
   if (state.renderer) state.renderer.destroy();
   state.dataset = dataset;
   document.documentElement.dataset.contentSource = dataset.contentSource?.type || 'unknown';
@@ -5726,27 +5044,6 @@ async function startPlayer(dataset, experience, { workspace = null, sid = reques
   const defaultIndex = findSid('1.B');
   state.index = requestedIndex >= 0 ? requestedIndex : (defaultIndex >= 0 ? defaultIndex : 0);
   emitEvent('experience_selected', { context: { experience: play, language: state.language } });
-
-  state.editor = new InlineEditor({
-    dataset: state.dataset,
-    renderer: state.renderer,
-    currentRow,
-    rerender: (options = {}) => render({ ...options, trackLocation: false }),
-    workspace,
-    translate,
-    onStateChange: ({ active, savedChanges, pendingDownload, workspace: hasWorkspace, savedRevision }) => {
-      document.querySelector('#edit-button .top-menu-label').textContent = active ? i18n.t('menu.leaveEdit') : i18n.t('menu.edit');
-      if (savedRevision > state.lastSavedRevision) {
-        state.lastSavedRevision = savedRevision;
-        state.downloadReminderDismissed = false;
-      }
-      const reminder = document.getElementById('download-reminder');
-      reminder.hidden = hasWorkspace || !savedChanges || state.downloadReminderDismissed;
-      const action = document.getElementById('download-reminder-action');
-      action.textContent = pendingDownload ? i18n.t('editor.download') : i18n.t('editor.downloadAgain');
-    }
-  });
-  document.getElementById('edit-button').hidden = !workspace;
 
   bindEvents();
   buildChapterList();
@@ -5805,7 +5102,7 @@ function syncQuestionsMenu() {
 }
 
 async function toggleQuestions() {
-  if (!state.renderer?.supportsQuestions || state.editor?.active) return false;
+  if (!state.renderer?.supportsQuestions) return false;
   const changed = await state.renderer.toggleQuestions?.();
   if (changed) {
     syncQuestionsMenu();
@@ -5838,7 +5135,6 @@ function render(options = {}) {
     language: state.language,
     savedAt: new Date().toISOString()
   });
-  if (options.keepEditing && state.editor.active) state.renderer.setEditing(true);
   updateUrl();
   updateChapterSelection();
   updateCollectionUi();
@@ -5901,7 +5197,6 @@ function updateUrl() {
 }
 
 function navigate(offset, source = offset > 0 ? 'next' : 'previous') {
-  if (!state.editor.canNavigate()) return;
   const next = state.index + offset;
   if (next < 0 || next >= state.dataset.rows.length) return;
   state.index = next;
@@ -5910,10 +5205,9 @@ function navigate(offset, source = offset > 0 ? 'next' : 'previous') {
 }
 
 function swipeIsBlocked(target) {
-  return state.editor.active
-    || !document.getElementById('top-menu').hidden
+  return !document.getElementById('top-menu').hidden
     || Boolean(document.querySelector('.overlay:not([hidden])'))
-    || Boolean(target.closest('button, input, select, textarea, a, [contenteditable="true"], .controlbar, .edit-toolbar, .download-reminder'));
+    || Boolean(target.closest('button, input, select, textarea, a, .controlbar'));
 }
 
 function beginSwipe(event) {
@@ -5935,7 +5229,6 @@ function finishSwipe(event) {
 }
 
 function setLanguage(language) {
-  if (!state.editor.canNavigate()) return;
   state.language = language === 'kn' ? 'kn' : 'en';
   requestedLanguage = state.language;
   state.activeProfile.contentLanguage = state.language;
@@ -5953,7 +5246,6 @@ function setLanguage(language) {
 }
 
 function openOverlay(id) {
-  if (state.editor?.active) return;
   state.overlayOpener = document.getElementById('top-menu').contains(document.activeElement)
     ? document.getElementById('menu-button')
     : document.activeElement;
@@ -5976,63 +5268,18 @@ function openOverlay(id) {
       button.setAttribute('aria-pressed', button.dataset.language === state.language ? 'true' : 'false');
     });
     requestAnimationFrame(() => document.querySelector('.language-option.active')?.focus());
-  } else if (id === 'workspace-overlay') {
-    document.getElementById('workspace-error').textContent = '';
-    requestAnimationFrame(() => document.getElementById('open-collections-workspace').focus());
   }
 }
 
 function closeOverlays({ restoreFocus = true } = {}) {
   let closed = false;
-  ['workspace-overlay', 'goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
+  ['goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
     const overlay = document.getElementById(id);
     if (!overlay.hidden) { overlay.hidden = true; closed = true; }
   });
   if (closed && restoreFocus && state.overlayOpener && document.contains(state.overlayOpener)) state.overlayOpener.focus();
   if (closed) state.overlayOpener = null;
   return closed;
-}
-
-async function requestEditMode() {
-  setMenuOpen(false);
-  if (document.getElementById('edit-button').hidden) return;
-  if (state.editor.active) return state.editor.toggle();
-  if (state.editor.workspace) return state.editor.enter();
-  openOverlay('workspace-overlay');
-}
-
-async function openCollectionsWorkspace() {
-  const message = document.getElementById('workspace-error');
-  const button = document.getElementById('open-collections-workspace');
-  if (typeof window.showDirectoryPicker !== 'function') {
-    message.textContent = i18n.t('workspace.unsupported');
-    return;
-  }
-  button.disabled = true;
-  message.textContent = i18n.t('workspace.opening');
-  try {
-    const handle = await window.showDirectoryPicker({ id: 'gitaverse-collections', mode: 'readwrite' });
-    const permission = { mode: 'readwrite' };
-    if (handle.queryPermission && await handle.queryPermission(permission) !== 'granted') {
-      if (!handle.requestPermission || await handle.requestPermission(permission) !== 'granted') {
-        throw new Error(i18n.t('workspace.permission'));
-      }
-    }
-    const sid = currentRow().sid;
-    const { dataset, workspace } = await openWritableCollectionWorkspace(play, handle, { collectionId: state.collectionId || '' });
-    closeOverlays({ restoreFocus: false });
-    await startPlayer(dataset, getExperience(play), { workspace, sid });
-    state.editor.enter();
-  } catch (error) {
-    if (error?.name !== 'AbortError') message.textContent = error.message || i18n.t('workspace.openFailed');
-  } finally {
-    button.disabled = false;
-  }
-}
-
-function enterDownloadOnlyEditMode() {
-  closeOverlays({ restoreFocus: false });
-  state.editor.enter();
 }
 
 function setMenuOpen(open) {
@@ -6061,7 +5308,7 @@ function moveMenuFocus(offset) {
 }
 
 function selectChapterButton(button) {
-  if (!button || !state.editor.canNavigate()) return;
+  if (!button) return;
   state.index = Number(button.dataset.index);
   closeOverlays({ restoreFocus: false });
   render({ source: 'chapter' });
@@ -6089,13 +5336,10 @@ function chooseLanguage(language) {
 
 function goHome() {
   setMenuOpen(false);
-  if (!state.editor.canNavigate()) return;
-  if (state.editor.pendingDownload && !window.confirm(i18n.t('editor.returnHome'))) return;
   goToExperienceSelection();
 }
 
 function goToSid(sid) {
-  if (!state.editor.canNavigate()) return false;
   const found = findSid(sid);
   if (found < 0) return false;
   state.index = found;
@@ -6193,14 +5437,14 @@ function updateCollectionUi() {
 }
 
 async function selectCollection(collectionId) {
-  if (!collectionId || collectionId === state.collectionId || !state.editor.canNavigate()) return;
+  if (!collectionId || collectionId === state.collectionId) return;
   closeOverlays({ restoreFocus: false });
   showOnly('loading');
   try {
     requestedCollection = collectionId;
     requestedSid = null;
     const dataset = await collectionSource.loadExperience(play, { collectionId });
-    await startPlayer(dataset, getExperience(play), { workspace: collectionSource.workspaceFor(play, dataset.collectionId), sid: null });
+    await startPlayer(dataset, getExperience(play), { sid: null });
     document.getElementById('collection-trigger').focus();
   } catch (error) {
     showError(error.message);
@@ -6286,6 +5530,8 @@ function bindEvents() {
   document.getElementById('retry-data-button').addEventListener('click', startRequestedExperience);
   document.getElementById('home-collections-input').addEventListener('change', (event) => useSelectedCollections(event.target.files));
   document.getElementById('home-collections-button').addEventListener('click', chooseHomeCollections);
+  document.getElementById('home-collections-change-button').addEventListener('click', chooseDifferentMediaFolder);
+  document.getElementById('home-collections-forget-button').addEventListener('click', forgetRememberedMediaFolder);
   document.querySelectorAll('#continue-journey-link, #experience-detail-action').forEach((link) => link.addEventListener('click', (event) => {
     event.preventDefault();
     openHomeExperience(link);
@@ -6339,15 +5585,6 @@ function bindEvents() {
     setInterfaceLanguage(state.activeProfile?.interfaceLanguage || 'en');
     showOnly(state.profileReturnView === 'app' && state.dataset ? 'app' : (state.profileReturnView === 'profile-selection' ? 'profile-selection' : (state.profileReturnView === 'journey-details' ? 'journey-details' : 'diksoochi')));
   });
-  document.getElementById('edit-button').addEventListener('click', requestEditMode);
-  document.getElementById('open-collections-workspace').addEventListener('click', openCollectionsWorkspace);
-  document.getElementById('edit-download-only').addEventListener('click', enterDownloadOnlyEditMode);
-  document.getElementById('download-reminder-action').addEventListener('click', () => state.editor.download());
-  document.getElementById('download-reminder-close').addEventListener('click', () => {
-    if (state.editor.pendingDownload && !window.confirm(i18n.t('editor.dismissDownload'))) return;
-    state.downloadReminderDismissed = true;
-    document.getElementById('download-reminder').hidden = true;
-  });
   document.getElementById('fullscreen-button').addEventListener('click', toggleFullscreen);
   document.getElementById('footer-fullscreen-button').addEventListener('click', toggleFullscreen);
   document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -6388,13 +5625,9 @@ function bindEvents() {
     if (!state.dataset || document.getElementById('app').hidden) return;
     const active = document.activeElement;
     const typing = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's' && state.editor.active) {
-      event.preventDefault(); state.editor.save(); return;
-    }
     if (event.key === 'Escape') {
       if (closeOverlays()) event.preventDefault();
       else if (!document.getElementById('top-menu').hidden) { setMenuOpen(false); event.preventDefault(); }
-      else if (state.editor.active) { event.preventDefault(); state.editor.cancel(); }
       else if (document.documentElement.classList.contains('immersive')) {
         document.documentElement.classList.remove('immersive');
         syncFullscreenUi();
@@ -6477,7 +5710,6 @@ function bindEvents() {
     else if (key === 'k') { event.preventDefault(); openOverlay('about-overlay'); }
     else if (key === 'm') { event.preventDefault(); toggleMenu(); }
     else if (key === 'q' && state.renderer?.supportsQuestions) { event.preventDefault(); toggleQuestions(); }
-    else if (key === 'e') { event.preventDefault(); requestEditMode(); }
   });
 }
 
@@ -6488,6 +5720,10 @@ renderProductPills();
 bindEvents();
 versionHistoryStore.recordSeen(appVersion).catch(() => {});
 pwa.start();
-checkPlayerVersion().then((current) => { if (current) initializeProfiles(); });
+checkPlayerVersion().then(async (current) => {
+  if (!current) return;
+  await restoreRememberedMediaFolder();
+  initializeProfiles();
+});
 
 })();

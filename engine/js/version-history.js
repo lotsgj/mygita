@@ -27,7 +27,8 @@ export function validateVersionHistory(records) {
     if (!record || typeof record !== 'object' || Array.isArray(record)) throw new Error(`Version history record ${index + 1} is invalid.`);
     if (!/^\d+\.\d{2}[A-Z][a-z]{2}\d{4}-\d{6}$/.test(record.version || '')) throw new Error(`Version history record ${index + 1} has an invalid version.`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(record.date || '')) throw new Error(`Version history record ${index + 1} has an invalid date.`);
-    if (!String(record.message || '').trim()) throw new Error(`Version history record ${index + 1} has no change message.`);
+    if (!String(record.title || '').trim()) throw new Error(`Version history record ${index + 1} has no release title.`);
+    if (record.message != null && typeof record.message !== 'string') throw new Error(`Version history record ${index + 1} has an invalid release message.`);
     if (seen.has(record.version)) throw new Error(`Version history contains duplicate version ${record.version}.`);
     seen.add(record.version);
   });
@@ -53,7 +54,7 @@ function releaseOrder(record) {
   return Date.parse(`${record.date || '1970-01-01'}T00:00:00Z`) || 0;
 }
 
-export function mergeVersionHistory(deployed = [], local = [], currentVersion = '', currentMessage = 'Current Gitaverse build') {
+export function mergeVersionHistory(deployed = [], local = [], currentVersion = '', currentTitle = 'MyGita improvements and refinements') {
   const merged = new Map();
   deployed.forEach((record) => merged.set(record.version, { ...record }));
   local.forEach((record) => merged.set(record.version, { ...(merged.get(record.version) || {}), ...record }));
@@ -62,7 +63,9 @@ export function mergeVersionHistory(deployed = [], local = [], currentVersion = 
     merged.set(currentVersion, {
       version: currentVersion,
       date: current.date || new Date().toISOString().slice(0, 10),
-      message: current.message || currentMessage,
+      title: current.title || currentTitle,
+      message: current.message || '',
+      current: true,
       ...current
     });
   }

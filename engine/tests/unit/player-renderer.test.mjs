@@ -41,7 +41,6 @@ function rootFixture() {
     },
     querySelectorAll(selector) {
       const values = Array.from(roles.values());
-      if (selector === '[data-edit-field]') return values.filter((value) => value.dataset.editField);
       if (selector === '[data-sara-view-action]') return Array.from(actions.entries()).filter(([key]) => key.startsWith('sara-view-action:')).map(([, value]) => value);
       return values;
     },
@@ -100,19 +99,7 @@ test('the Gita-Yoga renderer shows all languages and orders them by content pref
   }, 'en');
   assert.equal(root.dataset.primaryLanguage, 'en');
   assert.equal(root.get('sanskrit-words').textContent, '—');
-  renderer.setEditing(true);
-  assert.equal(renderer.editableElements().length, 8);
-  assert.deepEqual(new Set(renderer.editableElements().map((element) => element.dataset.editField)), new Set([
-    'source.shloka',
-    'source.wordByWord',
-    'languages.kn.transliteration',
-    'languages.kn.meaning',
-    'languages.kn.wordByWordMeaning',
-    'languages.en.transliteration',
-    'languages.en.meaning',
-    'languages.en.wordByWordMeaning'
-  ]));
-  assert.equal(root.get('sanskrit-words').textContent, '');
+  assert.equal(root.get('sanskrit-words').textContent, '—');
 });
 
 test('player-4 shows Sanskrit, preferred transliteration, then the other transliteration', () => {
@@ -135,10 +122,6 @@ test('player-4 shows Sanskrit, preferred transliteration, then the other transli
   renderer.render(row, 'en');
   assert.equal(root.get('primary').textContent, 'English transliteration');
   assert.equal(root.get('secondary').textContent, 'ಕನ್ನಡ ಲಿಪ್ಯಂತರ');
-  renderer.setEditing(true);
-  assert.deepEqual(renderer.editableElements().map((element) => element.dataset.editField), [
-    'source.shloka', 'languages.en.transliteration', 'languages.kn.transliteration'
-  ]);
 });
 
 test('the Gita-Sara renderer uses one semantic text model and the preferred content language', async () => {
@@ -164,6 +147,4 @@ test('the Gita-Sara renderer uses one semantic text model and the preferred cont
   assert.equal(await renderer.toggleQuestions(), true);
   assert.equal(root.hasClass('gita-sara-questions-hidden'), true);
   assert.equal(root.querySelector('[data-sara-panel="questions"]').hidden, true);
-  renderer.setEditing(true);
-  assert.equal(renderer.editableElements().length, 4);
 });

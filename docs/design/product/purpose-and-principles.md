@@ -1,7 +1,7 @@
 # Purpose and principles
 
 **Status:** Partial
-**Last updated:** 29 October 2026
+**Last updated:** 4 November 2026
 
 ## Purpose
 
@@ -17,7 +17,7 @@ The source repository and unified application shell use the MyGita name. GitHub 
 - **Stable identity.** Every canonical record uses SID, such as `6.B`, `6.7`, or `6.E`.
 - **Language is a perspective on shared content.** Sanskrit, English, and Kannada records align by SID.
 - **Products contain collections; experiences present them.** Canonical text and reusable media remain independent of both packaging and presentation.
-- **Progressive capability.** The same application should work online, as an installed PWA, and—with an explicit folder choice—for local editing.
+- **Progressive capability.** The same application should work online, as an installed PWA, and—with an explicit Media-root choice—for local content playback. Authoring is a separate validated publishing workflow rather than an implicit playback capability.
 - **Privacy by design.** Profile details remain local. Analytics uses grouped, non-PII context.
 
 ## Relationship to future work

@@ -68,7 +68,7 @@ test('every internal Markdown link resolves to a navigable Rachana document', as
 test('the handbook exposes the approved product, experience, system, and future structure', () => {
   const expected = {
     Product: ['purpose-and-principles', 'platform-and-product-model', 'experience-model', 'terminology'],
-    Experiences: ['profiles-and-first-use', 'home-and-experience-selection', 'shared-player', 'gita-yoga', 'gita-700', 'gita-sara', 'local-content-editing', 'install-offline-and-updates'],
+    Experiences: ['profiles-and-first-use', 'home-and-experience-selection', 'shared-player', 'gita-chant', 'gita-yoga', 'gita-700', 'gita-sara', 'local-content-editing', 'install-offline-and-updates'],
     System: ['architecture-overview', 'collections-and-media', 'catalog-to-player', 'profiles-and-local-storage', 'events-analytics-and-resume', 'pwa-cache-and-updates', 'build-test-and-deployment'],
     'Future possibilities': ['sampada']
   };
@@ -89,7 +89,7 @@ test('the catalog-to-player guide documents sequence authority and all current e
   const markdown = await readFile(path.join(projectRoot, 'docs', page.path), 'utf8');
   assert.match(markdown, /\.\.\/\.\.\/assets\/catalog-to-player\.svg/);
   assert.match(markdown, /^## The role of sequence\.csv$/m);
-  for (const experience of ['Gita 700', 'Gita Yoga', 'Gita Sara']) assert.match(markdown, new RegExp('^## ' + experience + '$', 'm'));
+  for (const experience of ['Gita Chant', 'Gita 700', 'Gita Yoga', 'Gita Sara']) assert.match(markdown, new RegExp('^## ' + experience + '$', 'm'));
   assert.match(markdown, /sequence\.csv selects and orders 135/);
   assert.match(markdown, /2\.12-1\.webp/);
   await access(path.join(projectRoot, 'docs/assets/catalog-to-player.svg'));

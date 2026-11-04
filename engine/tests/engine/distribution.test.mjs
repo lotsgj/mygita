@@ -52,14 +52,16 @@ test('invalid renderer and experience references fail clearly', () => {
   })), /unavailable renderer player-99/);
 });
 
-test('local harness and distribution builder are present', async () => {
-  const [player, builder] = await Promise.all([
+test('repository launcher and distribution builder are present', async () => {
+  const [launcher, builder] = await Promise.all([
     readFile(path.join(repositoryRoot, 'index.html'), 'utf8'),
     readFile(path.join(root, 'scripts/build-distribution.mjs'), 'utf8')
   ]);
-  assert.match(player, /id="distribution-folder-input"/);
-  assert.match(player, /window\.__VERSES_DISTRIBUTION__/);
-  assert.match(player, /engine\/js\/local-harness\.js/);
+  assert.match(launcher, /new URL\('engine\/player\.html', location\.href\)/);
+  assert.match(launcher, /target\.search = location\.search/);
+  assert.match(launcher, /target\.hash = location\.hash/);
+  assert.match(launcher, /location\.replace\(target\)/);
+  assert.doesNotMatch(launcher, /id="(?:distribution-chooser|edit-button)"/);
   assert.match(builder, /data\/distribution\.json/);
   assert.match(builder, /dist/);
 });

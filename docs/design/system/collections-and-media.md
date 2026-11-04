@@ -1,7 +1,7 @@
 # Collections and media
 
 **Status:** Current  
-**Last updated:** 3 November 2026
+**Last updated:** 4 November 2026
 
 ## Ownership boundary
 
@@ -45,7 +45,7 @@ The service is deliberately separate from renderers. The book-to-experience adap
 
 Web and PWA sessions load the remote media book. If validation or loading fails, the app reports that content is unavailable; it never substitutes a bundled scripture copy. The root catalog is always fetched fresh. Every other remote request carries the logical path and `content_version`; the service worker caches it by those two values rather than by physical host URL. Used text, images, decks and audio are cache-first after their initial successful request, while audio retains byte-range playback. A new content version naturally creates new cache identities. Media is never precached during PWA installation.
 
-In `file://` mode, the app’s product configuration is already embedded in a built distribution or supplied by the local development harness. Home therefore asks for the media root once, validates `catalog.json`, and reuses that source across products and experiences. Folder-upload fallback follows the same contract. Legacy product-data editing is hidden because products no longer own editable scripture files; writable media authoring remains a future workflow requiring conflict and version design.
+In `file://` mode, the app’s product configuration is already embedded in a built distribution or supplied by the local development harness. Home therefore asks for the media root once, validates `catalog.json`, and reuses that source across products and experiences. On browsers with the File System Access API, MyGita stores the opaque directory handle in IndexedDB. A later session automatically restores a still-authorized folder; when the browser requires permission again, Home offers a user-initiated reconnect. Home also permits changing the folder, retaining the previous remembered choice when validation of a replacement fails, or explicitly forgetting it. Folder-upload fallback follows the same content contract but cannot persist files across browser restarts. MyGita contains no legacy product-data editor because products no longer own editable scripture files; writable media authoring remains a separate future workflow requiring conflict and version design.
 
 The verse registry keeps structural metadata language-neutral:
 
@@ -84,7 +84,7 @@ Each audio catalog uses `sid#order#language#audio_url`. Gita 700’s composition
 
 `audio_url` is a logical path such as `audio/bhagavad-gita/chanting-swami-brahmananda/sa/chapter-01/01-001.mp3`. In web and PWA sessions its mount currently resolves beneath `https://media.gitajyoti.org/`; in `file://` mode the same logical path resolves inside the selected `media` folder and is exposed through a temporary `blob:` URL. The Swami Brahmananda collection uses MP3; the AJ Padma and AJ Vijay learning collection uses OGG.
 
-Gitaverse stores audio metadata only: collection registry rows, catalogs, cue-purpose definitions, and cue timings. Production audio binaries do not belong in this repository or its deployment artifact. The build excludes MP3, M4A, OGG, Opus, and WAV files as a defensive boundary, while contract tests fail if a production audio binary is added under `data/collections/audio`.
+MyGita stores audio binding configuration only; audio registries, catalogs, cue-purpose definitions, cue timings and binaries belong to Media. Production audio binaries do not belong in this repository or its deployment artifact. The build excludes MP3, M4A, OGG, Opus, and WAV files as a defensive boundary, while contract tests fail if a production audio binary enters the application source or distribution.
 
 The PWA does not precache the media library. The resolver marks owned requests with logical identity and content version; the service worker therefore remains independent of the physical media origin, fetches with anonymous CORS, and progressively caches only content the person uses. Cached recordings retain byte-range behavior for seeking.
 

@@ -29,7 +29,13 @@
       "collections.readyTitle": "Local media ready",
       "collections.readyMessage": "MyGita is using content from {name}.",
       "collections.load": "Load media",
-      "collections.change": "Change media"
+      "collections.change": "Change media",
+      "collections.changeFolder": "Change folder",
+      "collections.reconnect": "Continue with remembered media",
+      "collections.forget": "Forget",
+      "collections.rememberedTitle": "Remembered media",
+      "collections.rememberedMessage": "Reconnect {name} to continue.",
+      "collections.permission": "Permission to read the remembered media folder was not granted."
     },
     "kn": {
       "profile.who": "MyGita ಅನ್ನು ಯಾರು ಬಳಸುತ್ತಿದ್ದಾರೆ?",
@@ -45,7 +51,13 @@
       "collections.readyTitle": "ಸ್ಥಳೀಯ ಮಾಧ್ಯಮ ಸಿದ್ಧವಾಗಿದೆ",
       "collections.readyMessage": "MyGita {name} ನಿಂದ ವಿಷಯವನ್ನು ಬಳಸುತ್ತಿದೆ.",
       "collections.load": "ಮಾಧ್ಯಮ ಲೋಡ್ ಮಾಡಿ",
-      "collections.change": "ಮಾಧ್ಯಮ ಬದಲಿಸಿ"
+      "collections.change": "ಮಾಧ್ಯಮ ಬದಲಿಸಿ",
+      "collections.changeFolder": "ಫೋಲ್ಡರ್ ಬದಲಿಸಿ",
+      "collections.reconnect": "ನೆನಪಿಟ್ಟ ಮಾಧ್ಯಮದೊಂದಿಗೆ ಮುಂದುವರಿಸಿ",
+      "collections.forget": "ಮರೆತುಬಿಡಿ",
+      "collections.rememberedTitle": "ನೆನಪಿಟ್ಟ ಮಾಧ್ಯಮ",
+      "collections.rememberedMessage": "ಮುಂದುವರಿಸಲು {name} ಅನ್ನು ಮರುಸಂಪರ್ಕಿಸಿ.",
+      "collections.permission": "ನೆನಪಿಟ್ಟ ಮಾಧ್ಯಮ ಫೋಲ್ಡರ್ ಓದಲು ಅನುಮತಿ ನೀಡಲಾಗಿಲ್ಲ."
     }
   },
   "branding": {

@@ -5,7 +5,7 @@
 
 ## Model
 
-MyGita separates the shared application shell from product configuration, reusable collections and individual experiences. The shell owns profiles, experience selection, common navigation, language, fullscreen, help, editing entry, audio controls, installation, updates, analytics, and resume. A registered renderer owns the panels and presentation rules of an experience. A product decides which collections and experiences are available in its distribution.
+MyGita separates the shared application shell from product configuration, reusable collections and individual experiences. The shell owns profiles, experience selection, common navigation, language, fullscreen, help, audio controls, installation, updates, analytics, and resume. A registered renderer owns the panels and presentation rules of an experience. A product decides which collections and experiences are available in its distribution. Content authoring is outside the playback application.
 
 ## Current Bhagavad Gita experiences
 

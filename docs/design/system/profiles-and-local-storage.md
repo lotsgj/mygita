@@ -25,4 +25,4 @@ Profile storage failures are presented as application errors and can emit a non-
 
 ## Deliberate exclusions
 
-Canonical verse data is not duplicated in IndexedDB. It loads from collection files into memory. Unsaved editor work is not persisted across application closure; writable-folder saves or downloaded masters are the durable authoring outputs.
+Canonical verse data is not duplicated in IndexedDB. It loads from collection files into memory. The playback application does not store or persist authoring drafts; a future local-only editor owns its save and recovery model.

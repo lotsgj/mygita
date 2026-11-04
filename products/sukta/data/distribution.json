@@ -48,7 +48,6 @@
       "data.description": "MyGita could not load this book from the selected media source. Choose the local media folder to continue.",
       "data.choose": "Choose media folder",
       "collections.message": "Choose the local media folder to use MyGita from file mode.",
-      "workspace.note": "The folder stays on your device. Suktaverse requests read and write access only after you choose it.",
       "validation.contentLanguage": "Choose a preferred Sukta content language."
     },
     "kn": {
@@ -73,7 +72,6 @@
       "data.description": "ಆಯ್ಕೆಮಾಡಿದ ಮಾಧ್ಯಮ ಮೂಲದಿಂದ ಈ ಪುಸ್ತಕವನ್ನು ಲೋಡ್ ಮಾಡಲು MyGita ಗೆ ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಮುಂದುವರಿಯಲು ಸ್ಥಳೀಯ media ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ.",
       "data.choose": "ಮಾಧ್ಯಮ ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ",
       "collections.message": "ಫೈಲ್ ಮೋಡ್‌ನಲ್ಲಿ MyGita ಬಳಸಲು ಸ್ಥಳೀಯ media ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ.",
-      "workspace.note": "ಫೋಲ್ಡರ್ ನಿಮ್ಮ ಸಾಧನದಲ್ಲೇ ಇರುತ್ತದೆ. ಆಯ್ಕೆಮಾಡಿದ ನಂತರ ಮಾತ್ರ Suktaverse ಓದು ಮತ್ತು ಬರೆಯುವ ಅನುಮತಿ ಕೇಳುತ್ತದೆ.",
       "validation.contentLanguage": "ಆದ್ಯತೆಯ ಸೂಕ್ತ ವಿಷಯ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ."
     }
   },

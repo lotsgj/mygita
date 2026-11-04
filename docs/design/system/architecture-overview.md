@@ -8,8 +8,8 @@
 MyGita is the shared source repository and platform for independently configurable static verse products:
 
 1. `engine/player.html` supplies the reusable application and dialog structure.
-2. `engine/css` supplies the shell, editor, and renderer presentation.
-3. `engine/js/player/player-core.js` coordinates routing, profiles, collections, renderer selection, audio, editing, events, resume, and PWA behavior.
+2. `engine/css` supplies the shell and renderer presentation.
+3. `engine/js/player/player-core.js` coordinates routing, profiles, collections, renderer selection, audio, events, resume, and PWA behavior.
 4. `engine/js/player/renderers` contains experience-specific rendering.
 5. `products/gita` owns Bhagavad Gita product identity, experience configuration, product visuals, theme and tests. Scripture content does not live in this folder.
 6. `products/sukta` owns the provisional Sukta product configuration and the first **Sukta Chant** experience. Ganesha Atharvashirsha and Purusha Sukta content are independently supplied by media books.

@@ -84,8 +84,6 @@ export class CollectionSource {
     this.mediaSource = source;
   }
 
-  workspaceFor() { return null; }
-
   async productText(url) {
     if (this.productTextReader) return this.productTextReader(url);
     if (this.directoryHandle) return readCollectionTextFromDirectory(this.directoryHandle, url);

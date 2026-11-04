@@ -87,8 +87,14 @@ const historySource = process.env.VERSION_HISTORY_FILE || path.join(root, 'versi
 let versionHistory = validateVersionHistory(JSON.parse(await readFile(historySource, 'utf8')));
 if (versionHistory.some((record) => record.version === version)) throw new Error(`Version history already contains ${version}.`);
 const dateParts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map(({ type, value }) => [type, value]));
-const changeMessage = String(process.env.GITAVERSE_CHANGE_MESSAGE || execFileSync('git', ['log', '-1', '--pretty=%s'], { cwd: root, encoding: 'utf8' })).trim().split(/\r?\n/)[0];
-versionHistory = [...versionHistory, { version, date: `${dateParts.year}-${dateParts.month}-${dateParts.day}`, message: changeMessage || 'Gitaverse update' }];
+const releaseTitle = String(process.env.MYGITA_RELEASE_TITLE || process.env.GITAVERSE_CHANGE_MESSAGE || 'MyGita improvements and refinements').trim().split(/\r?\n/)[0];
+const releaseMessage = String(process.env.MYGITA_RELEASE_MESSAGE || '').trim().split(/\r?\n/)[0];
+versionHistory = [...versionHistory, {
+  version,
+  date: `${dateParts.year}-${dateParts.month}-${dateParts.day}`,
+  title: releaseTitle || 'MyGita improvements and refinements',
+  ...(releaseMessage ? { message: releaseMessage } : {})
+}];
 validateVersionHistory(versionHistory);
 
 run(process.execPath, ['scripts/build-font-css.mjs']);

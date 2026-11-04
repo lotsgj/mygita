@@ -1,7 +1,7 @@
 # Build, test and deployment
 
 **Status:** Current
-**Last updated:** 3 November 2026
+**Last updated:** 4 November 2026
 
 ## Source and generated files
 
@@ -11,11 +11,11 @@ Maintainable shared JavaScript lives under `engine/js/player`, `engine/js/events
 
 The application version is `major.build`. The major value is repository-controlled. GitHub Actions supplies `<run-number>-<run-attempt>` as the build identifier and injects optional analytics configuration through the `CLARITY_PROJECT_ID` and `GA_MEASUREMENT_ID` repository variables. Source pages retain development placeholders; the deployment build validates and writes production values into the generated output. An absent variable keeps that provider disabled.
 
-`version-history.json` remains the compact, source-controlled release narrative shown in About. Git history and the immutable Pages deployment record provide the detailed troubleshooting trail. Automating release-message additions is a separate enhancement; the deployment workflow does not modify the source branch.
+`version-history.json` remains the compact, English-only release narrative shown in About. The deployment appends the current version, date, user-facing `title`, and optional `message` to the generated history without modifying the source branch. `MYGITA_RELEASE_TITLE` and `MYGITA_RELEASE_MESSAGE` may supply curated copy; a missing title becomes “MyGita improvements and refinements,” never a raw Git commit subject. Git history and the immutable Pages deployment record provide the detailed troubleshooting trail.
 
 ## Local platform build
 
-`pnpm run build:mygita` builds the unified platform into `dist/mygita`. Repository-root `index.html` is the local harness: it asks for the repository's `products` folder and then exposes every valid registered product.
+`pnpm run build:mygita` builds the unified platform into `dist/mygita`. Repository-root `index.html` is only a local launcher: it preserves the query and fragment and redirects to `engine/player.html`, the single source of the local player experience. The embedded local workspace then exposes every valid registered product.
 
 `pnpm run test:sukta` validates the Sukta masters, canonical SID alignment, registries and Player-4 wiring. Sukta is delivered as a product inside MyGita rather than as a separate PWA at this stage.
 
@@ -23,7 +23,9 @@ The build excludes audio binaries and archived prototype content. Rachana and Sa
 
 ## GitHub Pages deployment
 
-`lotsgj/mygita` is the single source and deployment repository. `.github/workflows/deploy-pages.yml` runs on pull requests, pushes to `main`, and manual dispatches. Every run installs locked dependencies, builds `dist/mygita`, and runs the engine, platform, Gita and Sukta checks. Pull requests stop after verification. A push to `main` or a manual run uploads only `dist/mygita` as the Pages artifact and deploys it through the protected `github-pages` environment.
+`lotsgj/mygita` is the application source and deployment repository. `.github/workflows/deploy-pages.yml` runs on pull requests, pushes to `main`, and manual dispatches. Every run checks out the current `lotsgj/media` main branch beside MyGita, installs locked dependencies, builds `dist/mygita`, and runs the engine, platform, Gita and Sukta checks against that clean published Media state. Pull requests stop after verification. A push to `main` or a manual run uploads only `dist/mygita` as the Pages artifact and deploys it through the protected `github-pages` environment.
+
+MyGita and Media therefore form an explicit integration boundary. A MyGita contract change that requires a new Media schema or catalog layout must not be pushed while the corresponding Media changes exist only in a local working tree. Publish and validate Media first, then push MyGita and let CI verify the same pair of public revisions. Local integration checks should use either a clean Media clone or confirm that intentional Media changes have already been published; an uncommitted sibling Media tree can otherwise produce a false local pass.
 
 The generated manifest and service-worker registration use relative scope paths. The same artifact therefore works first at the repository Pages URL and later at the root of `mygita.gitajyoti.org` without a second path-specific build.
 
@@ -41,7 +43,7 @@ The former `gitaverse.gitajyoti.org` origin remains a separate migration decisio
 
 - Unit tests cover collection normalization, renderer behavior, cue validation/indexing, and event logic.
 - Contract tests cover schemas, collection alignment, experience audio composition, source isolation, deployment rules, and Rachana integrity.
-- Player browser regression exercises the user journey, Gita 700, Gita Yoga, Gita Sara, and core interactions, including mixed image/deck navigation, question modes, equal desktop panels, mobile stacking, missing-media fallback, and local editing. Collection contracts additionally verify Gita Sara's 135-SID media/question coverage, SID-plus-order localization alignment, URL safety, reusable defaults, physical image assets, and normalized local-folder loading.
+- Player browser regression exercises the user journey, Gita Chant, Gita 700, Gita Yoga, Gita Sara, and core interactions, including mixed image/deck navigation, question modes, fixed desktop panels, mobile stacking, missing-media fallback, logical-path resolution and local Media loading. Collection contracts additionally verify Gita Sara's 135-SID media/question coverage, SID-plus-order localization alignment, reusable defaults, provider descriptors and physical assets through the Media contract.
 - Rachana browser regression covers HTTP and `file://`, routing/history, mobile navigation, sanitization, and PWA-cache exclusion.
 
 ## How tests are triggered

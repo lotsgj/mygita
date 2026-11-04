@@ -23,6 +23,7 @@ const sources = [
   'js/shared/about-dialog.js',
   'js/media-contract.js',
   'js/media-source.js',
+  'js/media-folder-store.js',
   'js/player/collection-data.js',
   'js/media-experience-adapter.js',
   'js/player/collection-source.js',
@@ -34,7 +35,6 @@ const sources = [
   'js/player/renderers/gita-sara.js',
   'js/player/renderers/verse-chant.js',
   'js/player/renderers/registry.js',
-  'js/player/editor.js',
   'js/player/player-core.js'
 ];
 

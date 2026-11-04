@@ -20,13 +20,12 @@ function chantFieldValue(row, field) {
 
 export function createVerseChantRenderer() {
   let root;
-  let editing = false;
   let resizeObserver = null;
   let fitFrame = 0;
   const handleViewportChange = () => scheduleFit();
 
   function scheduleFit() {
-    if (editing || !root) return;
+    if (!root) return;
     if (fitFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(fitFrame);
     fitFrame = requestAnimationFrame(() => {
       fitText();
@@ -62,14 +61,6 @@ export function createVerseChantRenderer() {
     ];
   }
 
-  function makeEditable(element) {
-    element.contentEditable = 'true';
-    element.spellcheck = false;
-    element.dataset.editField = element.dataset.field;
-    element.classList.remove('empty');
-    if (element.textContent === '—') element.textContent = '';
-  }
-
   function render(row, contentLanguage) {
     const fields = panelFields(contentLanguage);
     const values = fields.map((panel) => chantFieldValue(row, panel.field));
@@ -97,7 +88,6 @@ export function createVerseChantRenderer() {
         return lineElement;
       }));
       element.classList.toggle('empty', !text);
-      if (editing) makeEditable(element);
     });
     scheduleFit();
   }
@@ -179,7 +169,7 @@ export function createVerseChantRenderer() {
   }
 
   function fitText() {
-    if (editing || !root) return;
+    if (!root) return;
     panelFields(root.dataset.primaryLanguage).forEach((panel) => fitElement(
       root.querySelector('[data-panel="' + panel.role + '"]'),
       root.querySelector('[data-role="' + panel.role + '"]'),
@@ -188,24 +178,10 @@ export function createVerseChantRenderer() {
     ));
   }
 
-  function setEditing(enabled) {
-    editing = enabled;
-    root.querySelectorAll('[data-role]').forEach((element) => {
-      if (enabled) makeEditable(element);
-      else {
-        element.contentEditable = 'false';
-        delete element.dataset.editField;
-      }
-    });
-    if (!enabled) scheduleFit();
-  }
-
   return {
     id: 'verse-chant',
     mount,
     render,
-    setEditing,
-    editableElements: () => Array.from(root.querySelectorAll('[data-edit-field]')),
     fitText,
     destroy() {
       if (fitFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(fitFrame);

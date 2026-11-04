@@ -7,7 +7,6 @@ const PANELS = [
 
 export function createGita700Renderer() {
   let root;
-  let editing = false;
 
   function fieldFor(role, language) {
     if (role === 'shloka') return 'source.shloka';
@@ -39,33 +38,8 @@ export function createGita700Renderer() {
       element.lang = panel.role === 'shloka' ? 'sa' : language;
       element.textContent = text || '—';
       element.classList.toggle('empty', !text);
-      if (editing) makeEditable(element);
     });
-    if (!editing) requestAnimationFrame(fitText);
-  }
-
-  function makeEditable(element) {
-    element.contentEditable = 'true';
-    element.spellcheck = false;
-    element.dataset.editField = element.dataset.field;
-    element.classList.remove('empty');
-    if (element.textContent === '—') element.textContent = '';
-  }
-
-  function setEditing(enabled) {
-    editing = enabled;
-    root.querySelectorAll('[data-role]').forEach((element) => {
-      if (enabled) makeEditable(element);
-      else {
-        element.contentEditable = 'false';
-        delete element.dataset.editField;
-      }
-    });
-    if (!enabled) requestAnimationFrame(fitText);
-  }
-
-  function editableElements() {
-    return Array.from(root.querySelectorAll('[data-edit-field]'));
+    requestAnimationFrame(fitText);
   }
 
   function fitElement(panel, text, maxSize, minSize) {
@@ -87,7 +61,7 @@ export function createGita700Renderer() {
   }
 
   function fitText() {
-    if (editing || !root) return;
+    if (!root) return;
     const mobile = matchMedia('(max-width: 760px)').matches;
     PANELS.forEach((panel) => {
       fitElement(
@@ -103,8 +77,6 @@ export function createGita700Renderer() {
     id: 'gita-700',
     mount,
     render,
-    setEditing,
-    editableElements,
     fitText,
     destroy() { if (root) root.textContent = ''; root = null; }
   };

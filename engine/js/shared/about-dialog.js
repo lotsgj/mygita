@@ -79,7 +79,7 @@ export class AboutDialog {
       deployed,
       local,
       this.version,
-      this.translate('about.currentBuild', 'Current Gitaverse build')
+      this.translate('about.releaseFallback', 'MyGita improvements and refinements')
     ));
     requestAnimationFrame(() => this.overlay.querySelector('[data-version-history-back]')?.focus());
   }
@@ -91,13 +91,27 @@ export class AboutDialog {
       const item = document.createElement('article');
       item.className = 'about-history-item';
       const title = document.createElement('h3');
-      title.textContent = record.version;
+      title.textContent = record.title || this.translate('about.releaseFallback', 'MyGita improvements and refinements');
+      const metadata = document.createElement('div');
+      metadata.className = 'about-history-metadata';
+      const version = document.createElement('span');
+      version.textContent = `${this.translate('about.version', 'Version')} ${record.version}`;
       const date = document.createElement('time');
       date.dateTime = record.date || '';
       date.textContent = record.date ? new Intl.DateTimeFormat(document.documentElement.lang === 'kn' ? 'kn-IN' : 'en-IN', { dateStyle: 'long' }).format(new Date(`${record.date}T00:00:00`)) : '';
-      const message = document.createElement('p');
-      message.textContent = record.message || this.translate('about.currentBuild', 'Current Gitaverse build');
-      item.append(title, date, message);
+      metadata.append(version, date);
+      if (record.current) {
+        const badge = document.createElement('span');
+        badge.className = 'about-history-current';
+        badge.textContent = this.translate('about.current', 'Current');
+        metadata.appendChild(badge);
+      }
+      item.append(title, metadata);
+      if (record.message) {
+        const message = document.createElement('p');
+        message.textContent = record.message;
+        item.appendChild(message);
+      }
       if (record.dateSeen) {
         const seen = document.createElement('small');
         seen.textContent = `${this.translate('about.seen', 'Seen on this device')}: ${new Date(record.dateSeen).toLocaleString()}`;

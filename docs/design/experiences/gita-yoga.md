@@ -39,7 +39,7 @@ The data layer is ready for optional cue metadata. A collection can declare a cu
 
 ## Editing
 
-Edit mode exposes all eight semantic fields exactly once. Saving routes Sanskrit changes to `master_sa.csv`, Kannada changes to `master_kn.csv`, and English changes to `master_en.csv`, while preserving unrelated columns and records. Editing the displayed Sanskrit shloka does not alter its archival `shloka_raw` value.
+MyGita playback contains no inline Edit mode. A future local-only content editor may reuse this renderer for preview, but writing Sanskrit, Kannada and English masters belongs to that separate authoring workflow. Any such editor must preserve unrelated columns and records, and changing displayed Sanskrit `shloka` must not alter archival `shloka_raw`.
 
 ## Verification
 

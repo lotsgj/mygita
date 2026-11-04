@@ -15,7 +15,6 @@ function fieldValue(row, field) {
 
 export function createGitaYogaRenderer() {
   let root;
-  let editing = false;
 
   function mount(container) {
     root = container;
@@ -35,14 +34,6 @@ export function createGitaYogaRenderer() {
     '</div>';
   }
 
-  function makeEditable(element) {
-    element.contentEditable = 'true';
-    element.spellcheck = false;
-    element.dataset.editField = element.dataset.field;
-    element.classList.remove('empty');
-    if (element.textContent === '—') element.textContent = '';
-  }
-
   function render(row, contentLanguage) {
     FIELDS.forEach(({ role, field, language }) => {
       const element = root.querySelector('[data-role="' + role + '"]');
@@ -51,27 +42,10 @@ export function createGitaYogaRenderer() {
       element.lang = language;
       element.textContent = text || '—';
       element.classList.toggle('empty', !text);
-      if (editing) makeEditable(element);
     });
     const primary = contentLanguage === 'kn' ? 'kn' : 'en';
     root.dataset.primaryLanguage = primary;
-    if (!editing) requestAnimationFrame(fitText);
-  }
-
-  function setEditing(enabled) {
-    editing = enabled;
-    root.querySelectorAll('[data-role]').forEach((element) => {
-      if (enabled) makeEditable(element);
-      else {
-        element.contentEditable = 'false';
-        delete element.dataset.editField;
-      }
-    });
-    if (!enabled) requestAnimationFrame(fitText);
-  }
-
-  function editableElements() {
-    return Array.from(root.querySelectorAll('[data-edit-field]'));
+    requestAnimationFrame(fitText);
   }
 
   function fitGroup(specifications) {
@@ -102,7 +76,7 @@ export function createGitaYogaRenderer() {
   }
 
   function fitText() {
-    if (editing || !root) return;
+    if (!root) return;
     const allText = root.querySelectorAll('[data-role]');
     allText.forEach((element) => { element.style.fontSize = ''; });
     if (matchMedia('(max-width: 760px)').matches || globalThis.document?.documentElement.classList.contains('mobile-layout')) return;
@@ -122,8 +96,6 @@ export function createGitaYogaRenderer() {
     id: 'gita-yoga',
     mount,
     render,
-    setEditing,
-    editableElements,
     fitText,
     destroy() {
       if (root) {

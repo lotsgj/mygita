@@ -1,48 +1,46 @@
 # How catalogs become experiences
 
 **Status:** Current  
-**Last updated:** 12 October 2026
+**Last updated:** 4 November 2026
 
-Gitaverse separates canonical verse content, experience selection, reusable media, and rendering. The same verse and media collections can therefore serve different learning purposes without duplicating their source data.
+MyGita separates product configuration, canonical book content, reusable media, experience composition and rendering. The same book and media collections can therefore serve different products and learning purposes without duplicating their source data.
 
 ![Catalog hierarchy from canonical verses through experience sequence and reusable collections to the three renderers](../../assets/catalog-to-player.svg)
 
 ## Shared hierarchy
 
 ```text
-Canonical verse content
-data/collections/verses/bhagavad-gita/
-├── master_sa.csv
-├── master_en.csv
-└── master_kn.csv
-              │ joined by SID
+MyGita product configuration
+products/<product>/data/
+├── distribution.json
+└── experiences/<experience>/experience.json + catalog.csv
+              │ declares book, renderer and resource bindings
               ▼
-Experience definition
-data/collections/experiences/<experience>/
-├── sequence.csv          ← selects SIDs and defines player order
-├── audio.csv             ← associates audio collections
-├── illustrations.csv     ← associates illustration collections
-├── contemplations.csv    ← associates questions and reflections
-├── decks.csv             ← associates Google decks
-└── media.csv             ← orders different media types together
-              │ collection + SID + asset order
+Media root catalog
+catalog.json
+├── content_version
+├── books[] → book/<book-id>/manifest.json
+└── mounts[] → book/ · audio/ · image/ · video/ · deck/ · docs/
+              │ strict logical paths
               ▼
-Reusable collection registry
-data/collections/<type>/collection.csv
-              │
+Book manifest
+book/<book-id>/manifest.json
+├── canonical verse registries and language masters
+├── reusable resource registries and catalogs
+├── experience resources
+│   ├── sequence.csv          ← selects SIDs and defines player order
+│   ├── audio.csv             ← associates audio collections
+│   ├── illustrations.csv     ← associates illustration collections
+│   ├── contemplations.csv    ← associates questions and reflections
+│   ├── decks.csv             ← associates deck descriptors
+│   └── media.csv             ← orders different media types together
+└── metadata-only file inventory
+              │ joined by SID, collection and asset order
               ▼
-Individual reusable collection
-data/collections/<type>/<collection>/
-├── catalog.csv
-├── localized metadata
-├── cue-purpose.csv / cue.csv when applicable
-└── physical assets
-              │
-              ▼
-Collection data loader → normalized experience dataset → renderer
+Media source + book adapter → normalized experience dataset → renderer
 ```
 
-`SID` identifies a verse across canonical masters, experience files, catalogs, analytics, and resume state. `SID + order` identifies a particular reusable asset when one verse has multiple recordings, illustrations, questions, decks, or other media.
+`SID` identifies a verse across canonical masters, experience files, catalogs, analytics and resume state. `SID + order` identifies a particular reusable asset when one verse has multiple recordings, illustrations, questions, decks or other media. Logical paths identify owned resources independently of their physical host. The root catalog’s longest matching mount resolves each logical path for remote, PWA and local-folder use.
 
 ## The role of sequence.csv
 
@@ -86,6 +84,23 @@ Shloka · Transliteration · Meaning · Word-by-word meaning
 ```
 
 Here `sequence.csv` represents the complete supported scripture journey. Audio and chapter icons are reusable collections; the Gita 700 compositions state which collection assets serve this experience.
+
+## Gita Chant
+
+```text
+Canonical Bhagavad Gita masters
+              +
+Complete sequence.csv
+              +
+Shared chanting-audio composition
+              ▼
+Normalized Gita Chant dataset
+              ▼
+Player-4 three-script chanting renderer
+Sanskrit · preferred transliteration · other transliteration
+```
+
+Gita Chant demonstrates renderer reuse. It reads the same normalized book content and shared player services as the other Gita experiences while presenting a deliberately smaller semantic subset.
 
 ## Gita Yoga
 
@@ -138,13 +153,13 @@ position → SID 2.12
               ├── master_kn.csv → Kannada content
               ├── audio.csv → chanting collection and asset order
               ├── illustrations.csv → gita-sara-illustrations, order 1
-              ├── illustration catalog → 2.12-1.webp
+              ├── illustration catalog → image/.../2.12-1.webp
               ├── contemplations.csv → ordered reflection questions
               └── media.csv → presentation order across media types
 ```
 
-If `2.12-1.webp` has not yet been generated or cannot be loaded, the player displays the shared default illustration. SID `2.12` retains its curated position and all other content remains available.
+If the authored illustration association is absent or the logical asset cannot be loaded, the player displays the shared default illustration. SID `2.12` retains its curated position and all other content remains available. A deck association resolves to a logical `deck/...json` descriptor; only that descriptor contains the external Google Slides provider URL.
 
 ## Player boundary
 
-The shared loader validates identities, orders, collection references, localized metadata, and safe media URLs. It produces a normalized row model so renderers do not parse catalogs or contain provider paths. Each renderer decides only how its normalized content is presented.
+The shared media source validates catalog schema, mounts and logical paths. The book adapter then validates identities, orders, collection references and localized metadata and produces a normalized row model. Renderers never parse catalogs, select physical hosts or contain provider paths; each renderer decides only how normalized content is presented.

@@ -39,7 +39,6 @@
 <link rel="apple-touch-icon" href="" data-brand-apple-icon>
 <link rel="stylesheet" href="css/fonts.css?v=dev">
 <link rel="stylesheet" href="css/player.css?v=dev">
-<link rel="stylesheet" href="css/editor.css?v=dev">
 <link rel="stylesheet" href="css/renderers/gita-700.css?v=dev">
 <link rel="stylesheet" href="css/renderers/gita-yoga.css?v=dev">
 <link rel="stylesheet" href="css/renderers/gita-sara.css?v=dev">
@@ -153,7 +152,11 @@
     <div class="landing-links"><button class="about-link" type="button" data-about data-i18n="common.about">About Gitaverse</button><button class="about-link" type="button" data-analytics-info data-i18n="analytics.link">Anonymous usage</button><button class="about-link" type="button" data-install data-i18n="common.install" hidden>Install Gitaverse</button></div>
     <section class="home-collections" id="home-collections" hidden>
       <div><h2 id="home-collections-title">Local products</h2><p id="home-collections-message"></p></div>
-      <button class="secondary-button" id="home-collections-button" type="button">Load products</button>
+      <div class="home-collections-actions">
+        <button class="secondary-button" id="home-collections-button" type="button">Load products</button>
+        <button class="quiet-button" id="home-collections-change-button" type="button" hidden>Change folder</button>
+        <button class="quiet-button" id="home-collections-forget-button" type="button" hidden>Forget</button>
+      </div>
       <input id="home-collections-input" type="file" webkitdirectory multiple hidden>
       <p class="file-error" id="home-collections-error" role="alert"></p>
     </section>
@@ -237,7 +240,6 @@
           <button class="top-menu-item" id="questions-button" type="button" hidden><span class="top-menu-label" data-i18n="menu.questionsOn">Questions (On)</span><span class="menu-shortcut">Q</span></button>
           <button class="top-menu-item" id="fullscreen-button" type="button"><span class="top-menu-label" data-i18n="menu.fullscreen">Fullscreen</span><span class="menu-shortcut">F</span></button>
           <div class="top-menu-divider"></div>
-          <button class="top-menu-item" id="edit-button" type="button"><span class="top-menu-label" data-i18n="menu.edit">Edit this shloka</span><span class="menu-shortcut">E</span></button>
           <button class="top-menu-item" id="home-button" type="button"><span class="top-menu-label" data-i18n="menu.home">Home</span><span class="menu-shortcut">A</span></button>
           <button class="top-menu-item" id="journey-button" type="button"><span class="top-menu-label" data-i18n="menu.journey">Your journey</span><span class="menu-shortcut">J</span></button>
           <button class="top-menu-item" id="help-button" type="button"><span class="top-menu-label" data-i18n="menu.help">Help</span><span class="menu-shortcut">H</span></button>
@@ -274,26 +276,6 @@
   </div>
   <audio id="audio" preload="metadata" crossorigin="anonymous"></audio>
 </main>
-
-<aside class="download-reminder" id="download-reminder" hidden aria-label="Edited master download">
-  <button class="download-reminder-action" id="download-reminder-action" type="button">↓ Download edited collection files</button>
-  <button class="download-reminder-close" id="download-reminder-close" type="button" aria-label="Dismiss download reminder">×</button>
-</aside>
-
-<div class="overlay" id="workspace-overlay" hidden>
-  <section class="dialog workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="workspace-title">
-    <header class="dialog-head"><h2 id="workspace-title" data-i18n="workspace.title">Open local collections</h2><button class="icon-button close-dialog" type="button" aria-label="Close" data-i18n-aria="common.close">×</button></header>
-    <div class="dialog-body">
-      <p>Select this repository’s <code>data/collections</code> folder. Gitaverse will reload its collection data and save edited verse text directly to the relevant language master file.</p>
-      <div class="file-actions">
-        <button class="file-button" id="open-collections-workspace" type="button" data-i18n="workspace.open">Open collections folder</button>
-        <button class="retry-button" id="edit-download-only" type="button" data-i18n="workspace.downloadOnly">Edit with downloads only</button>
-      </div>
-      <div class="file-error" id="workspace-error" role="alert" aria-live="polite"></div>
-      <p class="file-note" data-i18n="workspace.note">The folder stays on your device. Gitaverse requests read and write access only after you choose it.</p>
-    </div>
-  </section>
-</div>
 
 <div class="overlay" id="goto-overlay" hidden>
   <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="goto-title">
@@ -350,7 +332,6 @@
         <div class="shortcut-row"><div class="shortcut-keys"><kbd>H</kbd></div><div class="shortcut-description" data-i18n="help.help">Open this help</div></div>
         <div class="shortcut-row"><div class="shortcut-keys"><kbd>K</kbd></div><div class="shortcut-description" data-i18n="help.about">Open About Gitaverse</div></div>
         <div class="shortcut-row"><div class="shortcut-keys"><kbd>M</kbd></div><div class="shortcut-description" data-i18n="help.menu">Open or close menu</div></div>
-        <div class="shortcut-row"><div class="shortcut-keys"><kbd>E</kbd></div><div class="shortcut-description" data-i18n="help.edit">Enter or leave edit mode</div></div>
         <div class="shortcut-row"><div class="shortcut-keys"><kbd>Esc</kbd></div><div class="shortcut-description" data-i18n="help.escape">Close a dialog or exit fullscreen</div></div>
       </div>
     </div>

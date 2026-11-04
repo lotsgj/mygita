@@ -112,6 +112,7 @@
   .experience-detail-close { position: absolute; right: 17px; top: 15px; border: 0; background: transparent; font-size: 27px; cursor: pointer; }
   .experience-detail-action { float: right; margin-top: 24px; padding: 11px 18px; border-radius: 999px; background: var(--indigo); color: white; text-decoration: none; }
   .home-collections { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px 16px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .home-collections-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
   .home-collections h2 { margin: 0 0 4px; font: 500 18px var(--font-sans, sans-serif); }
   .home-collections p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
   .home-collections .file-error { grid-column: 1 / -1; color: #a64032; }
@@ -277,7 +278,9 @@
   .about-history-item { padding: 14px 0; border-bottom: 1px solid var(--line); }
   .about-history-item:last-child { border-bottom: 0; }
   .about-history-item h3 { margin: 0; color: var(--indigo); font-size: 13px; }
-  .about-history-item time, .about-history-item small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+  .about-history-metadata { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; color: var(--muted); font-size: 10px; }
+  .about-history-item time, .about-history-item small { display: block; color: var(--muted); font-size: 10px; }
+  .about-history-current { padding: 2px 7px; border-radius: 999px; background: rgba(183,93,42,.12); color: var(--saffron); font-weight: 650; }
   .about-history-item p { margin: 7px 0 0; color: var(--ink); font-size: 12px; line-height: 1.5; }
 
   #app { height: 100vh; height: 100dvh; padding: 16px; }
@@ -492,7 +495,8 @@
     .experience-detail-copy ul { columns: 1; }
     .experience-detail-action { float: none; display: block; text-align: center; }
     .home-collections { grid-template-columns: 1fr; }
-    .home-collections .secondary-button { width: 100%; }
+    .home-collections-actions { justify-content: stretch; }
+    .home-collections-actions .secondary-button { width: 100%; }
     .journey-details { padding: 68px 14px 24px; }
     .journey-details-head { grid-template-columns: 1fr auto; }
     .journey-details-head h1 { grid-column: 1 / -1; grid-row: 1; }

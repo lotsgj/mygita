@@ -1,5 +1,6 @@
-import { openWritableCollectionWorkspace, setCollectionRoot } from './collection-data.js';
+import { setCollectionRoot } from './collection-data.js';
 import { CollectionSource, CollectionSourceRequiredError } from './collection-source.js';
+import { MediaFolderStore, directoryPermission } from '../media-folder-store.js';
 import { ProfileStore } from '../profile-store.js';
 import { ProfileUI } from '../profile-ui.js';
 import { EventBus } from '../events/event-bus.js';
@@ -11,7 +12,6 @@ import { SentryAdapter } from '../events/sentry-adapter.js';
 import { profileAnalyticsContext } from '../events/profile-analytics.js';
 import { PwaManager } from '../pwa.js';
 import { AudioPlayer } from './audio-player.js';
-import { InlineEditor } from './editor.js';
 import { configureExperiences, getExperience, availableExperiences } from './renderers/registry.js';
 import { AboutDialog } from '../shared/about-dialog.js';
 import { I18n } from '../i18n/i18n.js';
@@ -23,11 +23,8 @@ const state = {
   index: 0,
   language: 'en',
   renderer: null,
-  editor: null,
   eventsBound: false,
   overlayOpener: null,
-  downloadReminderDismissed: false,
-  lastSavedRevision: 0,
   activeProfile: null,
   profileSelectionMode: 'initial',
   profileReturnView: 'diksoochi',
@@ -102,6 +99,8 @@ configureExperiences(distribution());
 const profileStore = new ProfileStore({ databaseName: appConfig.databaseName || distribution().databaseName });
 const platformId = appConfig.id || distribution().id;
 const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformId}-version-history` });
+const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-local-media` });
+let rememberedMediaFolder = null;
 const eventBus = new EventBus({
   appVersion,
   contextProvider: () => ({
@@ -139,7 +138,7 @@ function setInterfaceLanguage(language) {
   i18n.setLanguage(language);
   aboutDialog.refresh();
   if (state.dataset && state.renderer) {
-    render({ trackLocation: false, keepEditing: Boolean(state.editor?.active) });
+    render({ trackLocation: false });
     syncFullscreenUi();
   }
 }
@@ -411,11 +410,20 @@ function syncHomeCollectionSource() {
   section.hidden = location.protocol !== 'file:';
   if (section.hidden) return;
   const ready = collectionSource.isReady;
+  const remembered = Boolean(rememberedMediaFolder?.handle);
   document.getElementById('home-collections-title').textContent = i18n.t(ready ? 'collections.readyTitle' : 'collections.title');
   document.getElementById('home-collections-message').textContent = ready
     ? i18n.t('collections.readyMessage', { name: collectionSource.label })
     : i18n.t('collections.message');
-  document.getElementById('home-collections-button').textContent = i18n.t(ready ? 'collections.change' : 'collections.load');
+  document.getElementById('home-collections-button').textContent = i18n.t(ready ? 'collections.change' : (remembered ? 'collections.reconnect' : 'collections.load'));
+  document.getElementById('home-collections-change-button').hidden = ready || !remembered;
+  document.getElementById('home-collections-change-button').textContent = i18n.t('collections.changeFolder');
+  document.getElementById('home-collections-forget-button').hidden = !remembered;
+  document.getElementById('home-collections-forget-button').textContent = i18n.t('collections.forget');
+  if (!ready && remembered) {
+    document.getElementById('home-collections-title').textContent = i18n.t('collections.rememberedTitle');
+    document.getElementById('home-collections-message').textContent = i18n.t('collections.rememberedMessage', { name: rememberedMediaFolder.label || rememberedMediaFolder.handle.name || 'media' });
+  }
   document.getElementById('home-collections-error').textContent = '';
   document.querySelectorAll('#continue-journey-link, [data-experience-card]').forEach((link) => {
     link.classList.toggle('needs-collections', !ready);
@@ -590,7 +598,7 @@ async function useSelectedCollections(fileList) {
   }
 }
 
-async function useSelectedCollectionsDirectory(handle) {
+async function useSelectedCollectionsDirectory(handle, { remember = true } = {}) {
   const error = document.getElementById('home-collections-error');
   const section = document.getElementById('home-collections');
   error.textContent = '';
@@ -603,13 +611,24 @@ async function useSelectedCollectionsDirectory(handle) {
     if (state.pendingLocalDestination) {
       ({ play, requestedSid, requestedLanguage } = state.pendingLocalDestination);
       state.pendingLocalDestination = null;
-      return startRequestedExperience();
+      await startRequestedExperience();
+      if (remember) {
+        try { rememberedMediaFolder = await mediaFolderStore.remember(handle); } catch (_) { rememberedMediaFolder = null; }
+      }
+      syncHomeCollectionSource();
+      return true;
     }
-    return startRequestedExperience();
+    await startRequestedExperience();
+    if (remember) {
+      try { rememberedMediaFolder = await mediaFolderStore.remember(handle); } catch (_) { rememberedMediaFolder = null; }
+    }
+    syncHomeCollectionSource();
+    return true;
   } catch (failure) {
     collectionSource.clear({ releaseMedia: true });
     syncHomeCollectionSource();
     error.textContent = failure.message || i18n.t('collections.invalid');
+    return false;
   } finally {
     section.setAttribute('aria-busy', 'false');
   }
@@ -620,11 +639,60 @@ async function chooseHomeCollections() {
     document.getElementById('home-collections-input').click();
     return;
   }
+  if (rememberedMediaFolder?.handle && collectionSource.requiresSelection) {
+    try {
+      const permission = await directoryPermission(rememberedMediaFolder.handle, { request: true });
+      if (permission !== 'granted') throw new Error(i18n.t('collections.permission'));
+      await useSelectedCollectionsDirectory(rememberedMediaFolder.handle, { remember: false });
+    } catch (error) {
+      if (error?.name !== 'AbortError') document.getElementById('home-collections-error').textContent = error.message || i18n.t('collections.invalid');
+    }
+    return;
+  }
+  return chooseDifferentMediaFolder();
+}
+
+async function chooseDifferentMediaFolder() {
+  if (typeof window.showDirectoryPicker !== 'function') {
+    document.getElementById('home-collections-input').click();
+    return;
+  }
+  const previous = rememberedMediaFolder?.handle || null;
   try {
     const handle = await window.showDirectoryPicker({ id: 'mygita-media', mode: 'read' });
-    await useSelectedCollectionsDirectory(handle);
+    const selected = await useSelectedCollectionsDirectory(handle);
+    if (!selected && previous) {
+      try {
+        await collectionSource.selectMediaDirectory(previous);
+        syncHomeCollectionSource();
+      } catch (_) {}
+    }
   } catch (error) {
     if (error?.name !== 'AbortError') document.getElementById('home-collections-error').textContent = error.message || i18n.t('collections.invalid');
+  }
+}
+
+async function forgetRememberedMediaFolder() {
+  try { await mediaFolderStore.forget(); } catch (_) {}
+  rememberedMediaFolder = null;
+  collectionSource.clear({ releaseMedia: true });
+  state.dataset?.release?.();
+  state.dataset = null;
+  state.journeyDataset = null;
+  syncHomeCollectionSource();
+}
+
+async function restoreRememberedMediaFolder() {
+  if (location.protocol !== 'file:' || typeof window.showDirectoryPicker !== 'function') return;
+  try {
+    const saved = await mediaFolderStore.get();
+    if (!saved?.handle || saved.handle.kind !== 'directory') return;
+    rememberedMediaFolder = saved;
+    if (await directoryPermission(saved.handle) === 'granted') {
+      await collectionSource.selectMediaDirectory(saved.handle);
+    }
+  } catch (_) {
+    rememberedMediaFolder = null;
   }
 }
 
@@ -914,7 +982,7 @@ async function startRequestedExperience() {
   showOnly('loading');
   try {
     const dataset = await collectionSource.loadExperience(play, { collectionId: requestedCollection || '' });
-    await startPlayer(dataset, experience, { workspace: collectionSource.workspaceFor(play, dataset.collectionId) });
+    await startPlayer(dataset, experience);
   } catch (error) {
     emitEvent('data_load_failed', {
       context: { experience: play, language: requestedLanguage || state.activeProfile.contentLanguage },
@@ -924,8 +992,7 @@ async function startRequestedExperience() {
   }
 }
 
-async function startPlayer(dataset, experience, { workspace = null, sid = requestedSid } = {}) {
-  if (state.editor) state.editor.destroy();
+async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
   if (state.renderer) state.renderer.destroy();
   state.dataset = dataset;
   document.documentElement.dataset.contentSource = dataset.contentSource?.type || 'unknown';
@@ -957,27 +1024,6 @@ async function startPlayer(dataset, experience, { workspace = null, sid = reques
   const defaultIndex = findSid('1.B');
   state.index = requestedIndex >= 0 ? requestedIndex : (defaultIndex >= 0 ? defaultIndex : 0);
   emitEvent('experience_selected', { context: { experience: play, language: state.language } });
-
-  state.editor = new InlineEditor({
-    dataset: state.dataset,
-    renderer: state.renderer,
-    currentRow,
-    rerender: (options = {}) => render({ ...options, trackLocation: false }),
-    workspace,
-    translate,
-    onStateChange: ({ active, savedChanges, pendingDownload, workspace: hasWorkspace, savedRevision }) => {
-      document.querySelector('#edit-button .top-menu-label').textContent = active ? i18n.t('menu.leaveEdit') : i18n.t('menu.edit');
-      if (savedRevision > state.lastSavedRevision) {
-        state.lastSavedRevision = savedRevision;
-        state.downloadReminderDismissed = false;
-      }
-      const reminder = document.getElementById('download-reminder');
-      reminder.hidden = hasWorkspace || !savedChanges || state.downloadReminderDismissed;
-      const action = document.getElementById('download-reminder-action');
-      action.textContent = pendingDownload ? i18n.t('editor.download') : i18n.t('editor.downloadAgain');
-    }
-  });
-  document.getElementById('edit-button').hidden = !workspace;
 
   bindEvents();
   buildChapterList();
@@ -1036,7 +1082,7 @@ function syncQuestionsMenu() {
 }
 
 async function toggleQuestions() {
-  if (!state.renderer?.supportsQuestions || state.editor?.active) return false;
+  if (!state.renderer?.supportsQuestions) return false;
   const changed = await state.renderer.toggleQuestions?.();
   if (changed) {
     syncQuestionsMenu();
@@ -1069,7 +1115,6 @@ function render(options = {}) {
     language: state.language,
     savedAt: new Date().toISOString()
   });
-  if (options.keepEditing && state.editor.active) state.renderer.setEditing(true);
   updateUrl();
   updateChapterSelection();
   updateCollectionUi();
@@ -1132,7 +1177,6 @@ function updateUrl() {
 }
 
 function navigate(offset, source = offset > 0 ? 'next' : 'previous') {
-  if (!state.editor.canNavigate()) return;
   const next = state.index + offset;
   if (next < 0 || next >= state.dataset.rows.length) return;
   state.index = next;
@@ -1141,10 +1185,9 @@ function navigate(offset, source = offset > 0 ? 'next' : 'previous') {
 }
 
 function swipeIsBlocked(target) {
-  return state.editor.active
-    || !document.getElementById('top-menu').hidden
+  return !document.getElementById('top-menu').hidden
     || Boolean(document.querySelector('.overlay:not([hidden])'))
-    || Boolean(target.closest('button, input, select, textarea, a, [contenteditable="true"], .controlbar, .edit-toolbar, .download-reminder'));
+    || Boolean(target.closest('button, input, select, textarea, a, .controlbar'));
 }
 
 function beginSwipe(event) {
@@ -1166,7 +1209,6 @@ function finishSwipe(event) {
 }
 
 function setLanguage(language) {
-  if (!state.editor.canNavigate()) return;
   state.language = language === 'kn' ? 'kn' : 'en';
   requestedLanguage = state.language;
   state.activeProfile.contentLanguage = state.language;
@@ -1184,7 +1226,6 @@ function setLanguage(language) {
 }
 
 function openOverlay(id) {
-  if (state.editor?.active) return;
   state.overlayOpener = document.getElementById('top-menu').contains(document.activeElement)
     ? document.getElementById('menu-button')
     : document.activeElement;
@@ -1207,63 +1248,18 @@ function openOverlay(id) {
       button.setAttribute('aria-pressed', button.dataset.language === state.language ? 'true' : 'false');
     });
     requestAnimationFrame(() => document.querySelector('.language-option.active')?.focus());
-  } else if (id === 'workspace-overlay') {
-    document.getElementById('workspace-error').textContent = '';
-    requestAnimationFrame(() => document.getElementById('open-collections-workspace').focus());
   }
 }
 
 function closeOverlays({ restoreFocus = true } = {}) {
   let closed = false;
-  ['workspace-overlay', 'goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
+  ['goto-overlay', 'collections-overlay', 'chapters-overlay', 'language-overlay', 'help-overlay', 'analytics-info-overlay', 'profile-menu-overlay', 'about-overlay'].forEach((id) => {
     const overlay = document.getElementById(id);
     if (!overlay.hidden) { overlay.hidden = true; closed = true; }
   });
   if (closed && restoreFocus && state.overlayOpener && document.contains(state.overlayOpener)) state.overlayOpener.focus();
   if (closed) state.overlayOpener = null;
   return closed;
-}
-
-async function requestEditMode() {
-  setMenuOpen(false);
-  if (document.getElementById('edit-button').hidden) return;
-  if (state.editor.active) return state.editor.toggle();
-  if (state.editor.workspace) return state.editor.enter();
-  openOverlay('workspace-overlay');
-}
-
-async function openCollectionsWorkspace() {
-  const message = document.getElementById('workspace-error');
-  const button = document.getElementById('open-collections-workspace');
-  if (typeof window.showDirectoryPicker !== 'function') {
-    message.textContent = i18n.t('workspace.unsupported');
-    return;
-  }
-  button.disabled = true;
-  message.textContent = i18n.t('workspace.opening');
-  try {
-    const handle = await window.showDirectoryPicker({ id: 'gitaverse-collections', mode: 'readwrite' });
-    const permission = { mode: 'readwrite' };
-    if (handle.queryPermission && await handle.queryPermission(permission) !== 'granted') {
-      if (!handle.requestPermission || await handle.requestPermission(permission) !== 'granted') {
-        throw new Error(i18n.t('workspace.permission'));
-      }
-    }
-    const sid = currentRow().sid;
-    const { dataset, workspace } = await openWritableCollectionWorkspace(play, handle, { collectionId: state.collectionId || '' });
-    closeOverlays({ restoreFocus: false });
-    await startPlayer(dataset, getExperience(play), { workspace, sid });
-    state.editor.enter();
-  } catch (error) {
-    if (error?.name !== 'AbortError') message.textContent = error.message || i18n.t('workspace.openFailed');
-  } finally {
-    button.disabled = false;
-  }
-}
-
-function enterDownloadOnlyEditMode() {
-  closeOverlays({ restoreFocus: false });
-  state.editor.enter();
 }
 
 function setMenuOpen(open) {
@@ -1292,7 +1288,7 @@ function moveMenuFocus(offset) {
 }
 
 function selectChapterButton(button) {
-  if (!button || !state.editor.canNavigate()) return;
+  if (!button) return;
   state.index = Number(button.dataset.index);
   closeOverlays({ restoreFocus: false });
   render({ source: 'chapter' });
@@ -1320,13 +1316,10 @@ function chooseLanguage(language) {
 
 function goHome() {
   setMenuOpen(false);
-  if (!state.editor.canNavigate()) return;
-  if (state.editor.pendingDownload && !window.confirm(i18n.t('editor.returnHome'))) return;
   goToExperienceSelection();
 }
 
 function goToSid(sid) {
-  if (!state.editor.canNavigate()) return false;
   const found = findSid(sid);
   if (found < 0) return false;
   state.index = found;
@@ -1424,14 +1417,14 @@ function updateCollectionUi() {
 }
 
 async function selectCollection(collectionId) {
-  if (!collectionId || collectionId === state.collectionId || !state.editor.canNavigate()) return;
+  if (!collectionId || collectionId === state.collectionId) return;
   closeOverlays({ restoreFocus: false });
   showOnly('loading');
   try {
     requestedCollection = collectionId;
     requestedSid = null;
     const dataset = await collectionSource.loadExperience(play, { collectionId });
-    await startPlayer(dataset, getExperience(play), { workspace: collectionSource.workspaceFor(play, dataset.collectionId), sid: null });
+    await startPlayer(dataset, getExperience(play), { sid: null });
     document.getElementById('collection-trigger').focus();
   } catch (error) {
     showError(error.message);
@@ -1517,6 +1510,8 @@ function bindEvents() {
   document.getElementById('retry-data-button').addEventListener('click', startRequestedExperience);
   document.getElementById('home-collections-input').addEventListener('change', (event) => useSelectedCollections(event.target.files));
   document.getElementById('home-collections-button').addEventListener('click', chooseHomeCollections);
+  document.getElementById('home-collections-change-button').addEventListener('click', chooseDifferentMediaFolder);
+  document.getElementById('home-collections-forget-button').addEventListener('click', forgetRememberedMediaFolder);
   document.querySelectorAll('#continue-journey-link, #experience-detail-action').forEach((link) => link.addEventListener('click', (event) => {
     event.preventDefault();
     openHomeExperience(link);
@@ -1570,15 +1565,6 @@ function bindEvents() {
     setInterfaceLanguage(state.activeProfile?.interfaceLanguage || 'en');
     showOnly(state.profileReturnView === 'app' && state.dataset ? 'app' : (state.profileReturnView === 'profile-selection' ? 'profile-selection' : (state.profileReturnView === 'journey-details' ? 'journey-details' : 'diksoochi')));
   });
-  document.getElementById('edit-button').addEventListener('click', requestEditMode);
-  document.getElementById('open-collections-workspace').addEventListener('click', openCollectionsWorkspace);
-  document.getElementById('edit-download-only').addEventListener('click', enterDownloadOnlyEditMode);
-  document.getElementById('download-reminder-action').addEventListener('click', () => state.editor.download());
-  document.getElementById('download-reminder-close').addEventListener('click', () => {
-    if (state.editor.pendingDownload && !window.confirm(i18n.t('editor.dismissDownload'))) return;
-    state.downloadReminderDismissed = true;
-    document.getElementById('download-reminder').hidden = true;
-  });
   document.getElementById('fullscreen-button').addEventListener('click', toggleFullscreen);
   document.getElementById('footer-fullscreen-button').addEventListener('click', toggleFullscreen);
   document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -1619,13 +1605,9 @@ function bindEvents() {
     if (!state.dataset || document.getElementById('app').hidden) return;
     const active = document.activeElement;
     const typing = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's' && state.editor.active) {
-      event.preventDefault(); state.editor.save(); return;
-    }
     if (event.key === 'Escape') {
       if (closeOverlays()) event.preventDefault();
       else if (!document.getElementById('top-menu').hidden) { setMenuOpen(false); event.preventDefault(); }
-      else if (state.editor.active) { event.preventDefault(); state.editor.cancel(); }
       else if (document.documentElement.classList.contains('immersive')) {
         document.documentElement.classList.remove('immersive');
         syncFullscreenUi();
@@ -1708,7 +1690,6 @@ function bindEvents() {
     else if (key === 'k') { event.preventDefault(); openOverlay('about-overlay'); }
     else if (key === 'm') { event.preventDefault(); toggleMenu(); }
     else if (key === 'q' && state.renderer?.supportsQuestions) { event.preventDefault(); toggleQuestions(); }
-    else if (key === 'e') { event.preventDefault(); requestEditMode(); }
   });
 }
 
@@ -1719,4 +1700,8 @@ renderProductPills();
 bindEvents();
 versionHistoryStore.recordSeen(appVersion).catch(() => {});
 pwa.start();
-checkPlayerVersion().then((current) => { if (current) initializeProfiles(); });
+checkPlayerVersion().then(async (current) => {
+  if (!current) return;
+  await restoreRememberedMediaFolder();
+  initializeProfiles();
+});
