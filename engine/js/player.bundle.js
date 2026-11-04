@@ -2254,6 +2254,11 @@ const CONTEMPLATION_MASTER_HEADERS = ['sid', 'order', 'text'];
 const CONTEMPLATION_COMPOSITION_HEADERS = ['cid', 'snum', 'sid', 'order', 'text_collection', 'text_order'];
 const MEDIA_COMPOSITION_HEADERS = ['cid', 'snum', 'sid', 'order', 'media_type', 'collection', 'asset_order'];
 const SEQUENCE_HEADERS = ['position', 'cid', 'snum', 'sid'];
+const VERSE_LOCALIZED_REGISTRY_HEADERS = ['collection_id', 'name', 'short_name', 'description'];
+const LOCALIZED_REGISTRY_FIELDS = Object.freeze({
+  images: Object.freeze({ en: 'metadata_en_url', kn: 'metadata_kn_url' }),
+  text: Object.freeze({ en: 'master_en_url', kn: 'master_kn_url' })
+});
 
 const MASTER_HEADERS = {
   sa: ['cid', 'snum', 'sid', 'chapter_name', 'shloka_raw', 'shloka', 'word_by_word', 'meaning', 'word_by_word_meaning'],
@@ -2264,6 +2269,12 @@ const LOCALIZED_MASTER_HEADERS = ['cid', 'snum', 'sid', 'chapter_name', 'transli
 
 function decode(value) {
   return String(value ?? '').replace(/\\n/g, '\n');
+}
+
+function encode(value) {
+  const encoded = String(value ?? '').replace(/\r\n?/g, '\n').replace(/\n/g, '\\n');
+  if (encoded.includes('#')) throw new Error('The # character is not allowed in collection data.');
+  return encoded;
 }
 
 function parseCollectionTable(text, expectedHeaders, label = 'collection data') {
@@ -2909,7 +2920,7 @@ async function loadCollectionExperience(experienceId, { version = '', collection
   const configured = configuredVerseCollections(experience);
   const activeCollection = configured.includes(collectionId) ? collectionId : configured[0];
   const verseEntry = registryEntry(verseRegistry, activeCollection, 'Verse');
-  const localizedTables = Object.fromEntries(await Promise.all(['sa', 'en', 'kn'].map(async (language) => [language, await fetchTable(`${COLLECTION_ROOT}/verses/collection_${language}.csv`, ['collection_id', 'name', 'short_name', 'description'], version)])));
+  const localizedTables = Object.fromEntries(await Promise.all(['sa', 'en', 'kn'].map(async (language) => [language, await fetchTable(`${COLLECTION_ROOT}/verses/collection_${language}.csv`, VERSE_LOCALIZED_REGISTRY_HEADERS, version)])));
   const collections = localizedCollectionRows({ ...verseRegistry, rows: verseRegistry.rows.filter((row) => configured.includes(row.collection_id)) }, localizedTables);
   const verseCatalog = await fetchTable(verseEntry.catalog_url, ['language', 'content_type', 'content_url'], version);
   const sequenceUrl = optionalCatalogEntry(experienceCatalog, 'sequence');
@@ -2939,13 +2950,13 @@ async function loadCollectionExperience(experienceId, { version = '', collection
     illustrationComposition ? loadLocalizedCatalogs({
       type: 'images', composition: illustrationComposition, collectionField: 'image_collection',
       catalogHeaders: ILLUSTRATION_CATALOG_HEADERS, localizedHeaders: ILLUSTRATION_METADATA_HEADERS,
-      localizedFields: { en: 'metadata_en_url', kn: 'metadata_kn_url' }, registryHeaders: IMAGE_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: IMAGE_REGISTRY_HEADERS,
       version, declaredIds: experience.illustrationCollections || []
     }) : new Map(),
     contemplationComposition ? loadLocalizedCatalogs({
       type: 'text', composition: contemplationComposition, collectionField: 'text_collection',
       catalogHeaders: CONTEMPLATION_CATALOG_HEADERS, localizedHeaders: CONTEMPLATION_MASTER_HEADERS,
-      localizedFields: { en: 'master_en_url', kn: 'master_kn_url' }, registryHeaders: TEXT_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: TEXT_REGISTRY_HEADERS,
       version, declaredIds: experience.contemplationCollections || []
     }) : new Map()
   ]);
@@ -2998,7 +3009,7 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
   const verseEntry = registryEntry(verseRegistry, activeCollection, 'Verse');
   const sourceLanguage = String(experience.sourceLanguage || 'sa');
   const declaredLanguages = [...new Set((manifest ? Object.keys(manifest.verses?.masters || {}) : (experience.languages || ['sa', 'en', 'kn'])).filter(Boolean))];
-  const localizedTables = Object.fromEntries(await Promise.all(declaredLanguages.map(async (language) => [language, await table(registryPath('verses', language), ['collection_id', 'name', 'short_name', 'description'])])));
+  const localizedTables = Object.fromEntries(await Promise.all(declaredLanguages.map(async (language) => [language, await table(registryPath('verses', language), VERSE_LOCALIZED_REGISTRY_HEADERS)])));
   const collections = localizedCollectionRows({ ...verseRegistry, rows: verseRegistry.rows.filter((row) => configured.includes(row.collection_id)) }, localizedTables);
   const verseCatalog = await table(verseEntry.catalog_url, ['language', 'content_type', 'content_url']);
   const catalogLanguages = [...new Set(verseCatalog.rows.map((row) => row.language).filter(Boolean))];
@@ -3095,13 +3106,13 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
     illustrationComposition ? localLocalizedCatalogs({
       type: 'images', composition: illustrationComposition, collectionField: 'image_collection',
       catalogHeaders: ILLUSTRATION_CATALOG_HEADERS, localizedHeaders: ILLUSTRATION_METADATA_HEADERS,
-      localizedFields: { en: 'metadata_en_url', kn: 'metadata_kn_url' }, registryHeaders: IMAGE_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: IMAGE_REGISTRY_HEADERS,
       declaredIds: experience.illustrationCollections || []
     }) : new Map(),
     contemplationComposition ? localLocalizedCatalogs({
       type: 'text', composition: contemplationComposition, collectionField: 'text_collection',
       catalogHeaders: CONTEMPLATION_CATALOG_HEADERS, localizedHeaders: CONTEMPLATION_MASTER_HEADERS,
-      localizedFields: { en: 'master_en_url', kn: 'master_kn_url' }, registryHeaders: TEXT_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: TEXT_REGISTRY_HEADERS,
       declaredIds: experience.contemplationCollections || []
     }) : new Map()
   ]);

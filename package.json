@@ -26,7 +26,8 @@
     "verify:media-parity": "node engine/scripts/verify-media-parity.mjs ../media",
     "verify:gita": "npm run build:gita && npm run test && npm run test:unit && npm run test:contract && npm run test:gita && npm run test:gita:browser",
     "build:docs": "node engine/scripts/build-docs.mjs",
-    "build:player": "cd engine && node scripts/build-player.mjs",
+    "build:player": "cd engine && node scripts/build-player.mjs && node scripts/build-content-kit.mjs",
+    "build:content-kit": "cd engine && node scripts/build-content-kit.mjs",
     "build": "npm run build:mygita"
   }
 }
