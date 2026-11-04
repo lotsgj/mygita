@@ -13,6 +13,13 @@ export class CollectionSourceRequiredError extends Error {
   }
 }
 
+export class CollectionSourceSupersededError extends Error {
+  constructor() {
+    super('A newer media selection replaced this load.');
+    this.name = 'CollectionSourceSupersededError';
+  }
+}
+
 export class CollectionSource {
   constructor({
     protocol = globalThis.location?.protocol || 'https:',
@@ -36,6 +43,8 @@ export class CollectionSource {
     this.directoryHandle = null;
     this.mediaSource = null;
     this.cache = new Map();
+    this.generation = 0;
+    this.selectionRequest = 0;
     if (protocol !== 'file:' && media?.remoteRoot) {
       this.mediaSource = new RemoteMediaSource({ rootUrl: media.remoteRoot, catalogPath: media.catalog || 'catalog.json', fetchImpl });
     }
@@ -46,12 +55,14 @@ export class CollectionSource {
   get isReady() { return !this.requiresSelection; }
   get label() { return this.mediaSource?.label || (this.protocol === 'file:' ? 'media' : this.mediaConfig.remoteRoot || 'bundled content'); }
 
-  clear({ releaseMedia = false } = {}) {
+  clear({ releaseMedia = false, preserveSelection = false } = {}) {
+    this.generation += 1;
     this.cache.forEach((dataset) => dataset.release?.());
     this.cache.clear();
     if (releaseMedia) {
       this.mediaSource?.release?.();
       this.mediaSource = null;
+      if (!preserveSelection) this.selectionRequest += 1;
     }
   }
 
@@ -71,16 +82,26 @@ export class CollectionSource {
   }
 
   async selectMediaDirectory(directoryHandle) {
+    const request = ++this.selectionRequest;
     const source = new DirectoryMediaSource({ directoryHandle, catalogPath: this.mediaConfig.catalog || 'catalog.json' });
     await source.loadCatalog();
-    this.clear({ releaseMedia: true });
+    if (request !== this.selectionRequest) {
+      source.release();
+      throw new CollectionSourceSupersededError();
+    }
+    this.clear({ releaseMedia: true, preserveSelection: true });
     this.mediaSource = source;
   }
 
   async selectMediaFiles(fileList) {
+    const request = ++this.selectionRequest;
     const source = new FilesMediaSource({ fileList, catalogPath: this.mediaConfig.catalog || 'catalog.json' });
     await source.loadCatalog();
-    this.clear({ releaseMedia: true });
+    if (request !== this.selectionRequest) {
+      source.release();
+      throw new CollectionSourceSupersededError();
+    }
+    this.clear({ releaseMedia: true, preserveSelection: true });
     this.mediaSource = source;
   }
 
@@ -112,16 +133,22 @@ export class CollectionSource {
     if (this.requiresSelection) throw new CollectionSourceRequiredError();
     if (refresh) this.cache.get(key)?.release?.();
     const bookId = String(this.bookForExperience(experienceId, collectionId) || collectionId || '').trim();
-    if (!this.mediaSource) throw new Error('MyGita requires a media source to load scripture content.');
+    const mediaSource = this.mediaSource;
+    const generation = this.generation;
+    if (!mediaSource) throw new Error('MyGita requires a media source to load scripture content.');
     if (!bookId) throw new Error(`Experience ${experienceId} does not declare a media book.`);
-    if (refresh) await this.mediaSource.loadCatalog({ refresh: true });
+    if (refresh) await mediaSource.loadCatalog({ refresh: true });
     const dataset = await loadMediaBookExperience(experienceId, {
       bookId,
-      mediaSource: this.mediaSource,
+      mediaSource,
       productText: (url) => this.productText(url),
       resolveProductMediaUrl: (url) => this.resolveProductMediaUrl(url),
       collectionId: collectionId || bookId
     });
+    if (generation !== this.generation || mediaSource !== this.mediaSource) {
+      dataset.release?.();
+      throw new CollectionSourceSupersededError();
+    }
     this.cache.set(key, dataset);
     return dataset;
   }

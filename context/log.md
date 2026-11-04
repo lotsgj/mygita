@@ -33,3 +33,7 @@ Tests: unit 51, contract 26, Gita and Sukta browser regressions; Gita browser co
 ## W-0009 · 2026-11-04 · Codex · S: fix · refresh Rachana bundle
 Changed: rebuilt docs/assets/docs.bundle.js from the current shared profile and documentation sources.
 Tests: contract 26 pass.
+
+## W-0010 · 2026-11-04 · Codex · S: fix · stabilize media reselection
+Changed: generation-guarded media source replacement and experience loads; stale selections cannot overwrite current state; file input resets after use; shared ProfileUI tolerates Rachana without experience controls.
+Tests: unit 52; exact CI build/test sequence; Rachana browser; five consecutive Gita browser runs with five file-mode reselections each.

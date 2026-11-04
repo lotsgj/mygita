@@ -1,5 +1,5 @@
 import { setCollectionRoot } from './collection-data.js';
-import { CollectionSource, CollectionSourceRequiredError } from './collection-source.js';
+import { CollectionSource, CollectionSourceRequiredError, CollectionSourceSupersededError } from './collection-source.js';
 import { MediaFolderStore, directoryPermission } from '../media-folder-store.js';
 import { ProfileStore } from '../profile-store.js';
 import { ProfileUI } from '../profile-ui.js';
@@ -104,6 +104,7 @@ const platformId = appConfig.id || distribution().id;
 const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformId}-version-history` });
 const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-local-media` });
 let rememberedMediaFolder = null;
+let mediaSelectionRequest = 0;
 const eventBus = new EventBus({
   appVersion,
   contextProvider: () => ({
@@ -593,39 +594,48 @@ function openHomeExperience(link) {
 }
 
 async function useSelectedCollections(fileList) {
+  const request = ++mediaSelectionRequest;
   const error = document.getElementById('home-collections-error');
   const section = document.getElementById('home-collections');
   error.textContent = '';
   section.setAttribute('aria-busy', 'true');
   try {
     await collectionSource.selectMediaFiles(fileList);
+    if (request !== mediaSelectionRequest) return false;
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
+    if (request !== mediaSelectionRequest) return false;
     syncHomeCollectionSource();
     if (state.pendingLocalDestination) {
       ({ play, requestedSid, requestedLanguage } = state.pendingLocalDestination);
       state.pendingLocalDestination = null;
-      return startRequestedExperience();
+      await startRequestedExperience();
+      return true;
     }
-    return startRequestedExperience();
+    await startRequestedExperience();
+    return true;
   } catch (failure) {
+    if (request !== mediaSelectionRequest || failure instanceof CollectionSourceSupersededError) return false;
     collectionSource.clear({ releaseMedia: true });
     syncHomeCollectionSource();
     error.textContent = failure.message || i18n.t('collections.invalid');
   } finally {
-    section.setAttribute('aria-busy', 'false');
+    if (request === mediaSelectionRequest) section.setAttribute('aria-busy', 'false');
   }
 }
 
 async function useSelectedCollectionsDirectory(handle, { remember = true } = {}) {
+  const request = ++mediaSelectionRequest;
   const error = document.getElementById('home-collections-error');
   const section = document.getElementById('home-collections');
   error.textContent = '';
   section.setAttribute('aria-busy', 'true');
   try {
     await collectionSource.selectMediaDirectory(handle);
+    if (request !== mediaSelectionRequest) return false;
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
+    if (request !== mediaSelectionRequest) return false;
     syncHomeCollectionSource();
     if (state.pendingLocalDestination) {
       ({ play, requestedSid, requestedLanguage } = state.pendingLocalDestination);
@@ -644,12 +654,13 @@ async function useSelectedCollectionsDirectory(handle, { remember = true } = {})
     syncHomeCollectionSource();
     return true;
   } catch (failure) {
+    if (request !== mediaSelectionRequest || failure instanceof CollectionSourceSupersededError) return false;
     collectionSource.clear({ releaseMedia: true });
     syncHomeCollectionSource();
     error.textContent = failure.message || i18n.t('collections.invalid');
     return false;
   } finally {
-    section.setAttribute('aria-busy', 'false');
+    if (request === mediaSelectionRequest) section.setAttribute('aria-busy', 'false');
   }
 }
 
@@ -1534,7 +1545,12 @@ function bindEvents() {
     }
   });
   document.getElementById('retry-data-button').addEventListener('click', startRequestedExperience);
-  document.getElementById('home-collections-input').addEventListener('change', (event) => useSelectedCollections(event.target.files));
+  document.getElementById('home-collections-input').addEventListener('change', (event) => {
+    const input = event.currentTarget;
+    const selection = useSelectedCollections(input.files);
+    input.value = '';
+    return selection;
+  });
   document.getElementById('home-collections-button').addEventListener('click', chooseHomeCollections);
   document.getElementById('home-collections-change-button').addEventListener('click', chooseDifferentMediaFolder);
   document.getElementById('home-collections-forget-button').addEventListener('click', forgetRememberedMediaFolder);

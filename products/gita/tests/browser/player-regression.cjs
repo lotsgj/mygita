@@ -810,7 +810,11 @@ async function run() {
     const filePage = await fileContext.newPage();
     const fileRuntimeErrors = [];
     filePage.on('pageerror', (error) => fileRuntimeErrors.push(error.stack || error.message));
-    filePage.on('console', (message) => { if (message.type() === 'error') fileRuntimeErrors.push(message.text()); });
+    filePage.on('console', (message) => {
+      if (message.type() !== 'error') return;
+      const location = message.location();
+      fileRuntimeErrors.push(`${message.text()}${location.url ? ` (${location.url}:${location.lineNumber}:${location.columnNumber})` : ''}`);
+    });
     console.log('CHECK: file-mode harness');
     const engineRoot = process.env.VERSES_ENGINE_ROOT || path.resolve(root, '../../engine');
     const fileUrl = pathToFileURL(path.resolve(engineRoot, '../index.html')).href + '?play=gita-700&sid=6.7#file-regression';
@@ -857,16 +861,23 @@ async function run() {
     await filePage.getByRole('button', { name: '← Back' }).click();
     await filePage.keyboard.press('e');
     assert.equal(await filePage.locator('#workspace-overlay').count(), 0, 'Home contains no inline editing workspace');
-    await filePage.locator('#home-collections-input').setInputFiles(mediaRoot);
-    console.log('CHECK: file-mode media reselected');
-    await filePage.locator('#home-collections').waitFor();
-    await filePage.waitForFunction(() => document.querySelector('#home-collections')?.getAttribute('aria-busy') === 'false');
-    await filePage.locator('#gita-700-link').click();
-    await filePage.locator('#experience-detail-action').click();
-    await filePage.locator('#sid-label').waitFor();
-    assert.match(await filePage.locator('#audio').getAttribute('src'), /^blob:/, 'reselecting media recreates a playable local blob URL');
-    await filePage.keyboard.press('e');
-    assert.equal(await filePage.locator('#workspace-overlay').count(), 0, 'media-folder playback contains no legacy product-data editor');
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      await filePage.locator('#home-collections-input').setInputFiles(mediaRoot);
+      await filePage.locator('#home-collections').waitFor();
+      await filePage.waitForFunction(() => document.querySelector('#home-collections')?.getAttribute('aria-busy') === 'false');
+      await filePage.locator('#gita-700-link').click();
+      await filePage.locator('#experience-detail-action').click();
+      await filePage.locator('#sid-label').waitFor();
+      assert.match(await filePage.locator('#audio').getAttribute('src'), /^blob:/, `media reselection ${attempt} recreates a playable local blob URL`);
+      await filePage.keyboard.press('e');
+      assert.equal(await filePage.locator('#workspace-overlay').count(), 0, 'media-folder playback contains no legacy product-data editor');
+      assert.deepEqual(fileRuntimeErrors, [], `media reselection ${attempt} must not emit browser errors`);
+      if (attempt < 5) {
+        await filePage.keyboard.press('a');
+        await filePage.waitForFunction(() => document.querySelector('#home-collections-title')?.textContent === 'Local media ready');
+      }
+    }
+    console.log('CHECK: file-mode media reselected 5 times');
     console.log('CHECK: file-mode media-only playback verified');
     assert.deepEqual(fileRuntimeErrors, [], 'direct file-mode player must not emit manifest, version, or catalog CORS errors');
     await fileContext.close();

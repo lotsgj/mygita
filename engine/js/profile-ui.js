@@ -124,6 +124,7 @@ export class ProfileUI {
   async renderExperienceLanguagePreferences(profile) {
     const section = document.getElementById('experience-language-preferences');
     const list = document.getElementById('experience-language-list');
+    if (!section || !list) return;
     section.hidden = !profile;
     list.textContent = '';
     if (!profile) return;

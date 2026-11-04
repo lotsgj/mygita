@@ -42,8 +42,17 @@ async function run() {
   const context = await browser.newContext();
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('pageerror', (error) => {
+    errors.push(error.stack || error.message);
+    console.error('Rachana page error:', error.stack || error.message);
+  });
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    const location = message.location();
+    const detail = `${message.text()}${location.url ? ` (${location.url}:${location.lineNumber}:${location.columnNumber})` : ''}`;
+    errors.push(detail);
+    console.error('Rachana console error:', detail);
+  });
 
   try {
     await page.goto(`${base}/docs.html`, { waitUntil: 'networkidle' });

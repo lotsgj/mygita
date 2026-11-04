@@ -1027,6 +1027,7 @@ class ProfileUI {
   async renderExperienceLanguagePreferences(profile) {
     const section = document.getElementById('experience-language-preferences');
     const list = document.getElementById('experience-language-list');
+    if (!section || !list) return;
     section.hidden = !profile;
     list.textContent = '';
     if (!profile) return;
@@ -3330,6 +3331,13 @@ class CollectionSourceRequiredError extends Error {
   }
 }
 
+class CollectionSourceSupersededError extends Error {
+  constructor() {
+    super('A newer media selection replaced this load.');
+    this.name = 'CollectionSourceSupersededError';
+  }
+}
+
 class CollectionSource {
   constructor({
     protocol = globalThis.location?.protocol || 'https:',
@@ -3353,6 +3361,8 @@ class CollectionSource {
     this.directoryHandle = null;
     this.mediaSource = null;
     this.cache = new Map();
+    this.generation = 0;
+    this.selectionRequest = 0;
     if (protocol !== 'file:' && media?.remoteRoot) {
       this.mediaSource = new RemoteMediaSource({ rootUrl: media.remoteRoot, catalogPath: media.catalog || 'catalog.json', fetchImpl });
     }
@@ -3363,12 +3373,14 @@ class CollectionSource {
   get isReady() { return !this.requiresSelection; }
   get label() { return this.mediaSource?.label || (this.protocol === 'file:' ? 'media' : this.mediaConfig.remoteRoot || 'bundled content'); }
 
-  clear({ releaseMedia = false } = {}) {
+  clear({ releaseMedia = false, preserveSelection = false } = {}) {
+    this.generation += 1;
     this.cache.forEach((dataset) => dataset.release?.());
     this.cache.clear();
     if (releaseMedia) {
       this.mediaSource?.release?.();
       this.mediaSource = null;
+      if (!preserveSelection) this.selectionRequest += 1;
     }
   }
 
@@ -3388,16 +3400,26 @@ class CollectionSource {
   }
 
   async selectMediaDirectory(directoryHandle) {
+    const request = ++this.selectionRequest;
     const source = new DirectoryMediaSource({ directoryHandle, catalogPath: this.mediaConfig.catalog || 'catalog.json' });
     await source.loadCatalog();
-    this.clear({ releaseMedia: true });
+    if (request !== this.selectionRequest) {
+      source.release();
+      throw new CollectionSourceSupersededError();
+    }
+    this.clear({ releaseMedia: true, preserveSelection: true });
     this.mediaSource = source;
   }
 
   async selectMediaFiles(fileList) {
+    const request = ++this.selectionRequest;
     const source = new FilesMediaSource({ fileList, catalogPath: this.mediaConfig.catalog || 'catalog.json' });
     await source.loadCatalog();
-    this.clear({ releaseMedia: true });
+    if (request !== this.selectionRequest) {
+      source.release();
+      throw new CollectionSourceSupersededError();
+    }
+    this.clear({ releaseMedia: true, preserveSelection: true });
     this.mediaSource = source;
   }
 
@@ -3429,16 +3451,22 @@ class CollectionSource {
     if (this.requiresSelection) throw new CollectionSourceRequiredError();
     if (refresh) this.cache.get(key)?.release?.();
     const bookId = String(this.bookForExperience(experienceId, collectionId) || collectionId || '').trim();
-    if (!this.mediaSource) throw new Error('MyGita requires a media source to load scripture content.');
+    const mediaSource = this.mediaSource;
+    const generation = this.generation;
+    if (!mediaSource) throw new Error('MyGita requires a media source to load scripture content.');
     if (!bookId) throw new Error(`Experience ${experienceId} does not declare a media book.`);
-    if (refresh) await this.mediaSource.loadCatalog({ refresh: true });
+    if (refresh) await mediaSource.loadCatalog({ refresh: true });
     const dataset = await loadMediaBookExperience(experienceId, {
       bookId,
-      mediaSource: this.mediaSource,
+      mediaSource,
       productText: (url) => this.productText(url),
       resolveProductMediaUrl: (url) => this.resolveProductMediaUrl(url),
       collectionId: collectionId || bookId
     });
+    if (generation !== this.generation || mediaSource !== this.mediaSource) {
+      dataset.release?.();
+      throw new CollectionSourceSupersededError();
+    }
     this.cache.set(key, dataset);
     return dataset;
   }
@@ -4362,6 +4390,7 @@ const platformId = appConfig.id || distribution().id;
 const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformId}-version-history` });
 const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-local-media` });
 let rememberedMediaFolder = null;
+let mediaSelectionRequest = 0;
 const eventBus = new EventBus({
   appVersion,
   contextProvider: () => ({
@@ -4851,39 +4880,48 @@ function openHomeExperience(link) {
 }
 
 async function useSelectedCollections(fileList) {
+  const request = ++mediaSelectionRequest;
   const error = document.getElementById('home-collections-error');
   const section = document.getElementById('home-collections');
   error.textContent = '';
   section.setAttribute('aria-busy', 'true');
   try {
     await collectionSource.selectMediaFiles(fileList);
+    if (request !== mediaSelectionRequest) return false;
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
+    if (request !== mediaSelectionRequest) return false;
     syncHomeCollectionSource();
     if (state.pendingLocalDestination) {
       ({ play, requestedSid, requestedLanguage } = state.pendingLocalDestination);
       state.pendingLocalDestination = null;
-      return startRequestedExperience();
+      await startRequestedExperience();
+      return true;
     }
-    return startRequestedExperience();
+    await startRequestedExperience();
+    return true;
   } catch (failure) {
+    if (request !== mediaSelectionRequest || failure instanceof CollectionSourceSupersededError) return false;
     collectionSource.clear({ releaseMedia: true });
     syncHomeCollectionSource();
     error.textContent = failure.message || i18n.t('collections.invalid');
   } finally {
-    section.setAttribute('aria-busy', 'false');
+    if (request === mediaSelectionRequest) section.setAttribute('aria-busy', 'false');
   }
 }
 
 async function useSelectedCollectionsDirectory(handle, { remember = true } = {}) {
+  const request = ++mediaSelectionRequest;
   const error = document.getElementById('home-collections-error');
   const section = document.getElementById('home-collections');
   error.textContent = '';
   section.setAttribute('aria-busy', 'true');
   try {
     await collectionSource.selectMediaDirectory(handle);
+    if (request !== mediaSelectionRequest) return false;
     state.journeyDataset = null;
     await collectionSource.loadExperience(distribution().journeyExperience);
+    if (request !== mediaSelectionRequest) return false;
     syncHomeCollectionSource();
     if (state.pendingLocalDestination) {
       ({ play, requestedSid, requestedLanguage } = state.pendingLocalDestination);
@@ -4902,12 +4940,13 @@ async function useSelectedCollectionsDirectory(handle, { remember = true } = {})
     syncHomeCollectionSource();
     return true;
   } catch (failure) {
+    if (request !== mediaSelectionRequest || failure instanceof CollectionSourceSupersededError) return false;
     collectionSource.clear({ releaseMedia: true });
     syncHomeCollectionSource();
     error.textContent = failure.message || i18n.t('collections.invalid');
     return false;
   } finally {
-    section.setAttribute('aria-busy', 'false');
+    if (request === mediaSelectionRequest) section.setAttribute('aria-busy', 'false');
   }
 }
 
@@ -5792,7 +5831,12 @@ function bindEvents() {
     }
   });
   document.getElementById('retry-data-button').addEventListener('click', startRequestedExperience);
-  document.getElementById('home-collections-input').addEventListener('change', (event) => useSelectedCollections(event.target.files));
+  document.getElementById('home-collections-input').addEventListener('change', (event) => {
+    const input = event.currentTarget;
+    const selection = useSelectedCollections(input.files);
+    input.value = '';
+    return selection;
+  });
   document.getElementById('home-collections-button').addEventListener('click', chooseHomeCollections);
   document.getElementById('home-collections-change-button').addEventListener('click', chooseDifferentMediaFolder);
   document.getElementById('home-collections-forget-button').addEventListener('click', forgetRememberedMediaFolder);
