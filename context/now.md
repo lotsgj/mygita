@@ -6,7 +6,7 @@
 | — | — | — | — | — | — |
 
 ## Needs user
-- S-19: start content editor v1 (UI on content-kit)? Location: apps/arch/mygita-content-admin or a new apps/mygita-admin.
+- —
 
 ## Handoffs (last 5)
 - 2026-11-04 Claude → Codex: docs/assets/docs.bundle.js is stale since 50b7b2c (profile-store change). Rebuild with `pnpm run build:docs` as its own commit.

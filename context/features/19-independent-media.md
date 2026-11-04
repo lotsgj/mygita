@@ -7,8 +7,7 @@ Updated 2026-11-04 · Claude · Sampada: docs/design/sampada.md §19 · ADRs: 00
 - Player is playback-only. File mode remembers the picked media folder (media-folder-store.js).
 - content-kit (ADR-002): engine/js/content-kit.js; bundle engine/js/content-kit.bundle.js sets globalThis.MyGitaContentKit.
   API: listProducts · openMedia · contentTree · readItems · updateItem (+ KIT_VERSION in the bundle).
-- Editor (planned): file://, one person, Chrome or Edge. Product → Book → Collection → Language → Items.
-  Edit-only v1, key fields locked; one record in one file per save (ADR-003); preview in mygita file mode.
+- Consumers outside mygita (e.g. apps/mygita-admin) use content-kit; their design lives with them.
 - content_version is bumped once per publish, never by edits.
 
 ## Parts
@@ -16,13 +15,11 @@ Updated 2026-11-04 · Claude · Sampada: docs/design/sampada.md §19 · ADRs: 00
 - [x] logical paths + mounts — W-0003
 - [x] playback-only player — W-0004
 - [x] content-kit v1 — W-0006
-- [ ] content editor v1 (UI on content-kit)
 - [ ] publish step: bump content_version once per release
 - [ ] connected edits for audio/cues: related(), checkSave() blocking|pending, insertItem/removeItem, checkAsset, asset-first order
 - [ ] deploy and observe the media-only build; source diagnostics to Clarity (from Sampada)
 
 ## Open (user)
-- Editor location: apps/arch/mygita-content-admin or a new apps/mygita-admin?
 - Partial language coverage in the player: offer with fallback, or only when a book is complete?
 
 ## Details
@@ -56,13 +53,6 @@ Updated 2026-11-04 · Claude · Sampada: docs/design/sampada.md §19 · ADRs: 00
 - view 'chapters': one item per cid with chapter_name; saving updates every row of that cid in the same file.
 - Tests: engine/tests/unit/content-kit.test.mjs (round trip on every editable media file), engine/tests/contract/content-kit-bundle.test.mjs (freshness, parity, not deployed).
 
-### Editor flow (planned)
-- Steps: Product (skip if one) → Book (skip if one) → Collection (by kind) → Language (skip if none) → Items.
-- Item screen: items list (filters: empty, problems, changed), form (key fields locked), read-only reference pane (other languages, same SID).
-- Save: re-read file → readItems → compare record with what was shown (refuse if changed on disk) → updateItem → write.
-- Actions: Save, Save & next, Cancel (reload from disk); unsaved prompt on navigation. Keys: ⌘S, ⌘↵, Esc, Alt+←/→.
-- Loads: ../mygita/engine/js/local-workspace.js, then content-kit.bundle.js, then app.js. No contract code in the editor.
-
 ### Future: connected edits (audio, cues, assets)
 - Chain: registry/audio row (catalog_url, cue_purpose_url, cue_url) → audio catalog row (sid, order, language, audio_url) → asset;
   cue rows (sid, asset_order, cue_order, cue_id, start_ms, end_ms) → catalog row; cue_id → cue purposes;
@@ -86,3 +76,4 @@ Updated 2026-11-04 · Claude · Sampada: docs/design/sampada.md §19 · ADRs: 00
 
 ## Changes
 - 2026-11-04 created from the session discussion (Claude)
+- 2026-11-04 editor design removed: mygita-admin is a separate app; context keeps mygita concerns only (Claude)
