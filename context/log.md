@@ -29,3 +29,7 @@ docs/design/sampada.md adds S-21 (To unfold, Major).
 ## W-0008 · 2026-11-04 · Codex · S-21 · panel languages in My Preferences
 Changed: removed panel languages from the player menu; existing profiles receive product-grouped experience cards in My Preferences; first-time setup remains simple.
 Tests: unit 51, contract 26, Gita and Sukta browser regressions; Gita browser covers hidden-first-use, persistence and reset.
+
+## W-0009 · 2026-11-04 · Codex · S: fix · refresh Rachana bundle
+Changed: rebuilt docs/assets/docs.bundle.js from the current shared profile and documentation sources.
+Tests: contract 26 pass.

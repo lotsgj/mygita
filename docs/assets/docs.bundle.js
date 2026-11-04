@@ -250,8 +250,9 @@ function randomAnalyticsId() {
 }
 
 class ProfileStore {
-  constructor({ databaseName = 'verses-local-profiles' } = {}) {
+  constructor({ databaseName = 'verses-local-profiles', languageModel = () => ({ content: ['en', 'kn'], interface: ['en', 'kn'] }) } = {}) {
     this.databaseName = databaseName;
+    this.languageModel = languageModel;
     this.database = null;
   }
 
@@ -278,8 +279,9 @@ class ProfileStore {
     await this.open();
     const name = String(input.name || '').trim();
     if (!name) throw new Error('Enter a profile name.');
-    if (!['en', 'kn'].includes(input.interfaceLanguage)) throw new Error('Choose an app language.');
-    if (!['en', 'kn'].includes(input.contentLanguage)) throw new Error('Choose a preferred Gita content language.');
+    const languages = this.languageModel();
+    if (!languages.interface.includes(input.interfaceLanguage)) throw new Error('Choose an app language.');
+    if (!languages.content.includes(input.contentLanguage)) throw new Error('Choose a preferred content language.');
     const now = new Date().toISOString();
     const existing = input.pid ? await this.get(input.pid) : null;
     const profile = {
@@ -314,6 +316,14 @@ class ProfileStore {
     settings.delete(`journeyView:${Number(pid)}`);
     settings.delete(`gitaSaraView:${Number(pid)}`);
     settings.delete(`selectedProduct:${Number(pid)}`);
+    const panelPrefix = `panelLanguages:${Number(pid)}:`;
+    const settingsCursor = settings.openCursor();
+    settingsCursor.onsuccess = () => {
+      const cursor = settingsCursor.result;
+      if (!cursor) return;
+      if (String(cursor.key).startsWith(panelPrefix)) cursor.delete();
+      cursor.continue();
+    };
     transaction.objectStore(RESUME_STORE).delete(Number(pid));
     const engagement = transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid');
     const engagementCursor = engagement.openKeyCursor(IDBKeyRange.only(Number(pid)));
@@ -363,7 +373,7 @@ class ProfileStore {
       ...(existing || {}),
       pid,
       view: resume.view === 'experience' ? 'experience' : 'home',
-      language: resume.language === 'kn' ? 'kn' : 'en',
+      language: String(resume.language || this.languageModel().defaultContent || 'en'),
       savedAt: resume.savedAt || new Date().toISOString(),
       experiences: { ...(existing?.experiences || {}) },
       products: { ...(existing?.products || {}) }
@@ -400,7 +410,7 @@ class ProfileStore {
         record.lastExperience = {
           experience: existing.experience,
           sid: existing.sid,
-          language: existing.language === 'kn' ? 'kn' : 'en',
+          language: String(existing.language || this.languageModel().defaultContent || 'en'),
           savedAt: existing.savedAt
         };
       }
@@ -442,6 +452,24 @@ class ProfileStore {
     if (!Number.isInteger(Number(pid)) || !productId) return;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
     transaction.objectStore(SETTINGS_STORE).put({ key: `selectedProduct:${Number(pid)}`, value: String(productId) });
+    await transactionDone(transaction);
+  }
+
+  async getPanelLanguages(pid, productId, experienceId) {
+    await this.open();
+    const key = `panelLanguages:${Number(pid)}:${String(productId)}:${String(experienceId)}`;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(key));
+    return setting?.value && typeof setting.value === 'object' ? { ...setting.value } : {};
+  }
+
+  async setPanelLanguages(pid, productId, experienceId, value) {
+    await this.open();
+    const key = `panelLanguages:${Number(pid)}:${String(productId)}:${String(experienceId)}`;
+    const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
+    const store = transaction.objectStore(SETTINGS_STORE);
+    if (!value || !Object.keys(value).length) store.delete(key);
+    else store.put({ key, value: { ...value } });
     await transactionDone(transaction);
   }
 
@@ -556,13 +584,15 @@ async function resizeProfilePhoto(file) {
 // Source: js/profile-ui.js
 
 class ProfileUI {
-  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {} }) {
+  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null, products = () => [] }) {
     this.store = store;
     this.onSelected = onSelected;
     this.onCreated = onCreated;
     this.onChanged = onChanged;
     this.translate = translate;
     this.onInterfaceLanguagePreview = onInterfaceLanguagePreview;
+    this.languageModel = languageModel;
+    this.products = products;
     this.editingPid = null;
     this.photo = '';
     this.bind();
@@ -605,7 +635,7 @@ class ProfileUI {
       name.textContent = profile.name;
       const language = document.createElement('small');
       const interfaceName = profile.interfaceLanguage === 'kn' ? 'ಕನ್ನಡ' : 'English';
-      const contentName = profile.contentLanguage === 'kn' ? 'ಕನ್ನಡ' : 'English';
+      const contentName = this.languageModel()?.registry?.[profile.contentLanguage]?.nativeName || profile.contentLanguage;
       language.textContent = interfaceName + ' · ' + contentName;
       copy.append(name, language);
       select.appendChild(copy);
@@ -642,7 +672,17 @@ class ProfileUI {
     document.getElementById('profile-dob').value = profile?.dob || '';
     document.getElementById('profile-gender').value = profile?.gender || '';
     document.getElementById('profile-interface-language').value = profile?.interfaceLanguage || '';
-    document.getElementById('profile-content-language').value = profile?.contentLanguage || 'en';
+    const contentSelect = document.getElementById('profile-content-language');
+    const model = this.languageModel();
+    if (model) {
+      contentSelect.replaceChildren(...model.content.map((language) => {
+        const option = document.createElement('option'); option.value = language;
+        option.textContent = model.registry[language]?.nativeName || model.registry[language]?.name || language;
+        return option;
+      }));
+    }
+    contentSelect.value = profile?.contentLanguage || model?.defaultContent || 'en';
+    await this.renderExperienceLanguagePreferences(profile);
     document.getElementById('profile-default').checked = profile ? (await this.store.defaultPid()) === profile.pid : true;
     document.getElementById('profile-form-cancel').hidden = !profile;
     document.getElementById('profile-form-error').textContent = '';
@@ -652,6 +692,71 @@ class ProfileUI {
       target?.scrollIntoView({ block: focusPreferences ? 'center' : 'nearest', behavior: 'smooth' });
       target?.focus({ preventScroll: true });
     });
+  }
+
+  productName(product, language) {
+    return product.metadata?.[language]?.name || product.metadata?.en?.name || product.config?.name || product.id;
+  }
+
+  allowedPanelLanguages(panel, model) {
+    if (panel.allowedLanguages === 'all') return [model.source, ...model.content];
+    if (Array.isArray(panel.allowedLanguages)) return panel.allowedLanguages;
+    return model.content;
+  }
+
+  async renderExperienceLanguagePreferences(profile) {
+    const section = document.getElementById('experience-language-preferences');
+    const list = document.getElementById('experience-language-list');
+    section.hidden = !profile;
+    list.textContent = '';
+    if (!profile) return;
+    const interfaceLanguage = profile.interfaceLanguage || 'en';
+    for (const product of this.products()) {
+      const model = product.config?.languages;
+      const experiences = (product.config?.experiences || []).filter((experience) => experience.panels?.some((panel) => panel.userSelectable));
+      if (!model || !experiences.length) continue;
+      const productGroup = document.createElement('section'); productGroup.className = 'experience-language-product';
+      const heading = document.createElement('h4'); heading.textContent = this.productName(product, interfaceLanguage); productGroup.appendChild(heading);
+      for (const experience of experiences) {
+        const overrides = await this.store.getPanelLanguages(profile.pid, product.id, experience.id);
+        const card = document.createElement('details'); card.className = 'experience-language-card';
+        card.dataset.productId = product.id; card.dataset.experienceId = experience.id;
+        const summary = document.createElement('summary'); summary.textContent = experience.label || experience.id; card.appendChild(summary);
+        const fields = document.createElement('div'); fields.className = 'experience-language-fields';
+        experience.panels.filter((panel) => panel.userSelectable).forEach((panel) => {
+          const field = document.createElement('label'); field.className = 'experience-language-field';
+          const caption = document.createElement('span'); caption.className = 'field-label';
+          const fallbackLabel = panel.id.replace(/-/g, ' ').replace(/^./, (value) => value.toUpperCase());
+          caption.textContent = this.translate(`profile.panel.${panel.id}`, fallbackLabel);
+          const select = document.createElement('select'); select.className = 'profile-input'; select.dataset.panelId = panel.id;
+          const defaultOption = document.createElement('option'); defaultOption.value = '';
+          defaultOption.textContent = this.translate('profile.experienceDefault', 'Experience default'); select.appendChild(defaultOption);
+          this.allowedPanelLanguages(panel, model).forEach((language) => {
+            if (!model.registry?.[language]) return;
+            const option = document.createElement('option'); option.value = language;
+            option.textContent = model.registry[language].nativeName || model.registry[language].name || language; select.appendChild(option);
+          });
+          select.value = overrides[panel.id] || '';
+          field.append(caption, select); fields.appendChild(field);
+        });
+        const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'quiet-button experience-language-reset';
+        reset.textContent = this.translate('profile.useExperienceDefaults', 'Use experience defaults');
+        reset.addEventListener('click', () => fields.querySelectorAll('select').forEach((select) => { select.value = ''; }));
+        fields.appendChild(reset); card.appendChild(fields); productGroup.appendChild(card);
+      }
+      list.appendChild(productGroup);
+    }
+    section.hidden = !list.childElementCount;
+  }
+
+  async saveExperienceLanguagePreferences(pid) {
+    const cards = document.querySelectorAll('.experience-language-card[data-product-id][data-experience-id]');
+    await Promise.all([...cards].map((card) => {
+      const overrides = Object.fromEntries([...card.querySelectorAll('select[data-panel-id]')]
+        .filter((select) => select.value)
+        .map((select) => [select.dataset.panelId, select.value]));
+      return this.store.setPanelLanguages(pid, card.dataset.productId, card.dataset.experienceId, overrides);
+    }));
   }
 
   renderPhotoPreview(profile = null) {
@@ -700,6 +805,7 @@ class ProfileUI {
           photo: this.photo,
           analyticsConsent: true
         });
+        if (this.editingPid) await this.saveExperienceLanguagePreferences(profile.pid);
         if (document.getElementById('profile-default').checked) await this.store.setDefaultPid(profile.pid);
         else if ((await this.store.defaultPid()) === profile.pid) await this.store.setDefaultPid(null);
         if (this.editingPid) await this.onChanged(profile);
