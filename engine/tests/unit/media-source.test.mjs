@@ -53,7 +53,7 @@ test('invalid mounts fail and schema 1 remains readable', () => {
   assert.equal(selectMediaMount(old, 'audio/a.mp3').remote, 'https://legacy.example/');
 });
 
-test('remote source fetches catalog fresh and other media with normal caching', async () => {
+test('remote source checks its catalog once per app session and refreshes only when asked', async () => {
   const requests = [];
   const source = new RemoteMediaSource({
     rootUrl: 'https://catalog.example/',
@@ -70,7 +70,9 @@ test('remote source fetches catalog fresh and other media with normal caching', 
   assert.equal(requests[1].url.searchParams.get('mgp'), 'book/bhagavad-gita/manifest.json');
   assert.throws(() => source.resolveMedia('https://cdn.example/legacy.mp3'));
   await source.loadBook('bhagavad-gita');
-  assert.equal(requests.length, 3, 'a second load fetches only the always-fresh catalog');
+  assert.equal(requests.length, 2, 'a second load reuses the session catalog and book manifest');
+  await source.loadCatalog({ refresh: true });
+  assert.equal(requests.length, 3, 'an explicit refresh checks the catalog again');
   assert.equal(requests[2].url.pathname, '/catalog.json');
 });
 

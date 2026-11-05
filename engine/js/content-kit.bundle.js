@@ -968,8 +968,17 @@ async function readCollectionTextFromFiles(fileList, url) {
   return file.text();
 }
 
-async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '', manifest = null }) {
-  const table = async (url, headers = null) => parseCollectionTable(await text(url), headers, url);
+async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '', manifest = null, tableCache = new Map(), onCoreReady = null }) {
+  const table = async (url, headers = null) => {
+    const key = `${url}\n${(headers || []).join('#')}`;
+    if (!tableCache.has(key)) {
+      const pending = Promise.resolve(text(url))
+        .then((value) => parseCollectionTable(value, headers, url))
+        .catch((error) => { tableCache.delete(key); throw error; });
+      tableCache.set(key, pending);
+    }
+    return tableCache.get(key);
+  };
   const experienceRegistry = await table(EXPERIENCE_ROOT + '/collection.csv');
   const experienceEntry = registryEntry(experienceRegistry, experienceId, 'Experience');
   const experienceCatalog = await table(experienceEntry.catalog_url, ['content_type', 'content_url']);
@@ -1001,9 +1010,11 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
   const collectionResources = experience.collectionResources?.[activeCollection] || {};
   const audioCompositionUrl = collectionResources.audio || catalogEntry(experienceCatalog, 'audio', experienceId);
   const imageCompositionUrl = collectionResources.images || catalogEntry(experienceCatalog, 'images', experienceId);
-  const [masters, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition] = await Promise.all([
+  const mastersAndSequence = Promise.all([
     Promise.all(languages.map(async (language) => [language, await table(languageUrls[language], language === sourceLanguage ? MASTER_HEADERS.sa : LOCALIZED_MASTER_HEADERS)])),
-    sequenceUrl ? table(sequenceUrl, SEQUENCE_HEADERS) : null,
+    sequenceUrl ? table(sequenceUrl, SEQUENCE_HEADERS) : null
+  ]);
+  const optionalCompositions = Promise.all([
     table(audioCompositionUrl, audioCompositionHeaders(experience)),
     table(imageCompositionUrl, ['cid', 'snum', 'sid', 'chapter_icon_collection', 'chapter_icon_order']),
     deckCompositionUrl ? table(deckCompositionUrl, DECK_COMPOSITION_HEADERS) : null,
@@ -1011,6 +1022,35 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
     contemplationCompositionUrl ? table(contemplationCompositionUrl, CONTEMPLATION_COMPOSITION_HEADERS) : null,
     mediaCompositionUrl ? table(mediaCompositionUrl, MEDIA_COMPOSITION_HEADERS) : null
   ]);
+  const [masters, sequence] = await mastersAndSequence;
+  const masterTables = Object.fromEntries(masters);
+  const sa = masterTables[sourceLanguage];
+  if (!sa) throw new Error(`Experience ${experienceId} does not define its source language ${sourceLanguage}.`);
+  const languageTables = Object.fromEntries(Object.entries(masterTables).filter(([language]) => language !== sourceLanguage));
+  const supportsTextFirst = !deckCompositionUrl && !illustrationCompositionUrl && !contemplationCompositionUrl && !mediaCompositionUrl;
+  if (supportsTextFirst && typeof onCoreReady === 'function') {
+    const aligned = (headers) => ({
+      headers,
+      rows: sa.rows.map((row) => Object.fromEntries(headers.map((header) => [header, ['cid', 'snum', 'sid'].includes(header) ? row[header] : ''])))
+    });
+    const coreDataset = normalizeCollectionData({
+      sa,
+      languageTables,
+      sequence,
+      audioComposition: aligned(audioCompositionHeaders(experience)),
+      imageComposition: aligned(['cid', 'snum', 'sid', 'chapter_icon_collection', 'chapter_icon_order']),
+      audioCatalogs: new Map(),
+      imageCatalogs: new Map(),
+      experience,
+      resolveMediaUrl,
+      resourceUrls: { sequence: sequenceUrl, audio: audioCompositionUrl, images: imageCompositionUrl }
+    });
+    coreDataset.collectionId = activeCollection;
+    coreDataset.collections = collections;
+    coreDataset.hydrating = true;
+    await onCoreReady(coreDataset);
+  }
+  const [audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition] = await optionalCompositions;
   async function localCatalogs(type, composition, collectionField, headers, declaredIds = []) {
     const registry = await table(registryPath(type));
     const catalogs = new Map();
@@ -1093,10 +1133,6 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
       declaredIds: experience.contemplationCollections || []
     }) : new Map()
   ]);
-  const masterTables = Object.fromEntries(masters);
-  const sa = masterTables[sourceLanguage];
-  if (!sa) throw new Error(`Experience ${experienceId} does not define its source language ${sourceLanguage}.`);
-  const languageTables = Object.fromEntries(Object.entries(masterTables).filter(([language]) => language !== sourceLanguage));
   const dataset = normalizeCollectionData({
     sa, languageTables, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition,
     audioCatalogs: audioCollections.catalogs,
@@ -1409,5 +1445,5 @@ function updateItem(file, text, key, values, { view = '' } = {}) {
   return result;
 }
 
-globalThis.MyGitaContentKit = Object.freeze({ KIT_VERSION: 'cff7b7338079', listProducts, openMedia, contentTree, readItems, updateItem });
+globalThis.MyGitaContentKit = Object.freeze({ KIT_VERSION: 'f32bbffaf3ae', listProducts, openMedia, contentTree, readItems, updateItem });
 })();

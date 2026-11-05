@@ -40,7 +40,9 @@ export async function loadMediaBookExperience(experienceId, {
   mediaSource,
   productText,
   resolveProductMediaUrl = (value) => value,
-  collectionId = bookId
+  collectionId = bookId,
+  tableCache = new Map(),
+  onCoreReady = null
 } = {}) {
   if (!mediaSource?.loadBook || !mediaSource?.readText || !mediaSource?.resolveMedia) {
     throw new Error('Media experience adapter requires a readable media source.');
@@ -50,7 +52,18 @@ export async function loadMediaBookExperience(experienceId, {
   if (!manifest.experiences?.includes(experienceId)) throw new Error(`Book ${bookId} does not declare experience ${experienceId}.`);
   const text = createMediaResourceReader({ mediaSource, productText });
   const resolveMediaUrl = createMediaUrlResolver({ mediaSource, resolveProductMediaUrl });
-  const dataset = await loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, collectionId, manifest });
+  const source = Object.freeze({ type: 'media-book', bookId, contentVersion: manifest.content_version });
+  const dataset = await loadCollectionExperienceWithReader(experienceId, {
+    text,
+    resolveMediaUrl,
+    collectionId,
+    manifest,
+    tableCache,
+    onCoreReady: typeof onCoreReady === 'function' ? async (coreDataset) => {
+      coreDataset.contentSource = source;
+      await onCoreReady(coreDataset);
+    } : null
+  });
   const configuredBooks = [...new Set((dataset.experience?.verseCollections?.length
     ? dataset.experience.verseCollections
     : [dataset.experience?.verseCollection]).filter(Boolean))];
@@ -65,6 +78,6 @@ export async function loadMediaBookExperience(experienceId, {
       return { id, order: order + 1, localized };
     }));
   }
-  dataset.contentSource = Object.freeze({ type: 'media-book', bookId, contentVersion: manifest.content_version });
+  dataset.contentSource = source;
   return settleDatasetMedia(dataset);
 }

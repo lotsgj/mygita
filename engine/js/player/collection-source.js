@@ -43,6 +43,7 @@ export class CollectionSource {
     this.directoryHandle = null;
     this.mediaSource = null;
     this.cache = new Map();
+    this.tableCache = new Map();
     this.generation = 0;
     this.selectionRequest = 0;
     if (protocol !== 'file:' && media?.remoteRoot) {
@@ -59,6 +60,7 @@ export class CollectionSource {
     this.generation += 1;
     this.cache.forEach((dataset) => dataset.release?.());
     this.cache.clear();
+    this.tableCache.clear();
     if (releaseMedia) {
       this.mediaSource?.release?.();
       this.mediaSource = null;
@@ -126,7 +128,7 @@ export class CollectionSource {
     return new URL(resolved, this.baseUrl).href;
   }
 
-  async loadExperience(experienceId, { collectionId = '', refresh = false } = {}) {
+  async loadExperience(experienceId, { collectionId = '', refresh = false, onCoreReady = null } = {}) {
     const key = `${experienceId}:${collectionId}`;
     if (!refresh && this.mediaSource?.needsRefresh) refresh = true;
     if (!refresh && this.cache.has(key)) return this.cache.get(key);
@@ -137,13 +139,21 @@ export class CollectionSource {
     const generation = this.generation;
     if (!mediaSource) throw new Error('MyGita requires a media source to load scripture content.');
     if (!bookId) throw new Error(`Experience ${experienceId} does not declare a media book.`);
-    if (refresh) await mediaSource.loadCatalog({ refresh: true });
+    if (refresh) {
+      this.tableCache.clear();
+      await mediaSource.loadCatalog({ refresh: true });
+    }
     const dataset = await loadMediaBookExperience(experienceId, {
       bookId,
       mediaSource,
       productText: (url) => this.productText(url),
       resolveProductMediaUrl: (url) => this.resolveProductMediaUrl(url),
-      collectionId: collectionId || bookId
+      collectionId: collectionId || bookId,
+      tableCache: this.tableCache,
+      onCoreReady: typeof onCoreReady === 'function' ? async (coreDataset) => {
+        if (generation !== this.generation || mediaSource !== this.mediaSource) return;
+        await onCoreReady(coreDataset);
+      } : null
     });
     if (generation !== this.generation || mediaSource !== this.mediaSource) {
       dataset.release?.();

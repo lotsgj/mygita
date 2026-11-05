@@ -2079,18 +2079,16 @@ function parseJson(text, path) {
 }
 
 class RemoteMediaSource {
-  constructor({ rootUrl, catalogPath = 'catalog.json', fetchImpl = globalThis.fetch?.bind(globalThis), maxAgeMs = 300000 } = {}) {
+  constructor({ rootUrl, catalogPath = 'catalog.json', fetchImpl = globalThis.fetch?.bind(globalThis) } = {}) {
     if (typeof fetchImpl !== 'function') throw new Error('Remote media source requires fetch.');
     this.rootUrl = normalizeRootUrl(rootUrl);
     this.catalogPath = String(catalogPath || 'catalog.json').trim();
     this.fetchImpl = fetchImpl;
-    this.maxAgeMs = maxAgeMs;
-    this.loadedAt = 0;
     this.catalog = null;
     this.books = new Map();
   }
   get label() { return this.rootUrl; }
-  get needsRefresh() { return Boolean(this.loadedAt && Date.now() - this.loadedAt >= this.maxAgeMs); }
+  get needsRefresh() { return false; }
   catalogUrl() {
     const url = new URL(this.catalogPath, this.rootUrl);
     url.searchParams.set('mgc', '1');
@@ -2113,12 +2111,11 @@ class RemoteMediaSource {
   }
   async readJson(path) { return parseJson(await this.readText(path), path); }
   async loadCatalog({ refresh = false } = {}) {
-    const stale = this.catalog && Date.now() - this.loadedAt >= this.maxAgeMs;
+    if (this.catalog && !refresh) return this.catalog;
     const previousVersion = this.catalog?.content_version;
     const raw = parseJson(await this.fetchText(this.catalogUrl(), this.catalogPath, { cache: 'no-store' }), this.catalogPath);
     this.catalog = normalizeMediaCatalog(raw, { catalogRoot: this.rootUrl });
-    this.loadedAt = Date.now();
-    if (refresh || stale || (previousVersion && previousVersion !== this.catalog.content_version)) this.books.clear();
+    if (refresh || (previousVersion && previousVersion !== this.catalog.content_version)) this.books.clear();
     return this.catalog;
   }
   async loadBook(bookId, { refresh = false } = {}) {
@@ -3064,8 +3061,17 @@ async function readCollectionTextFromFiles(fileList, url) {
   return file.text();
 }
 
-async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '', manifest = null }) {
-  const table = async (url, headers = null) => parseCollectionTable(await text(url), headers, url);
+async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '', manifest = null, tableCache = new Map(), onCoreReady = null }) {
+  const table = async (url, headers = null) => {
+    const key = `${url}\n${(headers || []).join('#')}`;
+    if (!tableCache.has(key)) {
+      const pending = Promise.resolve(text(url))
+        .then((value) => parseCollectionTable(value, headers, url))
+        .catch((error) => { tableCache.delete(key); throw error; });
+      tableCache.set(key, pending);
+    }
+    return tableCache.get(key);
+  };
   const experienceRegistry = await table(EXPERIENCE_ROOT + '/collection.csv');
   const experienceEntry = registryEntry(experienceRegistry, experienceId, 'Experience');
   const experienceCatalog = await table(experienceEntry.catalog_url, ['content_type', 'content_url']);
@@ -3097,9 +3103,11 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
   const collectionResources = experience.collectionResources?.[activeCollection] || {};
   const audioCompositionUrl = collectionResources.audio || catalogEntry(experienceCatalog, 'audio', experienceId);
   const imageCompositionUrl = collectionResources.images || catalogEntry(experienceCatalog, 'images', experienceId);
-  const [masters, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition] = await Promise.all([
+  const mastersAndSequence = Promise.all([
     Promise.all(languages.map(async (language) => [language, await table(languageUrls[language], language === sourceLanguage ? MASTER_HEADERS.sa : LOCALIZED_MASTER_HEADERS)])),
-    sequenceUrl ? table(sequenceUrl, SEQUENCE_HEADERS) : null,
+    sequenceUrl ? table(sequenceUrl, SEQUENCE_HEADERS) : null
+  ]);
+  const optionalCompositions = Promise.all([
     table(audioCompositionUrl, audioCompositionHeaders(experience)),
     table(imageCompositionUrl, ['cid', 'snum', 'sid', 'chapter_icon_collection', 'chapter_icon_order']),
     deckCompositionUrl ? table(deckCompositionUrl, DECK_COMPOSITION_HEADERS) : null,
@@ -3107,6 +3115,35 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
     contemplationCompositionUrl ? table(contemplationCompositionUrl, CONTEMPLATION_COMPOSITION_HEADERS) : null,
     mediaCompositionUrl ? table(mediaCompositionUrl, MEDIA_COMPOSITION_HEADERS) : null
   ]);
+  const [masters, sequence] = await mastersAndSequence;
+  const masterTables = Object.fromEntries(masters);
+  const sa = masterTables[sourceLanguage];
+  if (!sa) throw new Error(`Experience ${experienceId} does not define its source language ${sourceLanguage}.`);
+  const languageTables = Object.fromEntries(Object.entries(masterTables).filter(([language]) => language !== sourceLanguage));
+  const supportsTextFirst = !deckCompositionUrl && !illustrationCompositionUrl && !contemplationCompositionUrl && !mediaCompositionUrl;
+  if (supportsTextFirst && typeof onCoreReady === 'function') {
+    const aligned = (headers) => ({
+      headers,
+      rows: sa.rows.map((row) => Object.fromEntries(headers.map((header) => [header, ['cid', 'snum', 'sid'].includes(header) ? row[header] : ''])))
+    });
+    const coreDataset = normalizeCollectionData({
+      sa,
+      languageTables,
+      sequence,
+      audioComposition: aligned(audioCompositionHeaders(experience)),
+      imageComposition: aligned(['cid', 'snum', 'sid', 'chapter_icon_collection', 'chapter_icon_order']),
+      audioCatalogs: new Map(),
+      imageCatalogs: new Map(),
+      experience,
+      resolveMediaUrl,
+      resourceUrls: { sequence: sequenceUrl, audio: audioCompositionUrl, images: imageCompositionUrl }
+    });
+    coreDataset.collectionId = activeCollection;
+    coreDataset.collections = collections;
+    coreDataset.hydrating = true;
+    await onCoreReady(coreDataset);
+  }
+  const [audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition] = await optionalCompositions;
   async function localCatalogs(type, composition, collectionField, headers, declaredIds = []) {
     const registry = await table(registryPath(type));
     const catalogs = new Map();
@@ -3189,10 +3226,6 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
       declaredIds: experience.contemplationCollections || []
     }) : new Map()
   ]);
-  const masterTables = Object.fromEntries(masters);
-  const sa = masterTables[sourceLanguage];
-  if (!sa) throw new Error(`Experience ${experienceId} does not define its source language ${sourceLanguage}.`);
-  const languageTables = Object.fromEntries(Object.entries(masterTables).filter(([language]) => language !== sourceLanguage));
   const dataset = normalizeCollectionData({
     sa, languageTables, sequence, audioComposition, imageComposition, deckComposition, illustrationComposition, contemplationComposition, mediaComposition,
     audioCatalogs: audioCollections.catalogs,
@@ -3294,7 +3327,9 @@ async function loadMediaBookExperience(experienceId, {
   mediaSource,
   productText,
   resolveProductMediaUrl = (value) => value,
-  collectionId = bookId
+  collectionId = bookId,
+  tableCache = new Map(),
+  onCoreReady = null
 } = {}) {
   if (!mediaSource?.loadBook || !mediaSource?.readText || !mediaSource?.resolveMedia) {
     throw new Error('Media experience adapter requires a readable media source.');
@@ -3304,7 +3339,18 @@ async function loadMediaBookExperience(experienceId, {
   if (!manifest.experiences?.includes(experienceId)) throw new Error(`Book ${bookId} does not declare experience ${experienceId}.`);
   const text = createMediaResourceReader({ mediaSource, productText });
   const resolveMediaUrl = createMediaUrlResolver({ mediaSource, resolveProductMediaUrl });
-  const dataset = await loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, collectionId, manifest });
+  const source = Object.freeze({ type: 'media-book', bookId, contentVersion: manifest.content_version });
+  const dataset = await loadCollectionExperienceWithReader(experienceId, {
+    text,
+    resolveMediaUrl,
+    collectionId,
+    manifest,
+    tableCache,
+    onCoreReady: typeof onCoreReady === 'function' ? async (coreDataset) => {
+      coreDataset.contentSource = source;
+      await onCoreReady(coreDataset);
+    } : null
+  });
   const configuredBooks = [...new Set((dataset.experience?.verseCollections?.length
     ? dataset.experience.verseCollections
     : [dataset.experience?.verseCollection]).filter(Boolean))];
@@ -3319,7 +3365,7 @@ async function loadMediaBookExperience(experienceId, {
       return { id, order: order + 1, localized };
     }));
   }
-  dataset.contentSource = Object.freeze({ type: 'media-book', bookId, contentVersion: manifest.content_version });
+  dataset.contentSource = source;
   return settleDatasetMedia(dataset);
 }
 
@@ -3361,6 +3407,7 @@ class CollectionSource {
     this.directoryHandle = null;
     this.mediaSource = null;
     this.cache = new Map();
+    this.tableCache = new Map();
     this.generation = 0;
     this.selectionRequest = 0;
     if (protocol !== 'file:' && media?.remoteRoot) {
@@ -3377,6 +3424,7 @@ class CollectionSource {
     this.generation += 1;
     this.cache.forEach((dataset) => dataset.release?.());
     this.cache.clear();
+    this.tableCache.clear();
     if (releaseMedia) {
       this.mediaSource?.release?.();
       this.mediaSource = null;
@@ -3444,7 +3492,7 @@ class CollectionSource {
     return new URL(resolved, this.baseUrl).href;
   }
 
-  async loadExperience(experienceId, { collectionId = '', refresh = false } = {}) {
+  async loadExperience(experienceId, { collectionId = '', refresh = false, onCoreReady = null } = {}) {
     const key = `${experienceId}:${collectionId}`;
     if (!refresh && this.mediaSource?.needsRefresh) refresh = true;
     if (!refresh && this.cache.has(key)) return this.cache.get(key);
@@ -3455,13 +3503,21 @@ class CollectionSource {
     const generation = this.generation;
     if (!mediaSource) throw new Error('MyGita requires a media source to load scripture content.');
     if (!bookId) throw new Error(`Experience ${experienceId} does not declare a media book.`);
-    if (refresh) await mediaSource.loadCatalog({ refresh: true });
+    if (refresh) {
+      this.tableCache.clear();
+      await mediaSource.loadCatalog({ refresh: true });
+    }
     const dataset = await loadMediaBookExperience(experienceId, {
       bookId,
       mediaSource,
       productText: (url) => this.productText(url),
       resolveProductMediaUrl: (url) => this.resolveProductMediaUrl(url),
-      collectionId: collectionId || bookId
+      collectionId: collectionId || bookId,
+      tableCache: this.tableCache,
+      onCoreReady: typeof onCoreReady === 'function' ? async (coreDataset) => {
+        if (generation !== this.generation || mediaSource !== this.mediaSource) return;
+        await onCoreReady(coreDataset);
+      } : null
     });
     if (generation !== this.generation || mediaSource !== this.mediaSource) {
       dataset.release?.();
@@ -4391,6 +4447,7 @@ const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformI
 const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-local-media` });
 let rememberedMediaFolder = null;
 let mediaSelectionRequest = 0;
+let experienceLoadRequest = 0;
 const eventBus = new EventBus({
   appVersion,
   contextProvider: () => ({
@@ -5297,21 +5354,49 @@ async function startRequestedExperience() {
   }
 
   showOnly('loading');
+  const request = ++experienceLoadRequest;
+  let coreStarted = false;
   try {
-    const dataset = await collectionSource.loadExperience(play, { collectionId: requestedCollection || '' });
-    await startPlayer(dataset, experience);
+    const loadingExperience = play;
+    const dataset = await collectionSource.loadExperience(play, {
+      collectionId: requestedCollection || '',
+      onCoreReady: async (coreDataset) => {
+        if (request !== experienceLoadRequest || play !== loadingExperience) return;
+        coreStarted = true;
+        await startPlayer(coreDataset, experience);
+      }
+    });
+    if (request !== experienceLoadRequest || play !== loadingExperience) return;
+    if (coreStarted) hydratePlayer(dataset);
+    else await startPlayer(dataset, experience);
   } catch (error) {
     emitEvent('data_load_failed', {
       context: { experience: play, language: requestedLanguage || state.activeProfile.contentLanguage },
       details: { source: 'automatic' }
     });
-    showDataChooser(error.message);
+    if (!coreStarted) showDataChooser(error.message);
   }
+}
+
+function hydratePlayer(dataset) {
+  const sid = currentRow()?.sid;
+  state.dataset = dataset;
+  state.collectionId = dataset.collectionId || null;
+  document.documentElement.dataset.contentSource = dataset.contentSource?.type || 'unknown';
+  document.documentElement.dataset.contentBook = dataset.contentSource?.bookId || '';
+  document.documentElement.dataset.contentVersion = dataset.contentSource?.contentVersion || '';
+  document.documentElement.dataset.contentHydrating = 'false';
+  const index = sid ? findSid(sid) : -1;
+  state.index = index >= 0 ? index : 0;
+  buildChapterList();
+  buildCollectionList();
+  render({ trackLocation: false, trackEngagement: false });
 }
 
 async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
   if (state.renderer) state.renderer.destroy();
   state.dataset = dataset;
+  document.documentElement.dataset.contentHydrating = String(Boolean(dataset.hydrating));
   document.documentElement.dataset.contentSource = dataset.contentSource?.type || 'unknown';
   document.documentElement.dataset.contentBook = dataset.contentSource?.bookId || '';
   document.documentElement.dataset.contentVersion = dataset.contentSource?.contentVersion || '';
@@ -5440,7 +5525,7 @@ function render(options = {}) {
   updateUrl();
   updateChapterSelection();
   updateCollectionUi();
-  trackVerseEngagement(row);
+  if (options.trackEngagement !== false) trackVerseEngagement(row);
   if (options.trackLocation !== false) {
     const source = options.source || state.locationSource || 'render';
     state.locationSource = null;

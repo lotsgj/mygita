@@ -44,6 +44,8 @@ Move canonical verse masters, questions, experience associations and reusable me
 
 The reading boundary is delivered locally: the media repository has validated Bhagavad Gita, Ganesha Atharva and Purusha Sukta books; MyGita retains only product/experience configuration and platform assets; and all scripture masters, registries, associations, chapter icons, questions and binary media resolve from media. An executable audit covers all current Gita experiences and both Sukta collections without bundled scripture fallback. File mode selects media once, web/PWA uses the configured remote root, used content is cached progressively, and runtime source diagnostics expose the active book and content version.
 
+Startup loading now checks the root catalog once per app opening rather than on a timer, shares parsed book registries and verse masters across experiences during that session, and lets ordinary verse experiences display canonical text before audio and visual metadata finish hydrating. Reopening the app performs the next catalog check; explicitly changing or refreshing the media source clears the session cache.
+
 Remaining work is to deploy and observe the media-only build, add the source diagnostics to Clarity, and design writable media authoring/publishing with conflict protection. The old product-data editor is intentionally unavailable until that workflow exists.
 
 ### 17. MyGita app-brand and product transition

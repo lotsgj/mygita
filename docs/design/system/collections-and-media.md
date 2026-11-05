@@ -1,7 +1,7 @@
 # Collections and media
 
 **Status:** Current  
-**Last updated:** 4 November 2026
+**Last updated:** 5 November 2026
 
 ## Ownership boundary
 
@@ -43,7 +43,7 @@ The service is deliberately separate from renderers. The book-to-experience adap
 
 `pnpm run verify:media-parity` is a strict media-only audit. It proves that Gita 700, Gita Yoga, Gita Chant, Gita Sara, Ganesha Atharva and Purusha Sukta normalize successfully without a bundled scripture source.
 
-Web and PWA sessions load the remote media book. If validation or loading fails, the app reports that content is unavailable; it never substitutes a bundled scripture copy. The root catalog is always fetched fresh. Every other remote request carries the logical path and `content_version`; the service worker caches it by those two values rather than by physical host URL. Used text, images, decks and audio are cache-first after their initial successful request, while audio retains byte-range playback. A new content version naturally creates new cache identities. Media is never precached during PWA installation.
+Web and PWA sessions load the remote media book. If validation or loading fails, the app reports that content is unavailable; it never substitutes a bundled scripture copy. The root catalog is fetched once when the app opens its media source and is reused for that open session; reopening the app checks it again. An explicit source refresh or local-folder replacement invalidates the session caches. Every other remote request carries the logical path and `content_version`; the service worker caches it by those two values rather than by physical host URL. Used text, images, decks and audio are cache-first after their initial successful request, while audio retains byte-range playback. A new content version naturally creates new cache identities. Media is never precached during PWA installation.
 
 In `file://` mode, the app’s product configuration is already embedded in a built distribution or supplied by the local development harness. Home therefore asks for the media root once, validates `catalog.json`, and reuses that source across products and experiences. On browsers with the File System Access API, MyGita stores the opaque directory handle in IndexedDB. A later session automatically restores a still-authorized folder; when the browser requires permission again, Home offers a user-initiated reconnect. Home also permits changing the folder, retaining the previous remembered choice when validation of a replacement fails, or explicitly forgetting it. Folder-upload fallback follows the same content contract but cannot persist files across browser restarts. MyGita contains no legacy product-data editor because products no longer own editable scripture files; writable media authoring remains a separate future workflow requiring conflict and version design.
 
@@ -125,4 +125,4 @@ The loader verifies required headers, unique/aligned SIDs, supported schema vers
 
 ## Runtime source
 
-A shared collection-source service owns runtime loading. Web and PWA sessions use the configured remote media root; file-mode sessions use the media folder selected on Home. It caches normalized datasets by experience and book for the session so player and journey views reuse identical data. Replacing a local folder clears those datasets and revokes their object URLs. A local media selection is strict—invalid or incomplete content is reported rather than silently replaced.
+A shared collection-source service owns runtime loading. Web and PWA sessions use the configured remote media root; file-mode sessions use the media folder selected on Home. It caches normalized datasets by experience and book and also shares parsed immutable registries and verse masters across experiences in the same session. Replacing or explicitly refreshing a source clears those caches and revokes local object URLs. For ordinary verse experiences, canonical masters and sequence data form a usable text-first dataset; the player displays that verse immediately and hydrates audio and visual metadata when their registries and catalogs finish. Rich composed experiences such as Gita Sara retain their atomic load boundary. A local media selection is strict—invalid or incomplete content is reported rather than silently replaced.

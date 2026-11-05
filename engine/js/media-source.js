@@ -13,18 +13,16 @@ function parseJson(text, path) {
 }
 
 export class RemoteMediaSource {
-  constructor({ rootUrl, catalogPath = 'catalog.json', fetchImpl = globalThis.fetch?.bind(globalThis), maxAgeMs = 300000 } = {}) {
+  constructor({ rootUrl, catalogPath = 'catalog.json', fetchImpl = globalThis.fetch?.bind(globalThis) } = {}) {
     if (typeof fetchImpl !== 'function') throw new Error('Remote media source requires fetch.');
     this.rootUrl = normalizeRootUrl(rootUrl);
     this.catalogPath = String(catalogPath || 'catalog.json').trim();
     this.fetchImpl = fetchImpl;
-    this.maxAgeMs = maxAgeMs;
-    this.loadedAt = 0;
     this.catalog = null;
     this.books = new Map();
   }
   get label() { return this.rootUrl; }
-  get needsRefresh() { return Boolean(this.loadedAt && Date.now() - this.loadedAt >= this.maxAgeMs); }
+  get needsRefresh() { return false; }
   catalogUrl() {
     const url = new URL(this.catalogPath, this.rootUrl);
     url.searchParams.set('mgc', '1');
@@ -47,12 +45,11 @@ export class RemoteMediaSource {
   }
   async readJson(path) { return parseJson(await this.readText(path), path); }
   async loadCatalog({ refresh = false } = {}) {
-    const stale = this.catalog && Date.now() - this.loadedAt >= this.maxAgeMs;
+    if (this.catalog && !refresh) return this.catalog;
     const previousVersion = this.catalog?.content_version;
     const raw = parseJson(await this.fetchText(this.catalogUrl(), this.catalogPath, { cache: 'no-store' }), this.catalogPath);
     this.catalog = normalizeMediaCatalog(raw, { catalogRoot: this.rootUrl });
-    this.loadedAt = Date.now();
-    if (refresh || stale || (previousVersion && previousVersion !== this.catalog.content_version)) this.books.clear();
+    if (refresh || (previousVersion && previousVersion !== this.catalog.content_version)) this.books.clear();
     return this.catalog;
   }
   async loadBook(bookId, { refresh = false } = {}) {

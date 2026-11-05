@@ -37,3 +37,7 @@ Tests: contract 26 pass.
 ## W-0010 · 2026-11-04 · Codex · S: fix · stabilize media reselection
 Changed: generation-guarded media source replacement and experience loads; stale selections cannot overwrite current state; file input resets after use; shared ProfileUI tolerates Rachana without experience controls.
 Tests: unit 52; exact CI build/test sequence; Rachana browser; five consecutive Gita browser runs with five file-mode reselections each.
+
+## W-0011 · 2026-11-05 · Codex · S-19 · faster experience opening
+Changed: catalog checks occur once per app opening; parsed registries and masters are shared across experiences for the session; ordinary verse experiences render canonical text before audio and visual metadata finish hydrating. Explicit refresh and media-source replacement invalidate the relevant caches.
+Tests: engine 6, unit 52, contract 26, Gita contract 6, and Gita browser regression pass.

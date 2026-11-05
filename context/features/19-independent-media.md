@@ -1,5 +1,5 @@
 # S-19 Independently released books and media
-Updated 2026-11-04 · Claude · Sampada: docs/design/sampada.md §19 · ADRs: 001, 002, 003, 004
+Updated 2026-11-05 · Codex · Sampada: docs/design/sampada.md §19 · ADRs: 001, 002, 003, 004
 
 ## Brief — current truth
 - Content lives in lotsgj/media (media.gitajyoti.org). mygita holds product config, engine and renderers.
@@ -9,12 +9,15 @@ Updated 2026-11-04 · Claude · Sampada: docs/design/sampada.md §19 · ADRs: 00
   API: listProducts · openMedia · contentTree · readItems · updateItem (+ KIT_VERSION in the bundle).
 - Consumers outside mygita (e.g. apps/mygita-admin) use content-kit; their design lives with them.
 - content_version is bumped once per publish, never by edits.
+- A running app checks `catalog.json` once when its media source opens. It reuses the validated catalog, book manifest and parsed base tables while the app remains open; reopening the app checks again.
+- Simple verse experiences render their canonical text first, then hydrate audio and visual metadata without moving the user away from the verse.
 
 ## Parts
 - [x] media-only playback — W-0001
 - [x] logical paths + mounts — W-0003
 - [x] playback-only player — W-0004
 - [x] content-kit v1 — W-0006
+- [x] session catalog/table cache and text-first experience hydration — W-0011
 - [ ] publish step: bump content_version once per release
 - [ ] connected edits for audio/cues: related(), checkSave() blocking|pending, insertItem/removeItem, checkAsset, asset-first order
 - [ ] deploy and observe the media-only build; source diagnostics to Clarity (from Sampada)

@@ -105,6 +105,7 @@ const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformI
 const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-local-media` });
 let rememberedMediaFolder = null;
 let mediaSelectionRequest = 0;
+let experienceLoadRequest = 0;
 const eventBus = new EventBus({
   appVersion,
   contextProvider: () => ({
@@ -1011,21 +1012,49 @@ async function startRequestedExperience() {
   }
 
   showOnly('loading');
+  const request = ++experienceLoadRequest;
+  let coreStarted = false;
   try {
-    const dataset = await collectionSource.loadExperience(play, { collectionId: requestedCollection || '' });
-    await startPlayer(dataset, experience);
+    const loadingExperience = play;
+    const dataset = await collectionSource.loadExperience(play, {
+      collectionId: requestedCollection || '',
+      onCoreReady: async (coreDataset) => {
+        if (request !== experienceLoadRequest || play !== loadingExperience) return;
+        coreStarted = true;
+        await startPlayer(coreDataset, experience);
+      }
+    });
+    if (request !== experienceLoadRequest || play !== loadingExperience) return;
+    if (coreStarted) hydratePlayer(dataset);
+    else await startPlayer(dataset, experience);
   } catch (error) {
     emitEvent('data_load_failed', {
       context: { experience: play, language: requestedLanguage || state.activeProfile.contentLanguage },
       details: { source: 'automatic' }
     });
-    showDataChooser(error.message);
+    if (!coreStarted) showDataChooser(error.message);
   }
+}
+
+function hydratePlayer(dataset) {
+  const sid = currentRow()?.sid;
+  state.dataset = dataset;
+  state.collectionId = dataset.collectionId || null;
+  document.documentElement.dataset.contentSource = dataset.contentSource?.type || 'unknown';
+  document.documentElement.dataset.contentBook = dataset.contentSource?.bookId || '';
+  document.documentElement.dataset.contentVersion = dataset.contentSource?.contentVersion || '';
+  document.documentElement.dataset.contentHydrating = 'false';
+  const index = sid ? findSid(sid) : -1;
+  state.index = index >= 0 ? index : 0;
+  buildChapterList();
+  buildCollectionList();
+  render({ trackLocation: false, trackEngagement: false });
 }
 
 async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
   if (state.renderer) state.renderer.destroy();
   state.dataset = dataset;
+  document.documentElement.dataset.contentHydrating = String(Boolean(dataset.hydrating));
   document.documentElement.dataset.contentSource = dataset.contentSource?.type || 'unknown';
   document.documentElement.dataset.contentBook = dataset.contentSource?.bookId || '';
   document.documentElement.dataset.contentVersion = dataset.contentSource?.contentVersion || '';
@@ -1154,7 +1183,7 @@ function render(options = {}) {
   updateUrl();
   updateChapterSelection();
   updateCollectionUi();
-  trackVerseEngagement(row);
+  if (options.trackEngagement !== false) trackVerseEngagement(row);
   if (options.trackLocation !== false) {
     const source = options.source || state.locationSource || 'render';
     state.locationSource = null;

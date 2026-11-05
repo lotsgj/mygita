@@ -182,7 +182,7 @@ async function run() {
   const missingIllustrationResponses = [];
   const notFoundResponses = [];
   const missingResourceMessages = [];
-  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(error.stack || error.message));
   page.on('response', (response) => {
     if (response.status() === 404) notFoundResponses.push(response.url());
     if (response.status() === 404 && /\/data\/collections\/images\/gita-sara-illustrations\/[^/]+-\d+\.webp(?:\?|$)/.test(response.url())) {
@@ -192,7 +192,10 @@ async function run() {
   page.on('console', (message) => {
     if (message.type() !== 'error') return;
     if (message.text().startsWith('Failed to load resource: the server responded with a status of 404')) missingResourceMessages.push(message.text());
-    else errors.push(message.text());
+    else {
+      const location = message.location();
+      errors.push(`${message.text()}${location.url ? ` (${location.url}:${location.lineNumber}:${location.columnNumber})` : ''}`);
+    }
   });
 
   try {
