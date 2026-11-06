@@ -106,6 +106,9 @@ const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-loc
 let rememberedMediaFolder = null;
 let mediaSelectionRequest = 0;
 let experienceLoadRequest = 0;
+const MEDIA_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const MEDIA_CHECK_KEY = `${platformId}-last-media-check`;
+let mediaCheckPromise = null;
 const eventBus = new EventBus({
   appVersion,
   contextProvider: () => ({
@@ -1011,6 +1014,7 @@ async function startRequestedExperience() {
     return showError(`The requested experience is not available in ${distribution().name}.`);
   }
 
+  if (collectionSource.applyPendingMediaUpdate()) state.dataset = null;
   showOnly('loading');
   const request = ++experienceLoadRequest;
   let coreStarted = false;
@@ -1051,6 +1055,20 @@ function hydratePlayer(dataset) {
   render({ trackLocation: false, trackEngagement: false });
 }
 
+function recordMediaCheck() {
+  try { localStorage.setItem(MEDIA_CHECK_KEY, String(Date.now())); } catch (_) {}
+}
+
+async function checkForMediaUpdates({ force = false } = {}) {
+  if (!navigator.onLine || collectionSource.usesLocalFiles || !state.dataset?.contentSource?.bookId) return;
+  let checkedAt = 0; try { checkedAt = Number(localStorage.getItem(MEDIA_CHECK_KEY) || 0); } catch (_) {}
+  if (!force && checkedAt && Date.now() - checkedAt < MEDIA_CHECK_INTERVAL_MS) return;
+  if (mediaCheckPromise) return mediaCheckPromise;
+  mediaCheckPromise = collectionSource.checkForMediaUpdates([state.dataset.contentSource.bookId])
+    .then(() => recordMediaCheck()).catch(() => {}).finally(() => { mediaCheckPromise = null; });
+  return mediaCheckPromise;
+}
+
 async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
   if (state.renderer) state.renderer.destroy();
   state.dataset = dataset;
@@ -1059,6 +1077,7 @@ async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
   document.documentElement.dataset.contentBook = dataset.contentSource?.bookId || '';
   document.documentElement.dataset.contentVersion = dataset.contentSource?.contentVersion || '';
   state.collectionId = dataset.collectionId || null;
+  recordMediaCheck();
   const model = distribution().languages;
   state.language = model.content.includes(requestedLanguage) ? requestedLanguage : (model.content.includes(state.activeProfile.contentLanguage) ? state.activeProfile.contentLanguage : model.defaultContent);
   state.panelLanguageOverrides = await profileStore.getPanelLanguages(state.activeProfile.pid, state.activeProductId, play).catch(() => ({}));
@@ -1244,6 +1263,12 @@ function updateUrl() {
 function navigate(offset, source = offset > 0 ? 'next' : 'previous') {
   const next = state.index + offset;
   if (next < 0 || next >= state.dataset.rows.length) return;
+  if (collectionSource.hasPendingMediaUpdate) {
+    requestedSid = state.dataset.rows[next].sid;
+    state.locationSource = source;
+    startRequestedExperience();
+    return;
+  }
   state.index = next;
   render({ source });
   if (matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1355,6 +1380,13 @@ function moveMenuFocus(offset) {
 
 function selectChapterButton(button) {
   if (!button) return;
+  if (collectionSource.hasPendingMediaUpdate) {
+    requestedSid = state.dataset.rows[Number(button.dataset.index)]?.sid;
+    state.locationSource = 'chapter';
+    closeOverlays({ restoreFocus: false });
+    startRequestedExperience();
+    return;
+  }
   state.index = Number(button.dataset.index);
   closeOverlays({ restoreFocus: false });
   render({ source: 'chapter' });
@@ -1388,6 +1420,13 @@ function goHome() {
 function goToSid(sid) {
   const found = findSid(sid);
   if (found < 0) return false;
+  if (collectionSource.hasPendingMediaUpdate) {
+    requestedSid = state.dataset.rows[found].sid;
+    state.locationSource = 'goto';
+    closeOverlays({ restoreFocus: false });
+    startRequestedExperience();
+    return true;
+  }
   state.index = found;
   closeOverlays({ restoreFocus: false });
   render({ source: 'goto' });
@@ -1667,6 +1706,10 @@ function bindEvents() {
     updateDeviceLayout();
     if (state.renderer) state.renderer.fitText();
   });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForMediaUpdates();
+  });
+  window.addEventListener('online', () => checkForMediaUpdates());
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && closeOverlays()) {
       event.preventDefault();

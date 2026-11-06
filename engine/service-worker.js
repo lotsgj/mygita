@@ -1,6 +1,8 @@
+importScripts('media-cache.js');
+
 const BUILD_VERSION = '__GITAVERSE_VERSION__';
 const SHELL_CACHE = `gitaverse-shell-${BUILD_VERSION}`;
-const MEDIA_CACHE = 'gitaverse-media-v1';
+const MEDIA_CACHE = 'gitaverse-media-v2';
 const AUDIO_PREFIX = 'gitaverse-audio-';
 const CONTENT_PREFIX = 'gitaverse-content-';
 const MEDIA_PREFIX = 'gitaverse-media-';
@@ -74,21 +76,22 @@ function logicalMediaRequest(url) {
   const logicalPath = url.searchParams.get('mgp');
   const version = url.searchParams.get('v');
   if (!logicalPath || !version) return null;
-  return { logicalPath, version, cacheKey: new Request(scopedUrl(`__media_cache__/${encodeURIComponent(version)}/${encodeURIComponent(logicalPath)}`)) };
+  return { logicalPath, version };
 }
 
 async function mediaResponse(request, identity, isAudio) {
-  const cache = await caches.open(MEDIA_CACHE);
-  const cacheKey = identity.cacheKey;
-  let response = await cache.match(cacheKey);
+  const cache = await MyGitaMediaCache.open(MEDIA_CACHE, self.registration.scope);
+  let response = await cache.get(identity.logicalPath, identity.version);
   if (!response) {
     try {
       const network = await fetch(request.url, { cache: 'default', credentials: 'omit', mode: 'cors' });
       if (!network.ok || network.status !== 200) return network;
-      await cache.put(cacheKey, network.clone());
+      await cache.put(identity.logicalPath, identity.version, network.clone());
+      await cache.evictOlder(identity.logicalPath, identity.version);
       response = network;
     } catch (_) {
-      return new Response(`This ${isAudio ? 'audio' : 'content'} is not available offline yet.`, { status: 503, headers: { 'Content-Type': 'text/plain' } });
+      response = await cache.latest(identity.logicalPath, identity.version);
+      if (!response) return new Response(`This ${isAudio ? 'audio' : 'content'} is not available offline yet.`, { status: 503, headers: { 'Content-Type': 'text/plain' } });
     }
   }
   return isAudio ? sliceRange(request, response) : response;

@@ -1,4 +1,15 @@
 import { validateDeckDescriptor } from '../media-contract.js';
+import {
+  AUDIO_CATALOG_HEADERS, AUDIO_CUE_HEADERS, AUDIO_CUE_PURPOSE_HEADERS, AUDIO_REGISTRY_HEADERS,
+  CONTEMPLATION_CATALOG_HEADERS, CONTEMPLATION_COMPOSITION_HEADERS, CONTEMPLATION_MASTER_HEADERS,
+  DECK_CATALOG_HEADERS, DECK_COMPOSITION_HEADERS, DECK_REGISTRY_HEADERS,
+  ILLUSTRATION_CATALOG_HEADERS, ILLUSTRATION_COMPOSITION_HEADERS, ILLUSTRATION_METADATA_HEADERS,
+  LOCALIZED_MASTER_HEADERS, MEDIA_COMPOSITION_HEADERS, SEQUENCE_HEADERS, SOURCE_MASTER_HEADERS,
+  STRUCTURAL_VERSE_REGISTRY_HEADERS, VERSE_CATALOG_HEADERS, VERSE_LOCALIZED_REGISTRY_HEADERS,
+  compositionHeaderRule, localizedRegistryFields, localizedRegistryHeaderRule, localizedRegistryHeaders
+} from './collection-contracts.js';
+
+export * from './collection-contracts.js';
 
 export let COLLECTION_ROOT = 'data/collections';
 export let EXPERIENCE_ROOT = 'data/experiences';
@@ -8,34 +19,14 @@ export function setCollectionRoot(root = 'data/collections') {
   EXPERIENCE_ROOT = COLLECTION_ROOT.replace(/\/collections$/, '/experiences');
 }
 
-export const AUDIO_REGISTRY_HEADERS = ['collection_id', 'title', 'contributor', 'language', 'catalog_url', 'cue_purpose_url', 'cue_url', 'attribution', 'license', 'source'];
-export const AUDIO_CUE_PURPOSE_HEADERS = ['cue_id', 'language', 'purpose', 'description'];
-export const AUDIO_CUE_HEADERS = ['sid', 'asset_order', 'cue_order', 'cue_id', 'start_ms', 'end_ms'];
-export const DECK_REGISTRY_HEADERS = ['collection_id', 'title', 'provider', 'language', 'catalog_url', 'attribution', 'license', 'source'];
-export const DECK_CATALOG_HEADERS = ['sid', 'order', 'language', 'deck_url', 'title'];
-export const DECK_COMPOSITION_HEADERS = ['cid', 'snum', 'sid', 'order', 'deck_collection', 'deck_order'];
-export const IMAGE_REGISTRY_HEADERS = ['collection_id', 'title', 'catalog_url', 'metadata_en_url', 'metadata_kn_url', 'attribution', 'license', 'source'];
-export const ILLUSTRATION_CATALOG_HEADERS = ['sid', 'order', 'image_url'];
-export const ILLUSTRATION_METADATA_HEADERS = ['sid', 'order', 'alt_text', 'caption'];
-export const ILLUSTRATION_COMPOSITION_HEADERS = ['cid', 'snum', 'sid', 'order', 'image_collection', 'image_order'];
-export const TEXT_REGISTRY_HEADERS = ['collection_id', 'title', 'catalog_url', 'master_en_url', 'master_kn_url', 'attribution', 'license', 'source'];
-export const CONTEMPLATION_CATALOG_HEADERS = ['sid', 'order', 'line_type'];
-export const CONTEMPLATION_MASTER_HEADERS = ['sid', 'order', 'text'];
-export const CONTEMPLATION_COMPOSITION_HEADERS = ['cid', 'snum', 'sid', 'order', 'text_collection', 'text_order'];
-export const MEDIA_COMPOSITION_HEADERS = ['cid', 'snum', 'sid', 'order', 'media_type', 'collection', 'asset_order'];
-export const SEQUENCE_HEADERS = ['position', 'cid', 'snum', 'sid'];
-export const VERSE_LOCALIZED_REGISTRY_HEADERS = ['collection_id', 'name', 'short_name', 'description'];
-export const LOCALIZED_REGISTRY_FIELDS = Object.freeze({
-  images: Object.freeze({ en: 'metadata_en_url', kn: 'metadata_kn_url' }),
-  text: Object.freeze({ en: 'master_en_url', kn: 'master_kn_url' })
-});
-
 export const MASTER_HEADERS = {
-  sa: ['cid', 'snum', 'sid', 'chapter_name', 'shloka_raw', 'shloka', 'word_by_word', 'meaning', 'word_by_word_meaning'],
-  en: ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning'],
-  kn: ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning']
+  sa: SOURCE_MASTER_HEADERS,
+  en: LOCALIZED_MASTER_HEADERS,
+  kn: LOCALIZED_MASTER_HEADERS
 };
-export const LOCALIZED_MASTER_HEADERS = ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning'];
+export const IMAGE_REGISTRY_HEADERS = localizedRegistryHeaders('images');
+export const TEXT_REGISTRY_HEADERS = localizedRegistryHeaders('text');
+export const LOCALIZED_REGISTRY_FIELDS = Object.freeze({ images: Object.freeze(localizedRegistryFields(IMAGE_REGISTRY_HEADERS, 'images')), text: Object.freeze(localizedRegistryFields(TEXT_REGISTRY_HEADERS, 'text')) });
 
 export function decode(value) {
   return String(value ?? '').replace(/\\n/g, '\n');
@@ -51,9 +42,10 @@ export function parseCollectionTable(text, expectedHeaders, label = 'collection 
   const lines = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n').filter((line) => line.length);
   if (!lines.length) throw new Error(label + ' is empty.');
   const headers = lines.shift().split('#');
-  if (expectedHeaders && headers.join('#') !== expectedHeaders.join('#')) {
+  const matches = typeof expectedHeaders === 'function' ? expectedHeaders(headers) : !expectedHeaders || headers.join('#') === expectedHeaders.join('#');
+  if (!matches) {
     const legacySanskritHeaders = ['cid', 'snum', 'sid', 'chapter_name', 'shloka', 'word_by_word', 'meaning', 'word_by_word_meaning'];
-    if (expectedHeaders.includes('shloka_raw') && headers.join('#') === legacySanskritHeaders.join('#')) {
+    if (Array.isArray(expectedHeaders) && expectedHeaders.includes('shloka_raw') && headers.join('#') === legacySanskritHeaders.join('#')) {
       throw new Error(label + ' uses the legacy Sanskrit schema. Add shloka_raw between chapter_name and shloka.');
     }
     throw new Error(label + ' header does not match its collection contract.');
@@ -612,13 +604,14 @@ async function loadLocalizedCatalogs({ type, composition, collectionField, catal
     const catalog = await fetchTable(entry.catalog_url, catalogHeaders, version);
     catalog.url = entry.catalog_url;
     const localized = {};
-    for (const language of ['en', 'kn']) {
-      const url = entry[localizedFields[language]];
+    const fields = localizedRegistryFields(registry.headers, type);
+    for (const [language, field] of Object.entries(fields)) {
+      const url = entry[field];
       if (!url) throw new Error(type + ' collection ' + id + ' does not define ' + language + ' content.');
       localized[language] = await fetchTable(url, localizedHeaders, version);
       verifyOrderedAssetIdentity(catalog, localized[language], type + ' collection ' + id + ' ' + language);
     }
-    catalogs.set(id, { catalog, localized, localizedUrls: { en: entry[localizedFields.en], kn: entry[localizedFields.kn] } });
+    catalogs.set(id, { catalog, localized, localizedUrls: Object.fromEntries(Object.entries(fields).map(([language, field]) => [language, entry[field]])) });
   }
   return catalogs;
 }
@@ -631,7 +624,7 @@ async function loadAudioCatalogs(composition, collectionField, version) {
   const cueErrors = new Map();
   for (const id of collectionIds) {
     const entry = registryEntry(registry, id, 'audio');
-    const catalog = await fetchTable(entry.catalog_url, ['sid', 'order', 'language', 'audio_url'], version);
+    const catalog = await fetchTable(entry.catalog_url, AUDIO_CATALOG_HEADERS, version);
     catalogs.set(id, catalog);
     if (!entry.cue_purpose_url && !entry.cue_url) continue;
     if (!entry.cue_purpose_url || !entry.cue_url) {
@@ -686,13 +679,13 @@ export async function loadCollectionExperience(experienceId, { version = '', col
   const experience = JSON.parse(configurationResponse);
   if (experience.id !== experienceId || experience.schemaVersion !== 1) throw new Error('Unsupported experience configuration for ' + experienceId + '.');
 
-  const verseRegistry = await fetchTable(COLLECTION_ROOT + '/verses/collection.csv', null, version);
+  const verseRegistry = await fetchTable(COLLECTION_ROOT + '/verses/collection.csv', STRUCTURAL_VERSE_REGISTRY_HEADERS, version);
   const configured = configuredVerseCollections(experience);
   const activeCollection = configured.includes(collectionId) ? collectionId : configured[0];
   const verseEntry = registryEntry(verseRegistry, activeCollection, 'Verse');
   const localizedTables = Object.fromEntries(await Promise.all(['sa', 'en', 'kn'].map(async (language) => [language, await fetchTable(`${COLLECTION_ROOT}/verses/collection_${language}.csv`, VERSE_LOCALIZED_REGISTRY_HEADERS, version)])));
   const collections = localizedCollectionRows({ ...verseRegistry, rows: verseRegistry.rows.filter((row) => configured.includes(row.collection_id)) }, localizedTables);
-  const verseCatalog = await fetchTable(verseEntry.catalog_url, ['language', 'content_type', 'content_url'], version);
+  const verseCatalog = await fetchTable(verseEntry.catalog_url, VERSE_CATALOG_HEADERS, version);
   const sequenceUrl = optionalCatalogEntry(experienceCatalog, 'sequence');
   const deckCompositionUrl = optionalCatalogEntry(experienceCatalog, 'decks');
   const illustrationCompositionUrl = optionalCatalogEntry(experienceCatalog, 'illustrations');
@@ -720,13 +713,13 @@ export async function loadCollectionExperience(experienceId, { version = '', col
     illustrationComposition ? loadLocalizedCatalogs({
       type: 'images', composition: illustrationComposition, collectionField: 'image_collection',
       catalogHeaders: ILLUSTRATION_CATALOG_HEADERS, localizedHeaders: ILLUSTRATION_METADATA_HEADERS,
-      localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: IMAGE_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: localizedRegistryHeaderRule('images'),
       version, declaredIds: experience.illustrationCollections || []
     }) : new Map(),
     contemplationComposition ? loadLocalizedCatalogs({
       type: 'text', composition: contemplationComposition, collectionField: 'text_collection',
       catalogHeaders: CONTEMPLATION_CATALOG_HEADERS, localizedHeaders: CONTEMPLATION_MASTER_HEADERS,
-      localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: TEXT_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: localizedRegistryHeaderRule('text'),
       version, declaredIds: experience.contemplationCollections || []
     }) : new Map()
   ]);
@@ -763,7 +756,8 @@ export async function readCollectionTextFromFiles(fileList, url) {
 
 export async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '', manifest = null, tableCache = new Map(), onCoreReady = null }) {
   const table = async (url, headers = null) => {
-    const key = `${url}\n${(headers || []).join('#')}`;
+    const headerKey = Array.isArray(headers) ? headers.join('#') : headers ? String(headers) : '';
+    const key = `${url}\n${headerKey}`;
     if (!tableCache.has(key)) {
       const pending = Promise.resolve(text(url))
         .then((value) => parseCollectionTable(value, headers, url))
@@ -782,7 +776,7 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
     if (type === 'verses') return language ? manifest.registries?.verses?.localized?.[language] : manifest.registries?.verses?.structural;
     return manifest.registries?.[type];
   };
-  const verseRegistry = await table(registryPath('verses'));
+  const verseRegistry = await table(registryPath('verses'), STRUCTURAL_VERSE_REGISTRY_HEADERS);
   const configured = configuredVerseCollections(experience);
   const activeCollection = configured.includes(collectionId) ? collectionId : configured[0];
   const verseEntry = registryEntry(verseRegistry, activeCollection, 'Verse');
@@ -790,7 +784,7 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
   const declaredLanguages = [...new Set((manifest ? Object.keys(manifest.verses?.masters || {}) : (experience.languages || ['sa', 'en', 'kn'])).filter(Boolean))];
   const localizedTables = Object.fromEntries(await Promise.all(declaredLanguages.map(async (language) => [language, await table(registryPath('verses', language), VERSE_LOCALIZED_REGISTRY_HEADERS)])));
   const collections = localizedCollectionRows({ ...verseRegistry, rows: verseRegistry.rows.filter((row) => configured.includes(row.collection_id)) }, localizedTables);
-  const verseCatalog = await table(verseEntry.catalog_url, ['language', 'content_type', 'content_url']);
+  const verseCatalog = await table(verseEntry.catalog_url, VERSE_CATALOG_HEADERS);
   const catalogLanguages = [...new Set(verseCatalog.rows.map((row) => row.language).filter(Boolean))];
   const languages = catalogLanguages.length ? catalogLanguages : declaredLanguages;
   const languageUrls = Object.fromEntries(languages.map((language) => [language, languageFile(verseCatalog, language)]));
@@ -870,7 +864,7 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
     const binding = audioBinding(experience);
     for (const id of new Set(audioComposition.rows.map((row) => row[binding.collectionField]).filter(Boolean))) {
       const entry = registryEntry(registry, id, 'audio');
-      const catalog = await table(entry.catalog_url, ['sid', 'order', 'language', 'audio_url']);
+      const catalog = await table(entry.catalog_url, AUDIO_CATALOG_HEADERS);
       catalogs.set(id, catalog);
       if (!entry.cue_purpose_url && !entry.cue_url) continue;
       if (!entry.cue_purpose_url || !entry.cue_url) {
@@ -899,13 +893,14 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
       const catalog = await table(entry.catalog_url, catalogHeaders);
       catalog.url = entry.catalog_url;
       const localized = {};
-      for (const language of ['en', 'kn']) {
-        const url = entry[localizedFields[language]];
+      const fields = localizedRegistryFields(registry.headers, type);
+      for (const [language, field] of Object.entries(fields)) {
+        const url = entry[field];
         if (!url) throw new Error(type + ' collection ' + id + ' does not define ' + language + ' content.');
         localized[language] = await table(url, localizedHeaders);
         verifyOrderedAssetIdentity(catalog, localized[language], type + ' collection ' + id + ' ' + language);
       }
-      catalogs.set(id, { catalog, localized, localizedUrls: { en: entry[localizedFields.en], kn: entry[localizedFields.kn] } });
+      catalogs.set(id, { catalog, localized, localizedUrls: Object.fromEntries(Object.entries(fields).map(([language, field]) => [language, entry[field]])) });
     }
     return catalogs;
   }
@@ -916,13 +911,13 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
     illustrationComposition ? localLocalizedCatalogs({
       type: 'images', composition: illustrationComposition, collectionField: 'image_collection',
       catalogHeaders: ILLUSTRATION_CATALOG_HEADERS, localizedHeaders: ILLUSTRATION_METADATA_HEADERS,
-      localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: IMAGE_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: localizedRegistryHeaderRule('images'),
       declaredIds: experience.illustrationCollections || []
     }) : new Map(),
     contemplationComposition ? localLocalizedCatalogs({
       type: 'text', composition: contemplationComposition, collectionField: 'text_collection',
       catalogHeaders: CONTEMPLATION_CATALOG_HEADERS, localizedHeaders: CONTEMPLATION_MASTER_HEADERS,
-      localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: TEXT_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: localizedRegistryHeaderRule('text'),
       declaredIds: experience.contemplationCollections || []
     }) : new Map()
   ]);

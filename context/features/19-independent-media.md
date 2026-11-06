@@ -1,15 +1,15 @@
 # S-19 Independently released books and media
-Updated 2026-11-05 · Codex · Sampada: docs/design/sampada.md §19 · ADRs: 001, 002, 003, 004
+Updated 2026-11-06 · Codex · Sampada: docs/design/sampada.md §19 · ADRs: 001, 002, 003, 004
 
 ## Brief — current truth
 - Content lives in lotsgj/media (media.gitajyoti.org). mygita holds product config, engine and renderers.
 - Logical paths + mounts (ADR-001). CI clones media to ../media; tests read it from there (or MYGITA_MEDIA_ROOT).
 - Player is playback-only. File mode remembers the picked media folder (media-folder-store.js).
-- content-kit (ADR-002): engine/js/content-kit.js; bundle engine/js/content-kit.bundle.js sets globalThis.MyGitaContentKit.
-  API: listProducts · openMedia · contentTree · readItems · updateItem (+ KIT_VERSION in the bundle).
+- content-kit v2 (ADR-002): engine/js/content-kit.js; bundle engine/js/content-kit.bundle.js sets globalThis.MyGitaContentKit.
+  API: describe · listProducts · openMedia · contentTree · readItems · updateItem · insertItem · removeItem · newFile · addToManifest · removeFromManifest · checkFile · checkSave · related · publish.
 - Consumers outside mygita (e.g. apps/mygita-admin) use content-kit; their design lives with them.
-- content_version is bumped once per publish, never by edits.
-- A running app checks `catalog.json` once when its media source opens. It reuses the validated catalog, book manifest and parsed base tables while the app remains open; reopening the app checks again.
+- Schema 3 uses full SHA-256 hashes for every manifest and file. `content_version` is a release label changed once per publish, never by edits.
+- A running app checks `catalog.json` when its media source opens and on foreground return only after 24 hours. Changed manifests cause only changed CSV/JSON to prefetch; binaries remain lazy. A pending revision activates at the next navigation boundary.
 - Simple verse experiences render their canonical text first, then hydrate audio and visual metadata without moving the user away from the verse.
 
 ## Parts
@@ -18,8 +18,9 @@ Updated 2026-11-05 · Codex · Sampada: docs/design/sampada.md §19 · ADRs: 001
 - [x] playback-only player — W-0004
 - [x] content-kit v1 — W-0006
 - [x] session catalog/table cache and text-first experience hydration — W-0011
-- [ ] publish step: bump content_version once per release
-- [ ] connected edits for audio/cues: related(), checkSave() blocking|pending, insertItem/removeItem, checkAsset, asset-first order
+- [x] content-kit v2 contracts, connected checks and generic edit operations — W-0012
+- [x] schema-3 publish step and complete per-file hashed inventories — W-0012
+- [x] per-file PWA sync, safe cache replacement and 24-hour foreground check — W-0012
 - [ ] deploy and observe the media-only build; source diagnostics to Clarity (from Sampada)
 
 ## Open (user)
@@ -28,13 +29,13 @@ Updated 2026-11-05 · Codex · Sampada: docs/design/sampada.md §19 · ADRs: 001
 ## Details
 
 ### Media contract
-- catalog.json (schema 2: content_version, mounts[{prefix, remote, local}], books[{book_id, manifest}])
-  → book/<id>/manifest.json (verses.catalog, verses.masters{lang}, registries{verses{structural, localized{lang}}, audio, images, deck?, text?}, resources, experiences, files)
+- catalog.json (schema 3: content_version, mounts[{prefix, remote, local}], books[{book_id, manifest, manifest_hash}])
+  → book/<id>/manifest.json (verses, registries, resources, experiences[{id,files}], files[{path,hash}])
   → registries → catalogs and masters.
 - All CSVs: '#'-delimited, first line headers, '\n' escapes newlines, '#' not allowed in values, empty lines ignored.
 - Validators: media-contract.js (normalizeMediaCatalog, validateBookManifest, safeMediaPath).
 
-### content-kit API (engine/js/content-kit.js)
+### content-kit v2 API (engine/js/content-kit.js)
 - listProducts(workspace = __MYGITA_LOCAL_WORKSPACE__) → [{ id, path, name, metadata, bookIds, languages, problems }].
   bookIds = experience.bookIds, else [bookId]; a bookId outside bookIds is reported as a problem.
 - openMedia(readText) → { catalog, books: [{ id, manifestPath, manifest, name, languages, problems }], readText }.
@@ -78,5 +79,6 @@ Updated 2026-11-05 · Codex · Sampada: docs/design/sampada.md §19 · ADRs: 001
   Sukta Chant: the single-value fields name only ganesha-atharva. Proposal: keep bookIds only.
 
 ## Changes
+- 2026-11-06 content-kit v2, schema-3 publish, complete hashed inventories and incremental PWA media sync implemented and verified locally (Codex)
 - 2026-11-04 created from the session discussion (Claude)
 - 2026-11-04 editor design removed: mygita-admin is a separate app; context keeps mygita concerns only (Claude)

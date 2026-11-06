@@ -25,6 +25,7 @@ const sources = [
   'js/media-contract.js',
   'js/media-source.js',
   'js/media-folder-store.js',
+  'js/player/collection-contracts.js',
   'js/player/collection-data.js',
   'js/media-experience-adapter.js',
   'js/player/collection-source.js',
@@ -44,6 +45,7 @@ for (const source of sources) {
   let code = await readFile(source, 'utf8');
   code = code
     .replace(/^import\s+[^;]+;\s*$/gm, '')
+    .replace(/^export\s+\*\s+from\s+['"][^'"]+['"];?\s*$/gm, '')
     .replace(/^export\s+\{[^}]+\}(?:\s+from\s+['"][^'"]+['"])?;?\s*$/gm, '')
     .replace(/^export\s+(?=(const|let|class|function|async\s+function)\b)/gm, '');
   parts.push('// Source: ' + source + '\n' + code.trim());

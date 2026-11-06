@@ -1,7 +1,7 @@
 # Collections and media
 
 **Status:** Current  
-**Last updated:** 5 November 2026
+**Last updated:** 6 November 2026
 
 ## Ownership boundary
 
@@ -35,7 +35,7 @@ deck/...
 docs/...
 ```
 
-The schema-2 root catalog owns the content version, maps stable book IDs to manifests, and declares logical mounts for `book/`, `audio/`, `image/`, `video/`, `deck/`, and `docs/`. A mount contains a prefix, an HTTPS remote root, and one local-folder name. Resolution uses the longest matching prefix, so a book or media family can later move to another host without changing a catalog reference. Each book manifest uses the same schema version and owns its language-specific verse masters, reusable resource declarations, experience associations and generated metadata-only file inventory. Binary resources remain independently reusable under their type namespace. Product branding, shell translations, experience definitions and renderer configuration remain in MyGita. Icons that describe scripture chapters belong to `image/`; neutral shell controls and product identity artwork remain in MyGita.
+The schema-3 root catalog owns the content version, maps stable book IDs to manifests with full SHA-256 hashes, and declares logical mounts for `book/`, `audio/`, `image/`, `video/`, `deck/`, and `docs/`. A mount contains a prefix, an HTTPS remote root, and one local-folder name. Resolution uses the longest matching prefix, so a book or media family can later move to another host without changing a catalog reference. Each book manifest owns its language-specific verse masters, reusable resources, experience associations, and a complete `{path, hash}` inventory covering text and binary files. Each experience also declares its subset of those files. Product branding, shell translations, experience definitions and renderer configuration remain in MyGita. Icons that describe scripture chapters belong to `image/`; neutral shell controls and product identity artwork remain in MyGita.
 
 `products/app.json` declares the bootstrap location of `catalog.json`. After that one read, every owned reference is a strict logical path. Paths cannot be absolute, contain backslashes, escape with dot segments, or use an undeclared namespace. The engine’s one resolver selects the mount and produces either a versioned remote URL or a file from the selected local mount. Local binaries receive managed object URLs that are revoked when the source is released. Owned absolute URLs and implicit legacy-path guessing are deliberately unsupported; external provider URLs are permitted only inside an explicit provider descriptor such as a Google Deck descriptor.
 
@@ -43,7 +43,7 @@ The service is deliberately separate from renderers. The book-to-experience adap
 
 `pnpm run verify:media-parity` is a strict media-only audit. It proves that Gita 700, Gita Yoga, Gita Chant, Gita Sara, Ganesha Atharva and Purusha Sukta normalize successfully without a bundled scripture source.
 
-Web and PWA sessions load the remote media book. If validation or loading fails, the app reports that content is unavailable; it never substitutes a bundled scripture copy. The root catalog is fetched once when the app opens its media source and is reused for that open session; reopening the app checks it again. An explicit source refresh or local-folder replacement invalidates the session caches. Every other remote request carries the logical path and `content_version`; the service worker caches it by those two values rather than by physical host URL. Used text, images, decks and audio are cache-first after their initial successful request, while audio retains byte-range playback. A new content version naturally creates new cache identities. Media is never precached during PWA installation.
+Web and PWA sessions load the remote media book. If validation or loading fails, the app reports that content is unavailable; it never substitutes a bundled scripture copy. The root catalog is fetched when the media source opens. A foreground return checks it only when the previous check is at least 24 hours old. If a book manifest hash changed, the app fetches that manifest, compares per-file hashes, and prefetches only changed CSV/JSON metadata. Binary media remains lazy. A pending content revision never interrupts the current verse or audio; it becomes active at the next navigation boundary. Every remote request carries the logical path and file hash, and the service worker keys cached bytes by those values rather than by physical host URL. Once a replacement is stored successfully, older cached revisions of that path can be evicted. Media is never precached during PWA installation.
 
 In `file://` mode, the app’s product configuration is already embedded in a built distribution or supplied by the local development harness. Home therefore asks for the media root once, validates `catalog.json`, and reuses that source across products and experiences. On browsers with the File System Access API, MyGita stores the opaque directory handle in IndexedDB. A later session automatically restores a still-authorized folder; when the browser requires permission again, Home offers a user-initiated reconnect. Home also permits changing the folder, retaining the previous remembered choice when validation of a replacement fails, or explicitly forgetting it. Folder-upload fallback follows the same content contract but cannot persist files across browser restarts. MyGita contains no legacy product-data editor because products no longer own editable scripture files; writable media authoring remains a separate future workflow requiring conflict and version design.
 
@@ -86,7 +86,7 @@ Each audio catalog uses `sid#order#language#audio_url`. Gita 700’s composition
 
 MyGita stores audio binding configuration only; audio registries, catalogs, cue-purpose definitions, cue timings and binaries belong to Media. Production audio binaries do not belong in this repository or its deployment artifact. The build excludes MP3, M4A, OGG, Opus, and WAV files as a defensive boundary, while contract tests fail if a production audio binary enters the application source or distribution.
 
-The PWA does not precache the media library. The resolver marks owned requests with logical identity and content version; the service worker therefore remains independent of the physical media origin, fetches with anonymous CORS, and progressively caches only content the person uses. Cached recordings retain byte-range behavior for seeking.
+The PWA does not precache the media library. The resolver marks owned requests with logical identity and the file’s SHA-256; the service worker therefore remains independent of the physical media origin, fetches with anonymous CORS, and progressively caches only content the person uses. Cached recordings retain byte-range behavior for seeking.
 
 Gita 700’s image composition references its chapter icons through the same reusable-collection principle.
 
@@ -121,7 +121,7 @@ Gita Yoga’s composition deliberately contains all canonical SIDs even though i
 
 ## Validation
 
-The loader verifies required headers, unique/aligned SIDs, supported schema versions, catalog references, mounts, and logical media paths before producing normalized rows. The media repository imports this same engine contract for publishing validation, recursively follows catalog references, and verifies every referenced binary. `npm run generate:manifests` regenerates each book’s sorted metadata-only `files` list; stale lists fail validation. HTTP and file chooser loading share the same resolution rules.
+The loader verifies required headers, unique/aligned SIDs, schema 3, catalog references, mounts, logical media paths, manifest hashes, and per-file hashes before producing normalized rows. Media publishing uses content-kit v2—the same centralized CSV/JSON contracts as playback—to recursively discover references and produce complete sorted inventories. `npm run publish -- <release>` writes manifests and the root catalog; `npm run validate` verifies files, hashes, contracts and an idempotent publish dry run. HTTP and file chooser loading share the same resolution rules.
 
 ## Runtime source
 

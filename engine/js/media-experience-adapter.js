@@ -49,7 +49,10 @@ export async function loadMediaBookExperience(experienceId, {
   }
   if (typeof productText !== 'function') throw new Error('Media experience adapter requires a product configuration reader.');
   const manifest = await mediaSource.loadBook(bookId);
-  if (!manifest.experiences?.includes(experienceId)) throw new Error(`Book ${bookId} does not declare experience ${experienceId}.`);
+  const supportsExperience = manifest.experiences?.some((entry) =>
+    (typeof entry === 'string' ? entry : entry?.id) === experienceId
+  );
+  if (!supportsExperience) throw new Error(`Book ${bookId} does not declare experience ${experienceId}.`);
   const text = createMediaResourceReader({ mediaSource, productText });
   const resolveMediaUrl = createMediaUrlResolver({ mediaSource, resolveProductMediaUrl });
   const source = Object.freeze({ type: 'media-book', bookId, contentVersion: manifest.content_version });

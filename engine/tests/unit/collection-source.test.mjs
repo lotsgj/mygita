@@ -21,10 +21,10 @@ test('web mode reports remote media failure instead of loading bundled scripture
 
 test('a slower media-folder selection cannot replace a newer selection', async () => {
   const catalog = (version) => JSON.stringify({
-    schema_version: 2,
+    schema_version: 3,
     content_version: version,
     mounts: [{ prefix: 'book/', remote: 'https://media.example/', local: 'media' }],
-    books: [{ book_id: 'bhagavad-gita', manifest: 'book/bhagavad-gita/manifest.json' }]
+    books: [{ book_id: 'bhagavad-gita', manifest: 'book/bhagavad-gita/manifest.json', manifest_hash: 'a'.repeat(64) }]
   });
   let releaseFirst;
   const firstReady = new Promise((resolve) => { releaseFirst = resolve; });

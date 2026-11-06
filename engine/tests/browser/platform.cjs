@@ -43,6 +43,11 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
   const base = `http://127.0.0.1:${server.address().port}/`;
   await page.goto(base, { waitUntil: 'networkidle' });
   assert.equal(await page.locator('.analytics-notice').count(), 0, 'analytics information must not interrupt profile creation');
+  try { await page.locator('#profile-setup').waitFor({ state: 'visible' }); }
+  catch (error) {
+    const visible = await page.locator('body > section:not([hidden]), body > main:not([hidden]), #app:not([hidden]), #error-view:not([hidden])').evaluateAll((elements) => elements.map((element) => `${element.id || element.tagName}:${element.textContent.trim().slice(0, 220)}`));
+    throw new Error(`Profile setup did not open: ${visible.join(' | ')}; runtime errors: ${errors.join(' | ')}`, { cause: error });
+  }
   await page.getByLabel('Name', { exact: true }).fill('Product Regression');
   await page.getByLabel('Date of birth', { exact: true }).fill('1990-01-01');
   await page.getByLabel('App language', { exact: true }).selectOption('en');

@@ -23,8 +23,8 @@ test('the committed content-kit bundle matches its sources', async () => {
 
 test('the content-kit bundle exposes exactly the module API and behaves the same', async () => {
   const bundle = loadBundle();
-  assert.deepEqual(Object.keys(bundle).sort(), ['KIT_VERSION', ...Object.keys(contentKit)].sort());
-  assert.match(bundle.KIT_VERSION, /^[0-9a-f]{12}$/);
+  assert.deepEqual(Object.keys(bundle).sort(), Object.keys(contentKit).sort());
+  assert.equal(bundle.KIT_VERSION, contentKit.KIT_VERSION);
   const readText = (logicalPath) => readFile(path.join(mediaRoot, logicalPath), 'utf8');
   const shape = (value) => JSON.parse(JSON.stringify(value));
   const [moduleMedia, bundleMedia] = await Promise.all([contentKit.openMedia(readText), bundle.openMedia(readText)]);

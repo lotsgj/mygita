@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
-import { contentTree, listProducts, openMedia, readItems, updateItem } from '../../js/content-kit.js';
+import { checkSave, contentTree, describe, insertItem, listProducts, openMedia, readItems, removeItem, updateItem } from '../../js/content-kit.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
 const mediaRoot = process.env.MYGITA_MEDIA_ROOT || path.resolve(repoRoot, '../media');
@@ -54,21 +54,23 @@ test('the content tree offers every editable text file the manifests reference',
   const offered = new Set(files.map((file) => file.path));
   const editableKind = /\/(?:verses\/master_[a-z]+|registry\/verses\/collection_[a-z]+|(?:questions|illustration)\/[^/]+\/master_[a-z]+)\.csv$/;
   for (const book of media.books) {
-    for (const file of book.manifest.files.filter((entry) => editableKind.test(entry))) {
-      assert.ok(offered.has(file), `${file} is offered for editing`);
+    for (const entry of book.manifest.files.filter((entry) => editableKind.test(entry.path))) {
+      assert.ok(offered.has(entry.path), `${entry.path} is offered for editing`);
     }
   }
   const gita = await contentTree(media, 'bhagavad-gita');
-  assert.equal(gita.find((node) => node.kind === 'audio').editable, 'none');
+  assert.equal(gita.find((node) => node.kind === 'audio').editable, 'text');
   assert.equal(gita.find((node) => node.kind === 'verses').files.find((file) => file.language === 'sa').contract, 'source-master');
 });
 
 test('editing a field and restoring it gives byte-identical text for every editable file', async () => {
   const { files } = await editableFiles();
-  for (const file of files) {
+  for (const file of files.filter((entry) => entry.path.endsWith('.csv'))) {
     const text = await readText(file.path);
     const { fields, items } = readItems(file, text);
-    const field = fields.find((entry) => entry.editable).name;
+    const editable = fields.find((entry) => entry.editable);
+    if (!editable || !items.length) continue;
+    const field = editable.name;
     for (const item of [items[0], items[Math.floor(items.length / 2)], items.at(-1)]) {
       assert.equal(updateItem(file, text, item.key, item.values), text, `${file.path} ${item.key} unchanged`);
       const edited = updateItem(file, text, item.key, { [field]: `${item.values[field]} edited` });
@@ -78,6 +80,49 @@ test('editing a field and restoring it gives byte-identical text for every edita
       assert.equal(restored.values[field], `${item.values[field]} edited`);
     }
   }
+});
+
+test('content-kit v2 describes a data-driven API and edits JSON descriptors safely', async () => {
+  const api = describe();
+  assert.equal(api.api, 2);
+  assert.ok(api.contracts['source-master']);
+  assert.ok(api.contracts.deck);
+  const { files } = await editableFiles();
+  const file = files.find((entry) => entry.contract === 'deck');
+  assert.ok(file, 'a deck descriptor is exposed');
+  const text = await readText(file.path);
+  const parsed = JSON.parse(text);
+  parsed.test_note = 'round trip';
+  const edited = updateItem(file, text, file.path, { json: `${JSON.stringify(parsed, null, 2)}\n` });
+  assert.equal(JSON.parse(edited).test_note, 'round trip');
+  assert.throws(() => updateItem(file, text, file.path, { json: '{broken' }), /JSON/);
+});
+
+test('CSV records can be inserted and removed without disturbing surrounding bytes', () => {
+  const file = { path: 'book/test/questions/sample/master_en.csv', contract: 'question-master' };
+  const text = 'sid#order#text\n1.1#1#One\n1.1#3#Three\n';
+  const inserted = insertItem(file, text, { sid: '1.1', order: '2', text: 'Two' }, { after: '1.1:1' });
+  assert.equal(inserted, 'sid#order#text\n1.1#1#One\n1.1#2#Two\n1.1#3#Three\n');
+  assert.equal(removeItem(file, inserted, '1.1:2'), text);
+});
+
+test('connected save checks block dangling collection items and missing assets', async () => {
+  const media = await openMedia(readText);
+  const tree = await contentTree(media, 'bhagavad-gita');
+  const composition = tree.flatMap((group) => group.files).find((file) => file.path.endsWith('/experience/gita-sara/media.csv'));
+  const compositionText = await readText(composition.path);
+  const compositionItem = readItems(composition, compositionText).items[0];
+  const broken = updateItem(composition, compositionText, compositionItem.key, { collection: 'missing-collection' });
+  const dangling = await checkSave(media, composition, broken, { readText });
+  assert.ok(dangling.blocking.some((problem) => /missing-collection/.test(problem.message)));
+
+  let imageCatalog = null;
+  for (const candidate of tree.flatMap((group) => group.files).filter((file) => file.contract === 'illustration-catalog')) {
+    if (readItems(candidate, await readText(candidate.path)).items.length) { imageCatalog = candidate; break; }
+  }
+  assert.ok(imageCatalog);
+  const assetCheck = await checkSave(media, imageCatalog, await readText(imageCatalog.path), { readText, exists: async () => false });
+  assert.ok(assetCheck.blocking.some((problem) => /Referenced asset does not exist/.test(problem.message)));
 });
 
 test('updates enforce the collection contract', async () => {

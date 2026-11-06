@@ -41,3 +41,8 @@ Tests: unit 52; exact CI build/test sequence; Rachana browser; five consecutive 
 ## W-0011 · 2026-11-05 · Codex · S-19 · faster experience opening
 Changed: catalog checks occur once per app opening; parsed registries and masters are shared across experiences for the session; ordinary verse experiences render canonical text before audio and visual metadata finish hydrating. Explicit refresh and media-source replacement invalidate the relevant caches.
 Tests: engine 6, unit 52, contract 26, Gita contract 6, and Gita browser regression pass.
+
+## W-0012 · 2026-11-06 · Codex · S-19 · content-kit v2 + per-file media sync
+Changed: centralized data-driven contracts and generic local-editor API; schema-3 full SHA-256 inventories and publish/validate workflow; hash-addressed progressive cache; changed metadata prefetch; lazy binaries; 24-hour foreground check; safe navigation-boundary activation.
+Media: catalog and three book manifests migrated; duplicate validation replaced by content-kit checks and idempotent publish validation.
+Tests: engine, unit, contract, Gita/Sukta contracts, platform/Gita/Sukta/Rachana browser regressions, production build and Media tests pass locally.

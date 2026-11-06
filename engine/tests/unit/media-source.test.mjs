@@ -4,17 +4,23 @@ import { DirectoryMediaSource, FilesMediaSource, RemoteMediaSource } from '../..
 import { mediaCacheKey, normalizeMediaCatalog, resolveRemoteMediaUrl, safeMediaPath, selectMediaMount } from '../../js/media-contract.js';
 
 const catalog = {
-  schema_version: 2,
+  schema_version: 3,
   content_version: '2026.11.03.2',
   mounts: [
     { prefix: 'book/', remote: 'https://books.example/', local: 'media' },
     { prefix: 'book/bhagavad-gita/', remote: 'https://gita.example/', local: 'media' },
     ...['audio', 'image', 'video', 'deck', 'docs'].map((prefix) => ({ prefix: `${prefix}/`, remote: 'https://media.example/', local: 'media' }))
   ],
-  books: [{ book_id: 'bhagavad-gita', manifest: 'book/bhagavad-gita/manifest.json' }]
+  books: [{ book_id: 'bhagavad-gita', manifest: 'book/bhagavad-gita/manifest.json', manifest_hash: 'a'.repeat(64) }]
 };
+const hash = (index) => String(index).padStart(64, '0');
+const manifestPaths = [
+  'book/bhagavad-gita/verses/catalog.csv', ...['sa', 'en', 'kn'].map((language) => `book/bhagavad-gita/verses/master_${language}.csv`),
+  'book/bhagavad-gita/registry/verses/collection.csv', ...['sa', 'en', 'kn'].map((language) => `book/bhagavad-gita/registry/verses/collection_${language}.csv`),
+  'book/bhagavad-gita/registry/audio/collection.csv', 'book/bhagavad-gita/registry/image/collection.csv'
+].sort();
 const manifest = {
-  schema_version: 2,
+  schema_version: 3,
   book_id: 'bhagavad-gita',
   content_version: catalog.content_version,
   verses: { catalog: 'book/bhagavad-gita/verses/catalog.csv', masters: Object.fromEntries(['sa', 'en', 'kn'].map((language) => [language, `book/bhagavad-gita/verses/master_${language}.csv`])) },
@@ -23,11 +29,8 @@ const manifest = {
     audio: 'book/bhagavad-gita/registry/audio/collection.csv',
     images: 'book/bhagavad-gita/registry/image/collection.csv'
   },
-  files: [
-    'book/bhagavad-gita/verses/catalog.csv', ...['sa', 'en', 'kn'].map((language) => `book/bhagavad-gita/verses/master_${language}.csv`),
-    'book/bhagavad-gita/registry/verses/collection.csv', ...['sa', 'en', 'kn'].map((language) => `book/bhagavad-gita/registry/verses/collection_${language}.csv`),
-    'book/bhagavad-gita/registry/audio/collection.csv', 'book/bhagavad-gita/registry/image/collection.csv'
-  ].sort()
+  experiences: [{ id: 'gita-700', files: manifestPaths }],
+  files: manifestPaths.map((path, index) => ({ path, hash: hash(index + 1) }))
 };
 
 test('logical media paths are strict and namespace based', () => {
@@ -35,22 +38,21 @@ test('logical media paths are strict and namespace based', () => {
   for (const value of ['', '../outside', 'book/../outside', '/rooted', 'https://other.example/file', 'book\\bad.csv', 'unknown/file']) assert.throws(() => safeMediaPath(value));
 });
 
-test('schema 2 mounts use longest prefix and versioned URLs', () => {
+test('schema 3 mounts use longest prefix and content-addressed URLs', () => {
   const normalized = normalizeMediaCatalog(catalog);
   assert.equal(selectMediaMount(normalized, 'book/bhagavad-gita/manifest.json').remote, 'https://gita.example/');
-  const resolved = new URL(resolveRemoteMediaUrl(normalized, 'book/bhagavad-gita/manifest.json'));
+  const resolved = new URL(resolveRemoteMediaUrl(normalized, 'book/bhagavad-gita/manifest.json', 'a'.repeat(64)));
   assert.equal(resolved.origin, 'https://gita.example');
-  assert.equal(resolved.searchParams.get('v'), catalog.content_version);
+  assert.equal(resolved.searchParams.get('v'), 'a'.repeat(64));
   assert.equal(resolved.searchParams.get('mgp'), 'book/bhagavad-gita/manifest.json');
-  assert.equal(mediaCacheKey('audio/bhagavad-gita/a.mp3', '2'), '2:audio/bhagavad-gita/a.mp3');
+  assert.equal(mediaCacheKey('audio/bhagavad-gita/a.mp3', '2'), 'audio/bhagavad-gita/a.mp3@2');
 });
 
-test('invalid mounts fail and schema 1 remains readable', () => {
+test('invalid mounts and legacy schemas fail', () => {
   assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book', remote: 'https://x.example/', local: 'media' }] }), /end with/);
   assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book/', remote: 'http://x.example/', local: 'media' }] }), /HTTPS/);
   assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book/', remote: 'https://x.example/', local: '../media' }] }), /one folder/);
-  const old = normalizeMediaCatalog({ schema_version: 1, content_version: '1', books: catalog.books }, { catalogRoot: 'https://legacy.example/' });
-  assert.equal(selectMediaMount(old, 'audio/a.mp3').remote, 'https://legacy.example/');
+  assert.throws(() => normalizeMediaCatalog({ ...catalog, schema_version: 2 }), /schema_version 3/);
 });
 
 test('remote source checks its catalog once per app session and refreshes only when asked', async () => {
@@ -74,6 +76,41 @@ test('remote source checks its catalog once per app session and refreshes only w
   await source.loadCatalog({ refresh: true });
   assert.equal(requests.length, 3, 'an explicit refresh checks the catalog again');
   assert.equal(requests[2].url.pathname, '/catalog.json');
+});
+
+test('media sync fetches only changed metadata and leaves changed binaries lazy', async () => {
+  const metadataPath = 'book/bhagavad-gita/verses/master_en.csv';
+  const audioPath = 'audio/bhagavad-gita/example/1.1.mp3';
+  const oldManifest = structuredClone(manifest);
+  oldManifest.files.push({ path: audioPath, hash: 'b'.repeat(64) });
+  const newManifest = structuredClone(oldManifest);
+  newManifest.files.find((entry) => entry.path === metadataPath).hash = 'c'.repeat(64);
+  newManifest.files.find((entry) => entry.path === audioPath).hash = 'd'.repeat(64);
+  const freshCatalog = structuredClone(catalog);
+  freshCatalog.content_version = '2026.11.04.1';
+  freshCatalog.books[0].manifest_hash = 'e'.repeat(64);
+  let catalogReads = 0;
+  const requests = [];
+  const source = new RemoteMediaSource({
+    rootUrl: 'https://catalog.example/',
+    fetchImpl: async (url, options) => {
+      const parsed = new URL(url); requests.push({ path: parsed.pathname.replace(/^\//, ''), options });
+      let body = null;
+      if (parsed.pathname === '/catalog.json') body = ++catalogReads === 1 ? catalog : freshCatalog;
+      else if (parsed.pathname === '/book/bhagavad-gita/manifest.json') body = parsed.searchParams.get('v') === 'e'.repeat(64) ? newManifest : oldManifest;
+      else if (parsed.pathname === `/${metadataPath}`) return { ok: true, status: 200, text: async () => 'changed metadata' };
+      else if (parsed.pathname === `/${audioPath}`) return { ok: true, status: 200, text: async () => 'binary' };
+      return { ok: Boolean(body), status: body ? 200 : 404, text: async () => JSON.stringify(body) };
+    }
+  });
+  await source.loadBook('bhagavad-gita');
+  const update = await source.checkForUpdates();
+  assert.deepEqual(update, { changed: true, books: ['bhagavad-gita'] });
+  const afterInitial = requests.slice(2).map((request) => request.path);
+  assert.ok(afterInitial.includes(metadataPath), 'changed CSV is prefetched');
+  assert.ok(!afterInitial.includes(audioPath), 'changed audio stays lazy');
+  assert.equal(source.applyPendingUpdate(), true);
+  assert.match(source.resolveMedia(audioPath), new RegExp(`v=${'d'.repeat(64)}`));
 });
 
 function mockDirectory(files, name = 'media') {

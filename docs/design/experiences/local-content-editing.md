@@ -1,7 +1,7 @@
 # Local content editing
 
 **Status:** Partial
-**Last updated:** 4 November 2026
+**Last updated:** 6 November 2026
 
 ## Current boundary
 
@@ -11,13 +11,15 @@ Content authoring will instead be a separate local-only editor. That tool may re
 
 ## Intended media-authoring workflow
 
-The future local editor will select a writable Media root, load the same schema-2 catalog and mounts used by playback, and edit only files owned by that root. It must update the relevant book masters, resource catalogs, associations, descriptors and generated manifest inventories together. Publishing must validate all logical paths and references and increment `content_version`; it must not require a MyGita application release.
+The future local editor will select a writable Media root, load the same schema-3 catalog and mounts used by playback, and edit only files owned by that root. It must update the relevant book masters, resource catalogs, associations, descriptors and generated manifest inventories together. Publishing validates logical paths and references, calculates full SHA-256 hashes, and advances `content_version`; it does not require a MyGita application release.
+
+Content-kit v2 is now the shared, file-I/O-neutral foundation. It exposes versioned, data-driven contracts; product and media discovery; typed item reading; update, insert and remove operations; generated-file helpers; checks; and deterministic publishing. It centralizes the same headers and dynamic language rules used by playback. The editor owns folder access, write permissions, previews and interaction; content-kit owns formats and validation. Generated `manifest.json` and root `catalog.json` are published outputs rather than directly editable documents.
 
 The editor should derive editable fields from the content contract and preview renderer rather than from a fixed playback-shell list. It must support Gita 700 verse fields, Gita Yoga’s Sanskrit/Kannada/English fields, and Gita Sara’s visible verse language plus sparse illustration, deck and contemplation associations.
 
 Save must continue to reject `#`, preserve unrelated fields and rows, and update only affected language masters. Sanskrit display edits change `shloka` without silently rewriting archival `shloka_raw`. Gita Sara authoring must preserve sparse composition: a media or question row exists only for a real association, and external provider URLs belong inside descriptors rather than owned-media catalog paths.
 
-Conflict detection, unsaved-change warnings, atomic multi-file saves, download fallback, content-version changes and publishing are requirements for the future workflow rather than current product behavior.
+Conflict detection, unsaved-change warnings, atomic multi-file saves, download fallback and the visual editor remain requirements for the future workflow. Content-versioned publishing and validation are now implemented in the Media command-line workflow.
 
 ## Boundaries
 

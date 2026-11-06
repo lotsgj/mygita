@@ -55,6 +55,18 @@ export class CollectionSource {
   get usesLocalFiles() { return Boolean(this.files || this.directoryHandle || (this.protocol === 'file:' && this.mediaSource)); }
   get isReady() { return !this.requiresSelection; }
   get label() { return this.mediaSource?.label || (this.protocol === 'file:' ? 'media' : this.mediaConfig.remoteRoot || 'bundled content'); }
+  get hasPendingMediaUpdate() { return Boolean(this.mediaSource?.pendingUpdate); }
+
+  async checkForMediaUpdates(bookIds) {
+    if (!(this.mediaSource instanceof RemoteMediaSource)) return { changed: false, books: [] };
+    return this.mediaSource.checkForUpdates(bookIds);
+  }
+
+  applyPendingMediaUpdate() {
+    if (!this.mediaSource?.applyPendingUpdate?.()) return false;
+    this.clear();
+    return true;
+  }
 
   clear({ releaseMedia = false, preserveSelection = false } = {}) {
     this.generation += 1;

@@ -70,6 +70,7 @@ await mkdir(path.join(output, 'js'), { recursive: true });
 await copyDirectory(path.join(engineRoot, 'css'), path.join(output, 'css'), (relative) => !relative.endsWith('.DS_Store') && relative !== 'docs.css');
 await copyDirectory(path.join(engineRoot, 'assets'), path.join(output, 'assets'), (relative) => !relative.endsWith('.DS_Store'));
 await cp(path.join(engineRoot, 'js', 'player.bundle.js'), path.join(output, 'js', 'player.bundle.js'));
+await cp(path.join(engineRoot, 'media-cache.js'), path.join(output, 'media-cache.js'));
 await cp(path.join(engineRoot, 'offline.html'), path.join(output, 'offline.html'));
 
 const builtProducts = workspace.products.map(prefixConfig);

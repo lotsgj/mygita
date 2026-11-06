@@ -1,5 +1,5 @@
 export const MEDIA_NAMESPACES = Object.freeze(['book', 'audio', 'image', 'video', 'deck', 'docs']);
-export const CURRENT_MEDIA_SCHEMA_VERSION = 2;
+export const CURRENT_MEDIA_SCHEMA_VERSION = 3;
 
 const NAMESPACE_SET = new Set(MEDIA_NAMESPACES);
 
@@ -41,7 +41,7 @@ function validateLocalFolder(value) {
 }
 
 export function normalizeMediaCatalog(catalog, { catalogRoot = '' } = {}) {
-  if (!catalog || ![1, 2].includes(Number(catalog.schema_version))) throw new Error('Media catalog requires schema_version 1 or 2.');
+  if (!catalog || Number(catalog.schema_version) !== CURRENT_MEDIA_SCHEMA_VERSION) throw new Error(`Media catalog requires schema_version ${CURRENT_MEDIA_SCHEMA_VERSION}.`);
   if (!String(catalog.content_version || '').trim()) throw new Error('Media catalog requires content_version.');
   if (!Array.isArray(catalog.books) || !catalog.books.length) throw new Error('Media catalog requires at least one book.');
   const ids = new Set();
@@ -50,21 +50,16 @@ export function normalizeMediaCatalog(catalog, { catalogRoot = '' } = {}) {
     if (!id || ids.has(id)) throw new Error(`Media catalog contains an invalid or duplicate book_id: ${id || '(empty)'}.`);
     ids.add(id);
     safeMediaPath(book.manifest);
+    if (!/^[a-f0-9]{64}$/.test(String(book.manifest_hash || ''))) throw new Error(`Media catalog book ${id} requires a SHA-256 manifest_hash.`);
   });
-  let mounts;
-  if (Number(catalog.schema_version) === 1) {
-    if (!catalogRoot) throw new Error('Schema 1 media catalogs require a catalog root.');
-    mounts = MEDIA_NAMESPACES.map((namespace) => ({ prefix: `${namespace}/`, remote: normalizedRemoteRoot(catalogRoot, 'Schema 1 catalog root'), local: 'media' }));
-  } else {
-    if (!Array.isArray(catalog.mounts) || !catalog.mounts.length) throw new Error('Schema 2 media catalog requires mounts.');
-    const prefixes = new Set();
-    mounts = catalog.mounts.map((mount) => {
-      const prefix = validatePrefix(mount?.prefix);
-      if (prefixes.has(prefix)) throw new Error(`Duplicate media mount prefix: ${prefix}.`);
-      prefixes.add(prefix);
-      return { prefix, remote: normalizedRemoteRoot(mount?.remote, `Media mount ${prefix}`), local: validateLocalFolder(mount?.local) };
-    });
-  }
+  if (!Array.isArray(catalog.mounts) || !catalog.mounts.length) throw new Error('Schema 3 media catalog requires mounts.');
+  const prefixes = new Set();
+  const mounts = catalog.mounts.map((mount) => {
+    const prefix = validatePrefix(mount?.prefix);
+    if (prefixes.has(prefix)) throw new Error(`Duplicate media mount prefix: ${prefix}.`);
+    prefixes.add(prefix);
+    return { prefix, remote: normalizedRemoteRoot(mount?.remote, `Media mount ${prefix}`), local: validateLocalFolder(mount?.local) };
+  });
   return Object.freeze({ ...catalog, mounts: Object.freeze(mounts.sort((a, b) => b.prefix.length - a.prefix.length)) });
 }
 
@@ -75,25 +70,34 @@ export function selectMediaMount(catalog, logicalPath) {
   return mount;
 }
 
-export function resolveRemoteMediaUrl(catalog, logicalPath, contentVersion = catalog?.content_version) {
+export function resolveRemoteMediaUrl(catalog, logicalPath, fileHash) {
   const path = safeMediaPath(logicalPath);
+  if (!/^[a-f0-9]{64}$/.test(String(fileHash || ''))) throw new Error(`Media path ${path} requires a SHA-256 file hash.`);
   const url = new URL(path, selectMediaMount(catalog, path).remote);
-  url.searchParams.set('v', String(contentVersion || ''));
+  url.searchParams.set('v', String(fileHash));
   url.searchParams.set('mgp', path);
   return url.href;
 }
 
-export function mediaCacheKey(logicalPath, contentVersion) {
-  return `${String(contentVersion || '').trim()}:${safeMediaPath(logicalPath)}`;
+export function mediaCacheKey(logicalPath, fileHash) {
+  return `${safeMediaPath(logicalPath)}@${String(fileHash || '').trim()}`;
 }
 
 export function validateBookManifest(manifest, expectedBookId = '') {
-  if (!manifest || ![1, 2].includes(Number(manifest.schema_version))) throw new Error('Book manifest requires schema_version 1 or 2.');
+  if (!manifest || Number(manifest.schema_version) !== CURRENT_MEDIA_SCHEMA_VERSION) throw new Error(`Book manifest requires schema_version ${CURRENT_MEDIA_SCHEMA_VERSION}.`);
   const id = String(manifest.book_id || '').trim();
   if (!id) throw new Error('Book manifest requires book_id.');
   if (expectedBookId && id !== expectedBookId) throw new Error(`Book manifest ${id} does not match catalog book_id ${expectedBookId}.`);
   if (!String(manifest.content_version || '').trim()) throw new Error(`Book manifest ${id} requires content_version.`);
-  const declared = new Set((manifest.files || []).map(safeMediaPath));
+  const declared = new Set();
+  const hashes = new Map();
+  for (const entry of manifest.files || []) {
+    const path = safeMediaPath(entry?.path);
+    if (declared.has(path)) throw new Error(`Book manifest ${id} contains duplicate file ${path}.`);
+    if (!/^[a-f0-9]{64}$/.test(String(entry?.hash || ''))) throw new Error(`Book manifest ${id} file ${path} requires a SHA-256 hash.`);
+    declared.add(path); hashes.set(path, entry.hash);
+  }
+  if (!declared.size) throw new Error(`Book manifest ${id} requires files.`);
   const requireDeclared = (value, label) => {
     const path = safeMediaPath(value);
     if (declared.size && !declared.has(path)) throw new Error(`Book manifest ${id} does not declare ${label}: ${path}.`);
@@ -110,7 +114,21 @@ export function validateBookManifest(manifest, expectedBookId = '') {
   requireDeclared(registries.images, 'image registry');
   if (registries.deck) requireDeclared(registries.deck, 'deck registry');
   if (registries.text) requireDeclared(registries.text, 'text registry');
+  const experienceIds = new Set();
+  for (const experience of manifest.experiences || []) {
+    const experienceId = String(experience?.id || '').trim();
+    if (!experienceId || experienceIds.has(experienceId)) throw new Error(`Book manifest ${id} has an invalid or duplicate experience.`);
+    experienceIds.add(experienceId);
+    for (const path of experience.files || []) if (!declared.has(safeMediaPath(path))) throw new Error(`Book manifest ${id} experience ${experienceId} references undeclared file ${path}.`);
+  }
   return manifest;
+}
+
+export function manifestFileHash(manifest, logicalPath) {
+  const path = safeMediaPath(logicalPath);
+  const entry = manifest?.files?.find((candidate) => candidate.path === path);
+  if (!entry) throw new Error(`Book manifest does not declare ${path}.`);
+  return entry.hash;
 }
 
 export function validateDeckDescriptor(descriptor) {

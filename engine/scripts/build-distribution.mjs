@@ -77,6 +77,7 @@ await copyDirectory(path.join(engineRoot, 'assets'), path.join(output, 'assets')
 await copyDirectory(path.join(distributionRoot, 'assets'), path.join(output, 'assets'), (relative) => !relative.endsWith('.DS_Store'));
 await copyDirectory(path.join(distributionRoot, 'css'), path.join(output, 'css'), (relative) => !relative.endsWith('.DS_Store'));
 await cp(path.join(engineRoot, 'js/player.bundle.js'), path.join(output, 'js/player.bundle.js'));
+await cp(path.join(engineRoot, 'media-cache.js'), path.join(output, 'media-cache.js'));
 await copyDirectory(dataRoot, path.join(output, 'data'), (relative) => !relative.endsWith('.DS_Store') && !isAudioBinary(relative));
 const manifest = { id: '/', name: config.name, short_name: config.shortName, description: config.description, start_url: '/player.html', scope: '/', display: 'standalone', orientation: 'any', background_color: branding.backgroundColor || '#eee8dc', theme_color: branding.themeColor || '#243c5f', icons: [{ src: '/' + branding.icon192, sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: '/' + branding.icon512, sizes: '512x512', type: 'image/png', purpose: 'any' }, { src: '/' + branding.maskableIcon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }] };
 await writeFile(path.join(output, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2) + '\n');
@@ -86,6 +87,6 @@ await writeFile(path.join(output, 'data/app-version.json'), JSON.stringify({ ver
 await writeFile(path.join(output, 'data/version-history.json'), await readFile(path.join(engineRoot, 'version-history.json'), 'utf8'));
 const assets = {};
 for (const absolute of await walk(output)) { const relative = path.relative(output, absolute).split(path.sep).join('/'); if (relative === 'asset-manifest.json' || isAudioBinary(relative)) continue; const contents = await readFile(absolute); assets[relative] = { sha256: createHash('sha256').update(contents).digest('hex'), bytes: (await stat(absolute)).size }; }
-const precache = Object.keys(assets).filter((relative) => relative === 'player.html' || relative === 'index.html' || relative === 'offline.html' || relative === 'manifest.webmanifest' || relative === 'js/player.bundle.js' || relative.startsWith('css/') || relative.startsWith('assets/') || relative.startsWith('data/collections/') || relative.startsWith('data/experiences/') || relative === 'data/distribution.json');
+const precache = Object.keys(assets).filter((relative) => relative === 'player.html' || relative === 'index.html' || relative === 'offline.html' || relative === 'manifest.webmanifest' || relative === 'media-cache.js' || relative === 'js/player.bundle.js' || relative.startsWith('css/') || relative.startsWith('assets/') || relative.startsWith('data/collections/') || relative.startsWith('data/experiences/') || relative === 'data/distribution.json');
 await writeFile(path.join(output, 'asset-manifest.json'), JSON.stringify({ version, distribution: config.id, assets, precache }, null, 2) + '\n');
 console.log(`Built ${config.name} ${version} into ${output} (${Object.keys(assets).length} assets).`);

@@ -1944,7 +1944,7 @@ class AboutDialog {
 
 // Source: js/media-contract.js
 const MEDIA_NAMESPACES = Object.freeze(['book', 'audio', 'image', 'video', 'deck', 'docs']);
-const CURRENT_MEDIA_SCHEMA_VERSION = 2;
+const CURRENT_MEDIA_SCHEMA_VERSION = 3;
 
 const NAMESPACE_SET = new Set(MEDIA_NAMESPACES);
 
@@ -1986,7 +1986,7 @@ function validateLocalFolder(value) {
 }
 
 function normalizeMediaCatalog(catalog, { catalogRoot = '' } = {}) {
-  if (!catalog || ![1, 2].includes(Number(catalog.schema_version))) throw new Error('Media catalog requires schema_version 1 or 2.');
+  if (!catalog || Number(catalog.schema_version) !== CURRENT_MEDIA_SCHEMA_VERSION) throw new Error(`Media catalog requires schema_version ${CURRENT_MEDIA_SCHEMA_VERSION}.`);
   if (!String(catalog.content_version || '').trim()) throw new Error('Media catalog requires content_version.');
   if (!Array.isArray(catalog.books) || !catalog.books.length) throw new Error('Media catalog requires at least one book.');
   const ids = new Set();
@@ -1995,21 +1995,16 @@ function normalizeMediaCatalog(catalog, { catalogRoot = '' } = {}) {
     if (!id || ids.has(id)) throw new Error(`Media catalog contains an invalid or duplicate book_id: ${id || '(empty)'}.`);
     ids.add(id);
     safeMediaPath(book.manifest);
+    if (!/^[a-f0-9]{64}$/.test(String(book.manifest_hash || ''))) throw new Error(`Media catalog book ${id} requires a SHA-256 manifest_hash.`);
   });
-  let mounts;
-  if (Number(catalog.schema_version) === 1) {
-    if (!catalogRoot) throw new Error('Schema 1 media catalogs require a catalog root.');
-    mounts = MEDIA_NAMESPACES.map((namespace) => ({ prefix: `${namespace}/`, remote: normalizedRemoteRoot(catalogRoot, 'Schema 1 catalog root'), local: 'media' }));
-  } else {
-    if (!Array.isArray(catalog.mounts) || !catalog.mounts.length) throw new Error('Schema 2 media catalog requires mounts.');
-    const prefixes = new Set();
-    mounts = catalog.mounts.map((mount) => {
-      const prefix = validatePrefix(mount?.prefix);
-      if (prefixes.has(prefix)) throw new Error(`Duplicate media mount prefix: ${prefix}.`);
-      prefixes.add(prefix);
-      return { prefix, remote: normalizedRemoteRoot(mount?.remote, `Media mount ${prefix}`), local: validateLocalFolder(mount?.local) };
-    });
-  }
+  if (!Array.isArray(catalog.mounts) || !catalog.mounts.length) throw new Error('Schema 3 media catalog requires mounts.');
+  const prefixes = new Set();
+  const mounts = catalog.mounts.map((mount) => {
+    const prefix = validatePrefix(mount?.prefix);
+    if (prefixes.has(prefix)) throw new Error(`Duplicate media mount prefix: ${prefix}.`);
+    prefixes.add(prefix);
+    return { prefix, remote: normalizedRemoteRoot(mount?.remote, `Media mount ${prefix}`), local: validateLocalFolder(mount?.local) };
+  });
   return Object.freeze({ ...catalog, mounts: Object.freeze(mounts.sort((a, b) => b.prefix.length - a.prefix.length)) });
 }
 
@@ -2020,25 +2015,34 @@ function selectMediaMount(catalog, logicalPath) {
   return mount;
 }
 
-function resolveRemoteMediaUrl(catalog, logicalPath, contentVersion = catalog?.content_version) {
+function resolveRemoteMediaUrl(catalog, logicalPath, fileHash) {
   const path = safeMediaPath(logicalPath);
+  if (!/^[a-f0-9]{64}$/.test(String(fileHash || ''))) throw new Error(`Media path ${path} requires a SHA-256 file hash.`);
   const url = new URL(path, selectMediaMount(catalog, path).remote);
-  url.searchParams.set('v', String(contentVersion || ''));
+  url.searchParams.set('v', String(fileHash));
   url.searchParams.set('mgp', path);
   return url.href;
 }
 
-function mediaCacheKey(logicalPath, contentVersion) {
-  return `${String(contentVersion || '').trim()}:${safeMediaPath(logicalPath)}`;
+function mediaCacheKey(logicalPath, fileHash) {
+  return `${safeMediaPath(logicalPath)}@${String(fileHash || '').trim()}`;
 }
 
 function validateBookManifest(manifest, expectedBookId = '') {
-  if (!manifest || ![1, 2].includes(Number(manifest.schema_version))) throw new Error('Book manifest requires schema_version 1 or 2.');
+  if (!manifest || Number(manifest.schema_version) !== CURRENT_MEDIA_SCHEMA_VERSION) throw new Error(`Book manifest requires schema_version ${CURRENT_MEDIA_SCHEMA_VERSION}.`);
   const id = String(manifest.book_id || '').trim();
   if (!id) throw new Error('Book manifest requires book_id.');
   if (expectedBookId && id !== expectedBookId) throw new Error(`Book manifest ${id} does not match catalog book_id ${expectedBookId}.`);
   if (!String(manifest.content_version || '').trim()) throw new Error(`Book manifest ${id} requires content_version.`);
-  const declared = new Set((manifest.files || []).map(safeMediaPath));
+  const declared = new Set();
+  const hashes = new Map();
+  for (const entry of manifest.files || []) {
+    const path = safeMediaPath(entry?.path);
+    if (declared.has(path)) throw new Error(`Book manifest ${id} contains duplicate file ${path}.`);
+    if (!/^[a-f0-9]{64}$/.test(String(entry?.hash || ''))) throw new Error(`Book manifest ${id} file ${path} requires a SHA-256 hash.`);
+    declared.add(path); hashes.set(path, entry.hash);
+  }
+  if (!declared.size) throw new Error(`Book manifest ${id} requires files.`);
   const requireDeclared = (value, label) => {
     const path = safeMediaPath(value);
     if (declared.size && !declared.has(path)) throw new Error(`Book manifest ${id} does not declare ${label}: ${path}.`);
@@ -2055,7 +2059,21 @@ function validateBookManifest(manifest, expectedBookId = '') {
   requireDeclared(registries.images, 'image registry');
   if (registries.deck) requireDeclared(registries.deck, 'deck registry');
   if (registries.text) requireDeclared(registries.text, 'text registry');
+  const experienceIds = new Set();
+  for (const experience of manifest.experiences || []) {
+    const experienceId = String(experience?.id || '').trim();
+    if (!experienceId || experienceIds.has(experienceId)) throw new Error(`Book manifest ${id} has an invalid or duplicate experience.`);
+    experienceIds.add(experienceId);
+    for (const path of experience.files || []) if (!declared.has(safeMediaPath(path))) throw new Error(`Book manifest ${id} experience ${experienceId} references undeclared file ${path}.`);
+  }
   return manifest;
+}
+
+function manifestFileHash(manifest, logicalPath) {
+  const path = safeMediaPath(logicalPath);
+  const entry = manifest?.files?.find((candidate) => candidate.path === path);
+  if (!entry) throw new Error(`Book manifest does not declare ${path}.`);
+  return entry.hash;
 }
 
 function validateDeckDescriptor(descriptor) {
@@ -2086,6 +2104,8 @@ class RemoteMediaSource {
     this.fetchImpl = fetchImpl;
     this.catalog = null;
     this.books = new Map();
+    this.fileHashes = new Map();
+    this.pendingUpdate = null;
   }
   get label() { return this.rootUrl; }
   get needsRefresh() { return false; }
@@ -2097,7 +2117,10 @@ class RemoteMediaSource {
   }
   resolve(path) {
     if (!this.catalog) throw new Error('Load the media catalog before resolving media.');
-    return resolveRemoteMediaUrl(this.catalog, path);
+    const logical = safeMediaPath(path);
+    const hash = this.fileHashes.get(logical);
+    if (!hash) throw new Error(`Media file ${logical} is not declared by a loaded book manifest.`);
+    return resolveRemoteMediaUrl(this.catalog, logical, hash);
   }
   resolveMedia(path) { return this.resolve(path); }
   async fetchText(url, path, options = {}) {
@@ -2115,7 +2138,7 @@ class RemoteMediaSource {
     const previousVersion = this.catalog?.content_version;
     const raw = parseJson(await this.fetchText(this.catalogUrl(), this.catalogPath, { cache: 'no-store' }), this.catalogPath);
     this.catalog = normalizeMediaCatalog(raw, { catalogRoot: this.rootUrl });
-    if (refresh || (previousVersion && previousVersion !== this.catalog.content_version)) this.books.clear();
+    if (refresh || (previousVersion && previousVersion !== this.catalog.content_version)) { this.books.clear(); this.fileHashes.clear(); }
     return this.catalog;
   }
   async loadBook(bookId, { refresh = false } = {}) {
@@ -2124,9 +2147,49 @@ class RemoteMediaSource {
     if (!refresh && this.books.has(id)) return this.books.get(id);
     const entry = catalog.books.find((book) => book.book_id === id);
     if (!entry) throw new Error(`Media catalog does not contain book ${id}.`);
-    const manifest = validateBookManifest(await this.readJson(entry.manifest), id);
+    const manifestUrl = resolveRemoteMediaUrl(this.catalog, entry.manifest, entry.manifest_hash);
+    const manifest = validateBookManifest(parseJson(await this.fetchText(manifestUrl, entry.manifest, { cache: 'default' }), entry.manifest), id);
+    this.fileHashes.set(entry.manifest, entry.manifest_hash);
+    for (const file of manifest.files) {
+      const existing = this.fileHashes.get(file.path);
+      if (existing && existing !== file.hash) throw new Error(`Loaded book manifests disagree about ${file.path}.`);
+      this.fileHashes.set(file.path, file.hash);
+    }
     this.books.set(id, manifest);
     return manifest;
+  }
+  async checkForUpdates(bookIds = [...this.books.keys()]) {
+    if (!this.catalog || !bookIds.length) return { changed: false, books: [] };
+    const fresh = normalizeMediaCatalog(parseJson(await this.fetchText(this.catalogUrl(), this.catalogPath, { cache: 'no-store' }), this.catalogPath), { catalogRoot: this.rootUrl });
+    const changedIds = bookIds.filter((id) => fresh.books.find((entry) => entry.book_id === id)?.manifest_hash !== this.catalog.books.find((entry) => entry.book_id === id)?.manifest_hash);
+    if (!changedIds.length) return { changed: false, books: [] };
+    const pendingBooks = new Map();
+    for (const id of changedIds) {
+      const entry = fresh.books.find((candidate) => candidate.book_id === id);
+      const manifestUrl = resolveRemoteMediaUrl(fresh, entry.manifest, entry.manifest_hash);
+      const manifest = validateBookManifest(parseJson(await this.fetchText(manifestUrl, entry.manifest, { cache: 'default' }), entry.manifest), id);
+      const old = this.books.get(id); const oldHashes = new Map((old?.files || []).map((file) => [file.path, file.hash]));
+      for (const file of manifest.files.filter((candidate) => /\.(?:csv|json)$/i.test(candidate.path) && oldHashes.get(candidate.path) !== candidate.hash)) {
+        const response = await this.fetchImpl(resolveRemoteMediaUrl(fresh, file.path, file.hash), { cache: 'default', credentials: 'omit', mode: 'cors' });
+        if (!response?.ok) throw new Error(`Unable to prefetch changed media file ${file.path} (${response?.status || 'network error'}).`);
+      }
+      pendingBooks.set(id, { manifest, manifestHash: entry.manifest_hash });
+    }
+    this.pendingUpdate = { catalog: fresh, books: pendingBooks };
+    return { changed: true, books: changedIds };
+  }
+  applyPendingUpdate() {
+    if (!this.pendingUpdate) return false;
+    this.catalog = this.pendingUpdate.catalog;
+    for (const [id, entry] of this.pendingUpdate.books) this.books.set(id, entry.manifest);
+    this.fileHashes.clear();
+    for (const [id, manifest] of this.books) {
+      const catalogEntry = this.catalog.books.find((entry) => entry.book_id === id);
+      if (catalogEntry) this.fileHashes.set(catalogEntry.manifest, catalogEntry.manifest_hash);
+      for (const file of manifest.files) this.fileHashes.set(file.path, file.hash);
+    }
+    this.pendingUpdate = null;
+    return true;
   }
 }
 
@@ -2299,6 +2362,67 @@ async function directoryPermission(handle, { request = false } = {}) {
   return request ? 'denied' : 'prompt';
 }
 
+// Source: js/player/collection-contracts.js
+const VERSE_CATALOG_HEADERS = Object.freeze(['language', 'content_type', 'content_url']);
+const STRUCTURAL_VERSE_REGISTRY_HEADERS = Object.freeze(['collection_id', 'order', 'enabled', 'path', 'catalog_url']);
+const AUDIO_REGISTRY_HEADERS = Object.freeze(['collection_id', 'title', 'contributor', 'language', 'catalog_url', 'cue_purpose_url', 'cue_url', 'attribution', 'license', 'source']);
+const AUDIO_CATALOG_HEADERS = Object.freeze(['sid', 'order', 'language', 'audio_url']);
+const AUDIO_CUE_PURPOSE_HEADERS = Object.freeze(['cue_id', 'language', 'purpose', 'description']);
+const AUDIO_CUE_HEADERS = Object.freeze(['sid', 'asset_order', 'cue_order', 'cue_id', 'start_ms', 'end_ms']);
+const DECK_REGISTRY_HEADERS = Object.freeze(['collection_id', 'title', 'provider', 'language', 'catalog_url', 'attribution', 'license', 'source']);
+const DECK_CATALOG_HEADERS = Object.freeze(['sid', 'order', 'language', 'deck_url', 'title']);
+const DECK_COMPOSITION_HEADERS = Object.freeze(['cid', 'snum', 'sid', 'order', 'deck_collection', 'deck_order']);
+const IMAGE_REGISTRY_BASE_HEADERS = Object.freeze(['collection_id', 'title', 'catalog_url']);
+const IMAGE_REGISTRY_TAIL_HEADERS = Object.freeze(['attribution', 'license', 'source']);
+const ILLUSTRATION_CATALOG_HEADERS = Object.freeze(['sid', 'order', 'image_url']);
+const ILLUSTRATION_METADATA_HEADERS = Object.freeze(['sid', 'order', 'alt_text', 'caption']);
+const ILLUSTRATION_COMPOSITION_HEADERS = Object.freeze(['cid', 'snum', 'sid', 'order', 'image_collection', 'image_order']);
+const TEXT_REGISTRY_BASE_HEADERS = Object.freeze(['collection_id', 'title', 'catalog_url']);
+const TEXT_REGISTRY_TAIL_HEADERS = Object.freeze(['attribution', 'license', 'source']);
+const CONTEMPLATION_CATALOG_HEADERS = Object.freeze(['sid', 'order', 'line_type']);
+const CONTEMPLATION_MASTER_HEADERS = Object.freeze(['sid', 'order', 'text']);
+const CONTEMPLATION_COMPOSITION_HEADERS = Object.freeze(['cid', 'snum', 'sid', 'order', 'text_collection', 'text_order']);
+const MEDIA_COMPOSITION_HEADERS = Object.freeze(['cid', 'snum', 'sid', 'order', 'media_type', 'collection', 'asset_order']);
+const SEQUENCE_HEADERS = Object.freeze(['position', 'cid', 'snum', 'sid']);
+const VERSE_LOCALIZED_REGISTRY_HEADERS = Object.freeze(['collection_id', 'name', 'short_name', 'description']);
+const SOURCE_MASTER_HEADERS = Object.freeze(['cid', 'snum', 'sid', 'chapter_name', 'shloka_raw', 'shloka', 'word_by_word', 'meaning', 'word_by_word_meaning']);
+const LOCALIZED_MASTER_HEADERS = Object.freeze(['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning']);
+
+function localizedRegistryHeaders(kind, languages = ['en', 'kn']) {
+  const base = kind === 'images' ? IMAGE_REGISTRY_BASE_HEADERS : TEXT_REGISTRY_BASE_HEADERS;
+  const tail = kind === 'images' ? IMAGE_REGISTRY_TAIL_HEADERS : TEXT_REGISTRY_TAIL_HEADERS;
+  const stem = kind === 'images' ? 'metadata' : 'master';
+  return [...base, ...languages.map((language) => `${stem}_${language}_url`), ...tail];
+}
+
+function localizedRegistryFields(headers, kind) {
+  const pattern = kind === 'images' ? /^metadata_([a-z0-9-]+)_url$/ : /^master_([a-z0-9-]+)_url$/;
+  return Object.fromEntries((headers || []).map((header) => [header.match(pattern)?.[1], header]).filter(([language]) => language));
+}
+
+function localizedRegistryHeaderRule(kind) {
+  return (headers) => {
+    const base = kind === 'images' ? IMAGE_REGISTRY_BASE_HEADERS : TEXT_REGISTRY_BASE_HEADERS;
+    const tail = kind === 'images' ? IMAGE_REGISTRY_TAIL_HEADERS : TEXT_REGISTRY_TAIL_HEADERS;
+    if (headers.slice(0, base.length).join('#') !== base.join('#')) return false;
+    if (headers.slice(-tail.length).join('#') !== tail.join('#')) return false;
+    const fields = localizedRegistryFields(headers, kind);
+    return Object.keys(fields).length > 0 && base.length + Object.keys(fields).length + tail.length === headers.length;
+  };
+}
+
+function compositionHeaderRule(headers) {
+  if (headers.slice(0, 3).join('#') !== 'cid#snum#sid') return false;
+  const rest = headers.slice(3);
+  const fields = rest[0] === 'order' ? rest.slice(1) : rest;
+  if (!fields.length || fields.length % 2) return false;
+  for (let index = 0; index < fields.length; index += 2) {
+    if (!fields[index].endsWith('_collection') || !fields[index + 1].endsWith('_order')) return false;
+    if (fields[index].slice(0, -11) !== fields[index + 1].slice(0, -6)) return false;
+  }
+  return true;
+}
+
 // Source: js/player/collection-data.js
 let COLLECTION_ROOT = 'data/collections';
 let EXPERIENCE_ROOT = 'data/experiences';
@@ -2308,34 +2432,14 @@ function setCollectionRoot(root = 'data/collections') {
   EXPERIENCE_ROOT = COLLECTION_ROOT.replace(/\/collections$/, '/experiences');
 }
 
-const AUDIO_REGISTRY_HEADERS = ['collection_id', 'title', 'contributor', 'language', 'catalog_url', 'cue_purpose_url', 'cue_url', 'attribution', 'license', 'source'];
-const AUDIO_CUE_PURPOSE_HEADERS = ['cue_id', 'language', 'purpose', 'description'];
-const AUDIO_CUE_HEADERS = ['sid', 'asset_order', 'cue_order', 'cue_id', 'start_ms', 'end_ms'];
-const DECK_REGISTRY_HEADERS = ['collection_id', 'title', 'provider', 'language', 'catalog_url', 'attribution', 'license', 'source'];
-const DECK_CATALOG_HEADERS = ['sid', 'order', 'language', 'deck_url', 'title'];
-const DECK_COMPOSITION_HEADERS = ['cid', 'snum', 'sid', 'order', 'deck_collection', 'deck_order'];
-const IMAGE_REGISTRY_HEADERS = ['collection_id', 'title', 'catalog_url', 'metadata_en_url', 'metadata_kn_url', 'attribution', 'license', 'source'];
-const ILLUSTRATION_CATALOG_HEADERS = ['sid', 'order', 'image_url'];
-const ILLUSTRATION_METADATA_HEADERS = ['sid', 'order', 'alt_text', 'caption'];
-const ILLUSTRATION_COMPOSITION_HEADERS = ['cid', 'snum', 'sid', 'order', 'image_collection', 'image_order'];
-const TEXT_REGISTRY_HEADERS = ['collection_id', 'title', 'catalog_url', 'master_en_url', 'master_kn_url', 'attribution', 'license', 'source'];
-const CONTEMPLATION_CATALOG_HEADERS = ['sid', 'order', 'line_type'];
-const CONTEMPLATION_MASTER_HEADERS = ['sid', 'order', 'text'];
-const CONTEMPLATION_COMPOSITION_HEADERS = ['cid', 'snum', 'sid', 'order', 'text_collection', 'text_order'];
-const MEDIA_COMPOSITION_HEADERS = ['cid', 'snum', 'sid', 'order', 'media_type', 'collection', 'asset_order'];
-const SEQUENCE_HEADERS = ['position', 'cid', 'snum', 'sid'];
-const VERSE_LOCALIZED_REGISTRY_HEADERS = ['collection_id', 'name', 'short_name', 'description'];
-const LOCALIZED_REGISTRY_FIELDS = Object.freeze({
-  images: Object.freeze({ en: 'metadata_en_url', kn: 'metadata_kn_url' }),
-  text: Object.freeze({ en: 'master_en_url', kn: 'master_kn_url' })
-});
-
 const MASTER_HEADERS = {
-  sa: ['cid', 'snum', 'sid', 'chapter_name', 'shloka_raw', 'shloka', 'word_by_word', 'meaning', 'word_by_word_meaning'],
-  en: ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning'],
-  kn: ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning']
+  sa: SOURCE_MASTER_HEADERS,
+  en: LOCALIZED_MASTER_HEADERS,
+  kn: LOCALIZED_MASTER_HEADERS
 };
-const LOCALIZED_MASTER_HEADERS = ['cid', 'snum', 'sid', 'chapter_name', 'transliteration', 'meaning', 'word_by_word_meaning'];
+const IMAGE_REGISTRY_HEADERS = localizedRegistryHeaders('images');
+const TEXT_REGISTRY_HEADERS = localizedRegistryHeaders('text');
+const LOCALIZED_REGISTRY_FIELDS = Object.freeze({ images: Object.freeze(localizedRegistryFields(IMAGE_REGISTRY_HEADERS, 'images')), text: Object.freeze(localizedRegistryFields(TEXT_REGISTRY_HEADERS, 'text')) });
 
 function decode(value) {
   return String(value ?? '').replace(/\\n/g, '\n');
@@ -2351,9 +2455,10 @@ function parseCollectionTable(text, expectedHeaders, label = 'collection data') 
   const lines = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n').filter((line) => line.length);
   if (!lines.length) throw new Error(label + ' is empty.');
   const headers = lines.shift().split('#');
-  if (expectedHeaders && headers.join('#') !== expectedHeaders.join('#')) {
+  const matches = typeof expectedHeaders === 'function' ? expectedHeaders(headers) : !expectedHeaders || headers.join('#') === expectedHeaders.join('#');
+  if (!matches) {
     const legacySanskritHeaders = ['cid', 'snum', 'sid', 'chapter_name', 'shloka', 'word_by_word', 'meaning', 'word_by_word_meaning'];
-    if (expectedHeaders.includes('shloka_raw') && headers.join('#') === legacySanskritHeaders.join('#')) {
+    if (Array.isArray(expectedHeaders) && expectedHeaders.includes('shloka_raw') && headers.join('#') === legacySanskritHeaders.join('#')) {
       throw new Error(label + ' uses the legacy Sanskrit schema. Add shloka_raw between chapter_name and shloka.');
     }
     throw new Error(label + ' header does not match its collection contract.');
@@ -2912,13 +3017,14 @@ async function loadLocalizedCatalogs({ type, composition, collectionField, catal
     const catalog = await fetchTable(entry.catalog_url, catalogHeaders, version);
     catalog.url = entry.catalog_url;
     const localized = {};
-    for (const language of ['en', 'kn']) {
-      const url = entry[localizedFields[language]];
+    const fields = localizedRegistryFields(registry.headers, type);
+    for (const [language, field] of Object.entries(fields)) {
+      const url = entry[field];
       if (!url) throw new Error(type + ' collection ' + id + ' does not define ' + language + ' content.');
       localized[language] = await fetchTable(url, localizedHeaders, version);
       verifyOrderedAssetIdentity(catalog, localized[language], type + ' collection ' + id + ' ' + language);
     }
-    catalogs.set(id, { catalog, localized, localizedUrls: { en: entry[localizedFields.en], kn: entry[localizedFields.kn] } });
+    catalogs.set(id, { catalog, localized, localizedUrls: Object.fromEntries(Object.entries(fields).map(([language, field]) => [language, entry[field]])) });
   }
   return catalogs;
 }
@@ -2931,7 +3037,7 @@ async function loadAudioCatalogs(composition, collectionField, version) {
   const cueErrors = new Map();
   for (const id of collectionIds) {
     const entry = registryEntry(registry, id, 'audio');
-    const catalog = await fetchTable(entry.catalog_url, ['sid', 'order', 'language', 'audio_url'], version);
+    const catalog = await fetchTable(entry.catalog_url, AUDIO_CATALOG_HEADERS, version);
     catalogs.set(id, catalog);
     if (!entry.cue_purpose_url && !entry.cue_url) continue;
     if (!entry.cue_purpose_url || !entry.cue_url) {
@@ -2986,13 +3092,13 @@ async function loadCollectionExperience(experienceId, { version = '', collection
   const experience = JSON.parse(configurationResponse);
   if (experience.id !== experienceId || experience.schemaVersion !== 1) throw new Error('Unsupported experience configuration for ' + experienceId + '.');
 
-  const verseRegistry = await fetchTable(COLLECTION_ROOT + '/verses/collection.csv', null, version);
+  const verseRegistry = await fetchTable(COLLECTION_ROOT + '/verses/collection.csv', STRUCTURAL_VERSE_REGISTRY_HEADERS, version);
   const configured = configuredVerseCollections(experience);
   const activeCollection = configured.includes(collectionId) ? collectionId : configured[0];
   const verseEntry = registryEntry(verseRegistry, activeCollection, 'Verse');
   const localizedTables = Object.fromEntries(await Promise.all(['sa', 'en', 'kn'].map(async (language) => [language, await fetchTable(`${COLLECTION_ROOT}/verses/collection_${language}.csv`, VERSE_LOCALIZED_REGISTRY_HEADERS, version)])));
   const collections = localizedCollectionRows({ ...verseRegistry, rows: verseRegistry.rows.filter((row) => configured.includes(row.collection_id)) }, localizedTables);
-  const verseCatalog = await fetchTable(verseEntry.catalog_url, ['language', 'content_type', 'content_url'], version);
+  const verseCatalog = await fetchTable(verseEntry.catalog_url, VERSE_CATALOG_HEADERS, version);
   const sequenceUrl = optionalCatalogEntry(experienceCatalog, 'sequence');
   const deckCompositionUrl = optionalCatalogEntry(experienceCatalog, 'decks');
   const illustrationCompositionUrl = optionalCatalogEntry(experienceCatalog, 'illustrations');
@@ -3020,13 +3126,13 @@ async function loadCollectionExperience(experienceId, { version = '', collection
     illustrationComposition ? loadLocalizedCatalogs({
       type: 'images', composition: illustrationComposition, collectionField: 'image_collection',
       catalogHeaders: ILLUSTRATION_CATALOG_HEADERS, localizedHeaders: ILLUSTRATION_METADATA_HEADERS,
-      localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: IMAGE_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: localizedRegistryHeaderRule('images'),
       version, declaredIds: experience.illustrationCollections || []
     }) : new Map(),
     contemplationComposition ? loadLocalizedCatalogs({
       type: 'text', composition: contemplationComposition, collectionField: 'text_collection',
       catalogHeaders: CONTEMPLATION_CATALOG_HEADERS, localizedHeaders: CONTEMPLATION_MASTER_HEADERS,
-      localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: TEXT_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: localizedRegistryHeaderRule('text'),
       version, declaredIds: experience.contemplationCollections || []
     }) : new Map()
   ]);
@@ -3063,7 +3169,8 @@ async function readCollectionTextFromFiles(fileList, url) {
 
 async function loadCollectionExperienceWithReader(experienceId, { text, resolveMediaUrl, onLanguageFile = () => {}, collectionId = '', manifest = null, tableCache = new Map(), onCoreReady = null }) {
   const table = async (url, headers = null) => {
-    const key = `${url}\n${(headers || []).join('#')}`;
+    const headerKey = Array.isArray(headers) ? headers.join('#') : headers ? String(headers) : '';
+    const key = `${url}\n${headerKey}`;
     if (!tableCache.has(key)) {
       const pending = Promise.resolve(text(url))
         .then((value) => parseCollectionTable(value, headers, url))
@@ -3082,7 +3189,7 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
     if (type === 'verses') return language ? manifest.registries?.verses?.localized?.[language] : manifest.registries?.verses?.structural;
     return manifest.registries?.[type];
   };
-  const verseRegistry = await table(registryPath('verses'));
+  const verseRegistry = await table(registryPath('verses'), STRUCTURAL_VERSE_REGISTRY_HEADERS);
   const configured = configuredVerseCollections(experience);
   const activeCollection = configured.includes(collectionId) ? collectionId : configured[0];
   const verseEntry = registryEntry(verseRegistry, activeCollection, 'Verse');
@@ -3090,7 +3197,7 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
   const declaredLanguages = [...new Set((manifest ? Object.keys(manifest.verses?.masters || {}) : (experience.languages || ['sa', 'en', 'kn'])).filter(Boolean))];
   const localizedTables = Object.fromEntries(await Promise.all(declaredLanguages.map(async (language) => [language, await table(registryPath('verses', language), VERSE_LOCALIZED_REGISTRY_HEADERS)])));
   const collections = localizedCollectionRows({ ...verseRegistry, rows: verseRegistry.rows.filter((row) => configured.includes(row.collection_id)) }, localizedTables);
-  const verseCatalog = await table(verseEntry.catalog_url, ['language', 'content_type', 'content_url']);
+  const verseCatalog = await table(verseEntry.catalog_url, VERSE_CATALOG_HEADERS);
   const catalogLanguages = [...new Set(verseCatalog.rows.map((row) => row.language).filter(Boolean))];
   const languages = catalogLanguages.length ? catalogLanguages : declaredLanguages;
   const languageUrls = Object.fromEntries(languages.map((language) => [language, languageFile(verseCatalog, language)]));
@@ -3170,7 +3277,7 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
     const binding = audioBinding(experience);
     for (const id of new Set(audioComposition.rows.map((row) => row[binding.collectionField]).filter(Boolean))) {
       const entry = registryEntry(registry, id, 'audio');
-      const catalog = await table(entry.catalog_url, ['sid', 'order', 'language', 'audio_url']);
+      const catalog = await table(entry.catalog_url, AUDIO_CATALOG_HEADERS);
       catalogs.set(id, catalog);
       if (!entry.cue_purpose_url && !entry.cue_url) continue;
       if (!entry.cue_purpose_url || !entry.cue_url) {
@@ -3199,13 +3306,14 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
       const catalog = await table(entry.catalog_url, catalogHeaders);
       catalog.url = entry.catalog_url;
       const localized = {};
-      for (const language of ['en', 'kn']) {
-        const url = entry[localizedFields[language]];
+      const fields = localizedRegistryFields(registry.headers, type);
+      for (const [language, field] of Object.entries(fields)) {
+        const url = entry[field];
         if (!url) throw new Error(type + ' collection ' + id + ' does not define ' + language + ' content.');
         localized[language] = await table(url, localizedHeaders);
         verifyOrderedAssetIdentity(catalog, localized[language], type + ' collection ' + id + ' ' + language);
       }
-      catalogs.set(id, { catalog, localized, localizedUrls: { en: entry[localizedFields.en], kn: entry[localizedFields.kn] } });
+      catalogs.set(id, { catalog, localized, localizedUrls: Object.fromEntries(Object.entries(fields).map(([language, field]) => [language, entry[field]])) });
     }
     return catalogs;
   }
@@ -3216,13 +3324,13 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
     illustrationComposition ? localLocalizedCatalogs({
       type: 'images', composition: illustrationComposition, collectionField: 'image_collection',
       catalogHeaders: ILLUSTRATION_CATALOG_HEADERS, localizedHeaders: ILLUSTRATION_METADATA_HEADERS,
-      localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: IMAGE_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: localizedRegistryHeaderRule('images'),
       declaredIds: experience.illustrationCollections || []
     }) : new Map(),
     contemplationComposition ? localLocalizedCatalogs({
       type: 'text', composition: contemplationComposition, collectionField: 'text_collection',
       catalogHeaders: CONTEMPLATION_CATALOG_HEADERS, localizedHeaders: CONTEMPLATION_MASTER_HEADERS,
-      localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: TEXT_REGISTRY_HEADERS,
+      localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: localizedRegistryHeaderRule('text'),
       declaredIds: experience.contemplationCollections || []
     }) : new Map()
   ]);
@@ -3336,7 +3444,10 @@ async function loadMediaBookExperience(experienceId, {
   }
   if (typeof productText !== 'function') throw new Error('Media experience adapter requires a product configuration reader.');
   const manifest = await mediaSource.loadBook(bookId);
-  if (!manifest.experiences?.includes(experienceId)) throw new Error(`Book ${bookId} does not declare experience ${experienceId}.`);
+  const supportsExperience = manifest.experiences?.some((entry) =>
+    (typeof entry === 'string' ? entry : entry?.id) === experienceId
+  );
+  if (!supportsExperience) throw new Error(`Book ${bookId} does not declare experience ${experienceId}.`);
   const text = createMediaResourceReader({ mediaSource, productText });
   const resolveMediaUrl = createMediaUrlResolver({ mediaSource, resolveProductMediaUrl });
   const source = Object.freeze({ type: 'media-book', bookId, contentVersion: manifest.content_version });
@@ -3419,6 +3530,18 @@ class CollectionSource {
   get usesLocalFiles() { return Boolean(this.files || this.directoryHandle || (this.protocol === 'file:' && this.mediaSource)); }
   get isReady() { return !this.requiresSelection; }
   get label() { return this.mediaSource?.label || (this.protocol === 'file:' ? 'media' : this.mediaConfig.remoteRoot || 'bundled content'); }
+  get hasPendingMediaUpdate() { return Boolean(this.mediaSource?.pendingUpdate); }
+
+  async checkForMediaUpdates(bookIds) {
+    if (!(this.mediaSource instanceof RemoteMediaSource)) return { changed: false, books: [] };
+    return this.mediaSource.checkForUpdates(bookIds);
+  }
+
+  applyPendingMediaUpdate() {
+    if (!this.mediaSource?.applyPendingUpdate?.()) return false;
+    this.clear();
+    return true;
+  }
 
   clear({ releaseMedia = false, preserveSelection = false } = {}) {
     this.generation += 1;
@@ -4448,6 +4571,9 @@ const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-loc
 let rememberedMediaFolder = null;
 let mediaSelectionRequest = 0;
 let experienceLoadRequest = 0;
+const MEDIA_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const MEDIA_CHECK_KEY = `${platformId}-last-media-check`;
+let mediaCheckPromise = null;
 const eventBus = new EventBus({
   appVersion,
   contextProvider: () => ({
@@ -5353,6 +5479,7 @@ async function startRequestedExperience() {
     return showError(`The requested experience is not available in ${distribution().name}.`);
   }
 
+  if (collectionSource.applyPendingMediaUpdate()) state.dataset = null;
   showOnly('loading');
   const request = ++experienceLoadRequest;
   let coreStarted = false;
@@ -5393,6 +5520,20 @@ function hydratePlayer(dataset) {
   render({ trackLocation: false, trackEngagement: false });
 }
 
+function recordMediaCheck() {
+  try { localStorage.setItem(MEDIA_CHECK_KEY, String(Date.now())); } catch (_) {}
+}
+
+async function checkForMediaUpdates({ force = false } = {}) {
+  if (!navigator.onLine || collectionSource.usesLocalFiles || !state.dataset?.contentSource?.bookId) return;
+  let checkedAt = 0; try { checkedAt = Number(localStorage.getItem(MEDIA_CHECK_KEY) || 0); } catch (_) {}
+  if (!force && checkedAt && Date.now() - checkedAt < MEDIA_CHECK_INTERVAL_MS) return;
+  if (mediaCheckPromise) return mediaCheckPromise;
+  mediaCheckPromise = collectionSource.checkForMediaUpdates([state.dataset.contentSource.bookId])
+    .then(() => recordMediaCheck()).catch(() => {}).finally(() => { mediaCheckPromise = null; });
+  return mediaCheckPromise;
+}
+
 async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
   if (state.renderer) state.renderer.destroy();
   state.dataset = dataset;
@@ -5401,6 +5542,7 @@ async function startPlayer(dataset, experience, { sid = requestedSid } = {}) {
   document.documentElement.dataset.contentBook = dataset.contentSource?.bookId || '';
   document.documentElement.dataset.contentVersion = dataset.contentSource?.contentVersion || '';
   state.collectionId = dataset.collectionId || null;
+  recordMediaCheck();
   const model = distribution().languages;
   state.language = model.content.includes(requestedLanguage) ? requestedLanguage : (model.content.includes(state.activeProfile.contentLanguage) ? state.activeProfile.contentLanguage : model.defaultContent);
   state.panelLanguageOverrides = await profileStore.getPanelLanguages(state.activeProfile.pid, state.activeProductId, play).catch(() => ({}));
@@ -5586,6 +5728,12 @@ function updateUrl() {
 function navigate(offset, source = offset > 0 ? 'next' : 'previous') {
   const next = state.index + offset;
   if (next < 0 || next >= state.dataset.rows.length) return;
+  if (collectionSource.hasPendingMediaUpdate) {
+    requestedSid = state.dataset.rows[next].sid;
+    state.locationSource = source;
+    startRequestedExperience();
+    return;
+  }
   state.index = next;
   render({ source });
   if (matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -5697,6 +5845,13 @@ function moveMenuFocus(offset) {
 
 function selectChapterButton(button) {
   if (!button) return;
+  if (collectionSource.hasPendingMediaUpdate) {
+    requestedSid = state.dataset.rows[Number(button.dataset.index)]?.sid;
+    state.locationSource = 'chapter';
+    closeOverlays({ restoreFocus: false });
+    startRequestedExperience();
+    return;
+  }
   state.index = Number(button.dataset.index);
   closeOverlays({ restoreFocus: false });
   render({ source: 'chapter' });
@@ -5730,6 +5885,13 @@ function goHome() {
 function goToSid(sid) {
   const found = findSid(sid);
   if (found < 0) return false;
+  if (collectionSource.hasPendingMediaUpdate) {
+    requestedSid = state.dataset.rows[found].sid;
+    state.locationSource = 'goto';
+    closeOverlays({ restoreFocus: false });
+    startRequestedExperience();
+    return true;
+  }
   state.index = found;
   closeOverlays({ restoreFocus: false });
   render({ source: 'goto' });
@@ -6009,6 +6171,10 @@ function bindEvents() {
     updateDeviceLayout();
     if (state.renderer) state.renderer.fitText();
   });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForMediaUpdates();
+  });
+  window.addEventListener('online', () => checkForMediaUpdates());
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && closeOverlays()) {
       event.preventDefault();

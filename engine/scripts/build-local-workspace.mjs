@@ -67,8 +67,8 @@ for (const row of registry) {
     const value = rows.find((entry) => entry.product_id === row.product_id) || {};
     return [language, { name: value.name || row.product_id, shortName: value.short_name || value.name || row.product_id, description: value.description || '' }];
   }));
-  products.push({ id: row.product_id, path: row.path, order: Number(row.order) || products.length + 1, metadata, config });
   productText[row.product_id] = await collectText(path.join(productRoot, 'data'));
+  products.push({ id: row.product_id, path: row.path, order: Number(row.order) || products.length + 1, metadata, config, productText: productText[row.product_id] });
   productBases[row.product_id] = `products/${row.path}/`;
 }
 

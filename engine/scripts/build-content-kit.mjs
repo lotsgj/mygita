@@ -25,6 +25,7 @@ async function orderedSources(relative, seen = new Set(), ordered = []) {
 function strip(code) {
   return code
     .replace(/^import\s+[^;]+;\s*$/gm, '')
+    .replace(/^export\s+\*\s+from\s+['"][^'"]+['"];?\s*$/gm, '')
     .replace(/^export\s+\{[^}]+\}(?:\s+from\s+['"][^'"]+['"])?;?\s*$/gm, '')
     .replace(/^export\s+(?=(const|let|class|function|async\s+function)\b)/gm, '');
 }

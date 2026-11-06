@@ -1,4 +1,4 @@
-import { normalizeMediaCatalog, resolveRemoteMediaUrl, safeMediaPath, selectMediaMount, validateBookManifest } from './media-contract.js';
+import { manifestFileHash, normalizeMediaCatalog, resolveRemoteMediaUrl, safeMediaPath, selectMediaMount, validateBookManifest } from './media-contract.js';
 
 export { safeMediaPath, validateBookManifest } from './media-contract.js';
 export function validateMediaCatalog(catalog, options) { return normalizeMediaCatalog(catalog, options); }
@@ -20,6 +20,8 @@ export class RemoteMediaSource {
     this.fetchImpl = fetchImpl;
     this.catalog = null;
     this.books = new Map();
+    this.fileHashes = new Map();
+    this.pendingUpdate = null;
   }
   get label() { return this.rootUrl; }
   get needsRefresh() { return false; }
@@ -31,7 +33,10 @@ export class RemoteMediaSource {
   }
   resolve(path) {
     if (!this.catalog) throw new Error('Load the media catalog before resolving media.');
-    return resolveRemoteMediaUrl(this.catalog, path);
+    const logical = safeMediaPath(path);
+    const hash = this.fileHashes.get(logical);
+    if (!hash) throw new Error(`Media file ${logical} is not declared by a loaded book manifest.`);
+    return resolveRemoteMediaUrl(this.catalog, logical, hash);
   }
   resolveMedia(path) { return this.resolve(path); }
   async fetchText(url, path, options = {}) {
@@ -49,7 +54,7 @@ export class RemoteMediaSource {
     const previousVersion = this.catalog?.content_version;
     const raw = parseJson(await this.fetchText(this.catalogUrl(), this.catalogPath, { cache: 'no-store' }), this.catalogPath);
     this.catalog = normalizeMediaCatalog(raw, { catalogRoot: this.rootUrl });
-    if (refresh || (previousVersion && previousVersion !== this.catalog.content_version)) this.books.clear();
+    if (refresh || (previousVersion && previousVersion !== this.catalog.content_version)) { this.books.clear(); this.fileHashes.clear(); }
     return this.catalog;
   }
   async loadBook(bookId, { refresh = false } = {}) {
@@ -58,9 +63,49 @@ export class RemoteMediaSource {
     if (!refresh && this.books.has(id)) return this.books.get(id);
     const entry = catalog.books.find((book) => book.book_id === id);
     if (!entry) throw new Error(`Media catalog does not contain book ${id}.`);
-    const manifest = validateBookManifest(await this.readJson(entry.manifest), id);
+    const manifestUrl = resolveRemoteMediaUrl(this.catalog, entry.manifest, entry.manifest_hash);
+    const manifest = validateBookManifest(parseJson(await this.fetchText(manifestUrl, entry.manifest, { cache: 'default' }), entry.manifest), id);
+    this.fileHashes.set(entry.manifest, entry.manifest_hash);
+    for (const file of manifest.files) {
+      const existing = this.fileHashes.get(file.path);
+      if (existing && existing !== file.hash) throw new Error(`Loaded book manifests disagree about ${file.path}.`);
+      this.fileHashes.set(file.path, file.hash);
+    }
     this.books.set(id, manifest);
     return manifest;
+  }
+  async checkForUpdates(bookIds = [...this.books.keys()]) {
+    if (!this.catalog || !bookIds.length) return { changed: false, books: [] };
+    const fresh = normalizeMediaCatalog(parseJson(await this.fetchText(this.catalogUrl(), this.catalogPath, { cache: 'no-store' }), this.catalogPath), { catalogRoot: this.rootUrl });
+    const changedIds = bookIds.filter((id) => fresh.books.find((entry) => entry.book_id === id)?.manifest_hash !== this.catalog.books.find((entry) => entry.book_id === id)?.manifest_hash);
+    if (!changedIds.length) return { changed: false, books: [] };
+    const pendingBooks = new Map();
+    for (const id of changedIds) {
+      const entry = fresh.books.find((candidate) => candidate.book_id === id);
+      const manifestUrl = resolveRemoteMediaUrl(fresh, entry.manifest, entry.manifest_hash);
+      const manifest = validateBookManifest(parseJson(await this.fetchText(manifestUrl, entry.manifest, { cache: 'default' }), entry.manifest), id);
+      const old = this.books.get(id); const oldHashes = new Map((old?.files || []).map((file) => [file.path, file.hash]));
+      for (const file of manifest.files.filter((candidate) => /\.(?:csv|json)$/i.test(candidate.path) && oldHashes.get(candidate.path) !== candidate.hash)) {
+        const response = await this.fetchImpl(resolveRemoteMediaUrl(fresh, file.path, file.hash), { cache: 'default', credentials: 'omit', mode: 'cors' });
+        if (!response?.ok) throw new Error(`Unable to prefetch changed media file ${file.path} (${response?.status || 'network error'}).`);
+      }
+      pendingBooks.set(id, { manifest, manifestHash: entry.manifest_hash });
+    }
+    this.pendingUpdate = { catalog: fresh, books: pendingBooks };
+    return { changed: true, books: changedIds };
+  }
+  applyPendingUpdate() {
+    if (!this.pendingUpdate) return false;
+    this.catalog = this.pendingUpdate.catalog;
+    for (const [id, entry] of this.pendingUpdate.books) this.books.set(id, entry.manifest);
+    this.fileHashes.clear();
+    for (const [id, manifest] of this.books) {
+      const catalogEntry = this.catalog.books.find((entry) => entry.book_id === id);
+      if (catalogEntry) this.fileHashes.set(catalogEntry.manifest, catalogEntry.manifest_hash);
+      for (const file of manifest.files) this.fileHashes.set(file.path, file.hash);
+    }
+    this.pendingUpdate = null;
+    return true;
   }
 }
 
