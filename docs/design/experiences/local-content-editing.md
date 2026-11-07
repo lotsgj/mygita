@@ -1,7 +1,7 @@
 # Local content editing
 
 **Status:** Partial
-**Last updated:** 6 November 2026
+**Last updated:** 7 November 2026
 
 ## Current boundary
 
@@ -11,9 +11,9 @@ Content authoring will instead be a separate local-only editor. That tool may re
 
 ## Intended media-authoring workflow
 
-The future local editor will select a writable Media root, load the same schema-3 catalog and mounts used by playback, and edit only files owned by that root. It must update the relevant book masters, resource catalogs, associations, descriptors and generated manifest inventories together. Publishing validates logical paths and references, calculates full SHA-256 hashes, and advances `content_version`; it does not require a MyGita application release.
+The future local editor will select a writable Media root, load the Content-Kit 3 catalog and mount inventories, and edit registered files. It must update the relevant book masters, resource catalogs, associations, descriptors and generated inventories together. Publishing validates logical paths and references, calculates full SHA-256 hashes, and advances Media independently of a MyGita application release.
 
-Content-kit v2 is now the shared, file-I/O-neutral foundation. It exposes versioned, data-driven contracts; product and media discovery; typed item reading; update, insert and remove operations; generated-file helpers; checks; and deterministic publishing. It centralizes the same headers and dynamic language rules used by playback. The editor owns folder access, write permissions, previews and interaction; content-kit owns formats and validation. Generated `manifest.json` and root `catalog.json` are published outputs rather than directly editable documents.
+Content-Kit 3 is the shared pure foundation. Version 3.20261107-051550 exposes split-ready mount inventories, explicitly declared contracts and field types, separate collection nodes, byte-preserving record operations, validation, a shared forward/reverse reference graph and grace-aware move-plan structures. It performs no filesystem or network writes and contains no editor interaction. Media Admin owns folder access, hashing bytes, writes, retries, previews, confirmation and plan execution. The current Tranche 1 read-only surface is sufficient for Media Admin to begin in parallel; writable publication and the MyGita runtime/PWA inventory cutover are Tranche 2.
 
 The editor should derive editable fields from the content contract and preview renderer rather than from a fixed playback-shell list. It must support Gita 700 verse fields, Gita Yoga’s Sanskrit/Kannada/English fields, and Gita Sara’s visible verse language plus sparse illustration, deck and contemplation associations.
 

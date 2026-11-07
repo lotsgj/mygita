@@ -52,7 +52,7 @@ test('invalid mounts and legacy schemas fail', () => {
   assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book', remote: 'https://x.example/', local: 'media' }] }), /end with/);
   assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book/', remote: 'http://x.example/', local: 'media' }] }), /HTTPS/);
   assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book/', remote: 'https://x.example/', local: '../media' }] }), /one folder/);
-  assert.throws(() => normalizeMediaCatalog({ ...catalog, schema_version: 2 }), /schema_version 3/);
+  assert.throws(() => normalizeMediaCatalog({ ...catalog, schema_version: 2 }), /Content-Kit 3/);
 });
 
 test('remote source checks its catalog once per app session and refreshes only when asked', async () => {

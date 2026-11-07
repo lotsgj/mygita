@@ -1945,6 +1945,7 @@ class AboutDialog {
 // Source: js/media-contract.js
 const MEDIA_NAMESPACES = Object.freeze(['book', 'audio', 'image', 'video', 'deck', 'docs']);
 const CURRENT_MEDIA_SCHEMA_VERSION = 3;
+const CURRENT_CONTENT_KIT_MAJOR = 3;
 
 const NAMESPACE_SET = new Set(MEDIA_NAMESPACES);
 
@@ -1985,8 +1986,11 @@ function validateLocalFolder(value) {
   return local;
 }
 
+function kitMajor(value) { return Number(String(value || '').split('.')[0]); }
+
 function normalizeMediaCatalog(catalog, { catalogRoot = '' } = {}) {
-  if (!catalog || Number(catalog.schema_version) !== CURRENT_MEDIA_SCHEMA_VERSION) throw new Error(`Media catalog requires schema_version ${CURRENT_MEDIA_SCHEMA_VERSION}.`);
+  const legacySchema = Number(catalog?.schema_version) === CURRENT_MEDIA_SCHEMA_VERSION && !catalog?.content_kit_version;
+  if (!catalog || (!legacySchema && kitMajor(catalog.content_kit_version) !== CURRENT_CONTENT_KIT_MAJOR)) throw new Error(`Media catalog requires Content-Kit ${CURRENT_CONTENT_KIT_MAJOR}.`);
   if (!String(catalog.content_version || '').trim()) throw new Error('Media catalog requires content_version.');
   if (!Array.isArray(catalog.books) || !catalog.books.length) throw new Error('Media catalog requires at least one book.');
   const ids = new Set();
@@ -1998,19 +2002,24 @@ function normalizeMediaCatalog(catalog, { catalogRoot = '' } = {}) {
     if (!/^[a-f0-9]{64}$/.test(String(book.manifest_hash || ''))) throw new Error(`Media catalog book ${id} requires a SHA-256 manifest_hash.`);
   });
   if (!Array.isArray(catalog.mounts) || !catalog.mounts.length) throw new Error('Schema 3 media catalog requires mounts.');
-  const prefixes = new Set();
-  const mounts = catalog.mounts.map((mount) => {
-    const prefix = validatePrefix(mount?.prefix);
-    if (prefixes.has(prefix)) throw new Error(`Duplicate media mount prefix: ${prefix}.`);
-    prefixes.add(prefix);
-    return { prefix, remote: normalizedRemoteRoot(mount?.remote, `Media mount ${prefix}`), local: validateLocalFolder(mount?.local) };
+  const prefixes = new Set(); const mountIds = new Set();
+  const mounts = catalog.mounts.map((mount, index) => {
+    const mountId = String(mount?.mount_id || `legacy-${index + 1}`).trim();
+    if (!mountId || mountIds.has(mountId)) throw new Error(`Duplicate or missing media mount id: ${mountId || '(empty)'}.`);
+    mountIds.add(mountId);
+    const declared = Array.isArray(mount?.prefixes) ? mount.prefixes : [mount?.prefix].filter(Boolean);
+    if (!declared.length) throw new Error(`Media mount ${mountId} requires transitional prefixes until the runtime inventory cutover.`);
+    const normalizedPrefixes = declared.map(validatePrefix);
+    for (const prefix of normalizedPrefixes) { if (prefixes.has(prefix)) throw new Error(`Duplicate media mount prefix: ${prefix}.`); prefixes.add(prefix); }
+    const inventories = Array.isArray(mount?.inventories) ? mount.inventories.map((entry) => ({ id: String(entry?.id || '').trim(), path: String(entry?.path || '').trim(), hash: String(entry?.hash || '').trim() })) : [];
+    return { ...mount, mount_id: mountId, prefixes: Object.freeze(normalizedPrefixes), inventories: Object.freeze(inventories), remote: normalizedRemoteRoot(mount?.remote, `Media mount ${mountId}`), local: validateLocalFolder(mount?.local) };
   });
-  return Object.freeze({ ...catalog, mounts: Object.freeze(mounts.sort((a, b) => b.prefix.length - a.prefix.length)) });
+  return Object.freeze({ ...catalog, mounts: Object.freeze(mounts.sort((left, right) => Math.max(...right.prefixes.map((value) => value.length)) - Math.max(...left.prefixes.map((value) => value.length)))) });
 }
 
 function selectMediaMount(catalog, logicalPath) {
   const path = safeMediaPath(logicalPath);
-  const mount = catalog?.mounts?.find((candidate) => path.startsWith(candidate.prefix));
+  const mount = catalog?.mounts?.find((candidate) => candidate.prefixes.some((prefix) => path.startsWith(prefix)));
   if (!mount) throw new Error(`No media mount resolves ${path}.`);
   return mount;
 }
@@ -2029,7 +2038,8 @@ function mediaCacheKey(logicalPath, fileHash) {
 }
 
 function validateBookManifest(manifest, expectedBookId = '') {
-  if (!manifest || Number(manifest.schema_version) !== CURRENT_MEDIA_SCHEMA_VERSION) throw new Error(`Book manifest requires schema_version ${CURRENT_MEDIA_SCHEMA_VERSION}.`);
+  const legacySchema = Number(manifest?.schema_version) === CURRENT_MEDIA_SCHEMA_VERSION && !manifest?.content_kit_version;
+  if (!manifest || (!legacySchema && kitMajor(manifest.content_kit_version) !== CURRENT_CONTENT_KIT_MAJOR)) throw new Error(`Book manifest requires Content-Kit ${CURRENT_CONTENT_KIT_MAJOR}.`);
   const id = String(manifest.book_id || '').trim();
   if (!id) throw new Error('Book manifest requires book_id.');
   if (expectedBookId && id !== expectedBookId) throw new Error(`Book manifest ${id} does not match catalog book_id ${expectedBookId}.`);

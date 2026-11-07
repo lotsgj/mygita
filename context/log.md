@@ -46,3 +46,14 @@ Tests: engine 6, unit 52, contract 26, Gita contract 6, and Gita browser regress
 Changed: centralized data-driven contracts and generic local-editor API; schema-3 full SHA-256 inventories and publish/validate workflow; hash-addressed progressive cache; changed metadata prefetch; lazy binaries; 24-hour foreground check; safe navigation-boundary activation.
 Media: catalog and three book manifests migrated; duplicate validation replaced by content-kit checks and idempotent publish validation.
 Tests: engine, unit, contract, Gita/Sukta contracts, platform/Gita/Sukta/Rachana browser regressions, production build and Media tests pass locally.
+
+## W-0013 · 2026-11-07 · Codex · S-19 · Content-Kit 3 Tranche 1
+Changed: unified deterministic 3.x kit identity; split-ready mount inventory; explicit file contracts and typed fields; manifest-driven collection tree; pure reference graph and grace-aware move plans; minimum-kit guard.
+Media: catalog, book manifests, `media.ver`, and 1,106-file hashed inventory migrated to Content-Kit 3; reproducible inventory builder and validation added.
+Docs: Rachana, Sampada, S-19 and ADRs aligned; Tranche 2 retains runtime/PWA inventory cutover, multi-mount publishing and retiring-path cleanup.
+Tests: MyGita unit 61 and contract 26; Media contract 4; full browser regression and production build passed during implementation; final generated bundles match source.
+
+## W-0014 · 2026-11-07 · Codex · S-19 · Content-Kit 3 contract hardening
+Changed: tree language and experience assignment now use manifest/registry relationships only; illustration `alt_text` is explicitly multiline; kit compatibility compares numeric majors and rejects malformed versions.
+Transition: mount prefixes are documented and tested as authoritative runtime routing only until the Tranche 2 inventory cutover; they do not express Content-Kit ownership.
+Tests: MyGita unit 61 and contract 26; focused Content-Kit/docs 28; Media contract 4; generated bundles and whitespace checks pass.

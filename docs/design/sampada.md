@@ -1,7 +1,7 @@
 # Sampada — Treasure trove of MyGita enhancements
 
 **Status:** Current  
-**Last updated:** 4 November 2026
+**Last updated:** 7 November 2026
 
 Sampada keeps both future possibilities and completed enhancements. Items retain their number after completion so decisions and delivery history remain traceable.
 
@@ -43,6 +43,8 @@ Deliver this only after the new MyGita PWA and scripture-organized media paths a
 Move canonical verse masters, questions, experience associations and reusable media to the independently deployed `media.gitajyoti.org` catalog so content can evolve without requiring a MyGita PWA release. Keep stable product configuration, branding and renderer behavior in MyGita, and preserve the normalized player model across bundled, remote and local-folder sources.
 
 The reading boundary is delivered locally: the media repository has validated Bhagavad Gita, Ganesha Atharva and Purusha Sukta books; MyGita retains only product/experience configuration and platform assets; and all scripture masters, registries, associations, chapter icons, questions and binary media resolve from media. An executable audit covers all current Gita experiences and both Sukta collections without bundled scripture fallback. File mode selects media once, web/PWA uses the configured remote root, used content is cached progressively, and runtime source diagnostics expose the active book and content version.
+
+Content-Kit 3 Tranche 1 now supplies the editor-facing contract: deterministic major/generated-minor identity, split-ready mount inventories, explicit per-file contracts and field types, separate collection nodes, complete semantic-tree coverage, and one forward/reverse reference graph with pure transaction-plan shapes. Media Admin can begin against this stable read-only contract. Tranche 2 remains to complete writable plan execution, multi-mount publication, retiring-path grace periods, and the MyGita runtime/PWA inventory cutover.
 
 Startup loading now checks the root catalog once per app opening rather than on a timer, shares parsed book registries and verse masters across experiences during that session, and lets ordinary verse experiences display canonical text before audio and visual metadata finish hydrating. Reopening the app performs the next catalog check; explicitly changing or refreshing the media source clears the session cache.
 

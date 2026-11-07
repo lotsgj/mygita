@@ -25,6 +25,8 @@ test('the content-kit bundle exposes exactly the module API and behaves the same
   const bundle = loadBundle();
   assert.deepEqual(Object.keys(bundle).sort(), Object.keys(contentKit).sort());
   assert.equal(bundle.KIT_VERSION, contentKit.KIT_VERSION);
+  assert.match(bundle.KIT_BUILD, /^[a-f0-9]{12}$/);
+  assert.equal(new Set(Object.keys(bundle)).size, Object.keys(bundle).length);
   const readText = (logicalPath) => readFile(path.join(mediaRoot, logicalPath), 'utf8');
   const shape = (value) => JSON.parse(JSON.stringify(value));
   const [moduleMedia, bundleMedia] = await Promise.all([contentKit.openMedia(readText), bundle.openMedia(readText)]);

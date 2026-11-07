@@ -1,7 +1,7 @@
 # Collections and media
 
 **Status:** Current  
-**Last updated:** 6 November 2026
+**Last updated:** 7 November 2026
 
 ## Ownership boundary
 
@@ -21,7 +21,9 @@ All verse masters, collection registries, localized collection names, chapter ic
 Canonical mutable content is being separated from application releases into one independently deployable media root:
 
 ```text
+media.ver
 catalog.json
+files.json
 book/<book-id>/manifest.json
 book/<book-id>/verses/...
 book/<book-id>/questions/...
@@ -35,7 +37,7 @@ deck/...
 docs/...
 ```
 
-The schema-3 root catalog owns the content version, maps stable book IDs to manifests with full SHA-256 hashes, and declares logical mounts for `book/`, `audio/`, `image/`, `video/`, `deck/`, and `docs/`. A mount contains a prefix, an HTTPS remote root, and one local-folder name. Resolution uses the longest matching prefix, so a book or media family can later move to another host without changing a catalog reference. Each book manifest owns its language-specific verse masters, reusable resources, experience associations, and a complete `{path, hash}` inventory covering text and binary files. Each experience also declares its subset of those files. Product branding, shell translations, experience definitions and renderer configuration remain in MyGita. Icons that describe scripture chapters belong to `image/`; neutral shell controls and product identity artwork remain in MyGita.
+Content-Kit 3 introduces a physical inventory per mount. `media.ver` cheaply identifies the current root catalog; `catalog.json` lists mount inventory parts with hashes; and each inventory declares every physical path’s MIME type, size, SHA-256, contract and lifecycle state. Paths remain readable global identities and references in existing CSV/JSON remain unchanged. Contracts—not directory-name inference—define whether a file is a single resource, keyed records or segmented media and declare its keys and field types. Language and experience membership likewise come from explicit manifest and registry relationships, never filenames or folders. Book manifests remain domain structure rather than physical ownership. Current mount prefixes are authoritative transitional runtime routing metadata, but do not express Content-Kit ownership; prefix routing and duplicate book-manifest hashes will be removed during the Tranche 2 runtime inventory cutover.
 
 `products/app.json` declares the bootstrap location of `catalog.json`. After that one read, every owned reference is a strict logical path. Paths cannot be absolute, contain backslashes, escape with dot segments, or use an undeclared namespace. The engine’s one resolver selects the mount and produces either a versioned remote URL or a file from the selected local mount. Local binaries receive managed object URLs that are revoked when the source is released. Owned absolute URLs and implicit legacy-path guessing are deliberately unsupported; external provider URLs are permitted only inside an explicit provider descriptor such as a Google Deck descriptor.
 
@@ -121,7 +123,7 @@ Gita Yoga’s composition deliberately contains all canonical SIDs even though i
 
 ## Validation
 
-The loader verifies required headers, unique/aligned SIDs, schema 3, catalog references, mounts, logical media paths, manifest hashes, and per-file hashes before producing normalized rows. Media publishing uses content-kit v2—the same centralized CSV/JSON contracts as playback—to recursively discover references and produce complete sorted inventories. `npm run publish -- <release>` writes manifests and the root catalog; `npm run validate` verifies files, hashes, contracts and an idempotent publish dry run. HTTP and file chooser loading share the same resolution rules.
+The loader verifies required headers, unique/aligned SIDs, catalog references, mounts, logical media paths, manifest hashes and per-file hashes before producing normalized rows. Content-Kit 3 additionally validates mount-inventory uniqueness, explicit contracts, declared field types, complete semantic-tree assignment and reference integrity. The current Media root validates 1,106 physical files across Bhagavad Gita, Ganesha Atharva and Purusha Sukta. Tranche 2 will make these inventories authoritative for runtime resolution and publishing. HTTP and file chooser loading continue to share the same resolution rules.
 
 ## Runtime source
 

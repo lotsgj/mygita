@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
-import { checkSave, contentTree, describe, insertItem, listProducts, openMedia, readItems, removeItem, updateItem } from '../../js/content-kit.js';
+import { buildReferenceGraph, checkFile, checkSave, contentTree, describe, insertItem, listProducts, openMedia, openMediaSnapshot, planMove, readItems, removeItem, updateItem } from '../../js/content-kit.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
 const mediaRoot = process.env.MYGITA_MEDIA_ROOT || path.resolve(repoRoot, '../media');
@@ -42,11 +42,86 @@ test('products list their books and normalized languages from the local workspac
 
 test('the media root opens every book with its declared languages', async () => {
   const media = await openMedia(readText);
+  assert.equal(media.inventoryParts.length, 1);
+  assert.ok(media.fileIndex.size > 1000);
   assert.deepEqual(media.books.map((book) => book.id), ['bhagavad-gita', 'ganesha-atharva', 'purusha-sukta']);
   for (const book of media.books) {
     assert.deepEqual(book.problems, []);
     assert.deepEqual([...book.languages].sort(), ['en', 'kn', 'sa']);
   }
+});
+
+test('a workspace requiring a newer kit is rejected before any content is activated', async () => {
+  const catalog = JSON.parse(await readText('catalog.json'));
+  catalog.minimum_kit_version = '3.99999999-999999';
+  await assert.rejects(openMediaSnapshot({ catalogText: JSON.stringify(catalog), texts: {} }), (error) => error.code === 'KIT_UPDATE_REQUIRED');
+  catalog.minimum_kit_version = '10.20261107-000000';
+  await assert.rejects(openMediaSnapshot({ catalogText: JSON.stringify(catalog), texts: {} }), (error) => error.code === 'KIT_UPDATE_REQUIRED');
+  catalog.minimum_kit_version = 'not-a-version';
+  await assert.rejects(openMediaSnapshot({ catalogText: JSON.stringify(catalog), texts: {} }), (error) => error.code === 'INVALID_KIT_VERSION');
+});
+
+test('the Content-Kit 3 tree separates collections and assigns every book file once', async () => {
+  const media = await openMedia(readText);
+  for (const book of media.books) {
+    const tree = await contentTree(media, book.id);
+    const semantic = tree.filter((node) => node.kind !== 'resources');
+    const paths = semantic.flatMap((node) => node.files.map((file) => file.path));
+    assert.equal(paths.length, new Set(paths).size, `${book.id} files have one semantic assignment`);
+    assert.equal(paths.length, book.manifest.files.length + 1, `${book.id} inventory includes its manifest`);
+    assert.equal(tree.find((node) => node.kind === 'other'), undefined, `${book.id} has no unclassified files`);
+  }
+  const gita = await contentTree(media, 'bhagavad-gita');
+  assert.ok(gita.some((node) => node.kind === 'questions' && node.id === 'gita-sara-contemplations' && node.title === 'Gita Sara Contemplations'));
+  assert.ok(gita.some((node) => node.kind === 'questions' && node.id === 'gita-sara-default-contemplation'));
+  assert.ok(gita.some((node) => node.kind === 'images' && node.id === 'gita-sara-illustrations'));
+  assert.ok(gita.some((node) => node.kind === 'images' && node.id === 'gita-sara-default-illustration'));
+  assert.ok(gita.find((node) => node.id === 'gita-chapter-icons').files.some((file) => file.path.endsWith('chapter-01.svg')));
+  assert.deepEqual(gita.find((node) => node.kind === 'experience' && node.id === 'gita-sara').uses, ['book/bhagavad-gita/experience/gita-700/images.csv']);
+  assert.equal(gita.find((node) => node.kind === 'verses').files.find((file) => file.path === 'book/bhagavad-gita/verses/master_en.csv').language, 'en');
+  assert.equal(gita.find((node) => node.kind === 'details').files.find((file) => file.path === 'book/bhagavad-gita/registry/verses/collection_kn.csv').language, 'kn');
+  assert.equal(gita.find((node) => node.kind === 'questions' && node.id === 'gita-sara-contemplations').files.find((file) => file.path.endsWith('/master_en.csv')).language, 'en');
+});
+
+test('field types come from contracts and committed single-line values contain no line breaks', async () => {
+  const { media, files } = await editableFiles();
+  const localized = describe().contracts['localized-master'];
+  assert.equal(localized.fields.transliteration.type, 'multiline');
+  assert.equal(localized.fields.meaning.type, 'multiline');
+  assert.equal(localized.fields.word_by_word_meaning.type, 'multiline');
+  assert.equal(describe().contracts['illustration-metadata'].fields.alt_text.type, 'multiline');
+  assert.equal(describe().contracts['illustration-metadata'].fields.alt, undefined);
+  for (const file of files.filter((entry) => entry.path.endsWith('.csv'))) {
+    const parsed = readItems(file, await readText(file.path));
+    for (const field of parsed.fields.filter((entry) => entry.type === 'text')) {
+      for (const item of parsed.items) assert.doesNotMatch(String(item.values[field.name] || ''), /[\r\n]/, `${file.path} ${item.key} ${field.name}`);
+    }
+    assert.deepEqual(checkFile(file, await readText(file.path)), []);
+  }
+  assert.ok([...media.fileIndex.values()].every((entry) => describe().contracts[entry.contract]));
+});
+
+test('typed validation reports bad number, millisecond, hash and path values', () => {
+  const file = { path: 'book/test/segments.csv', contract: 'media-segments' };
+  const text = 'segment#media_hash#start_ms#end_ms#slide_id#sid#cue_id\n0#bad#-1#x##1.1#\n';
+  const problems = checkFile(file, text);
+  assert.ok(problems.some((problem) => problem.field === 'segment'));
+  assert.ok(problems.some((problem) => problem.field === 'media_hash'));
+  assert.ok(problems.some((problem) => problem.field === 'start_ms'));
+  assert.ok(problems.some((problem) => problem.field === 'end_ms'));
+});
+
+test('the pure reference graph produces a grace-aware move plan for Media Admin', () => {
+  const graph = buildReferenceGraph([
+    { path: 'book/test/catalog.csv', text: 'sid#order#image_url\n1.1#1#image/test/shared.webp\n' },
+    { path: 'book/test/other.csv', text: 'sid#order#image_url\n1.2#1#image/test/shared.webp\n' },
+    { path: 'image/test/shared.webp', text: '' }
+  ]);
+  assert.equal(graph.related('image/test/shared.webp').length, 2);
+  const plan = planMove(graph, 'image/test/shared.webp', 'image/test/moved.webp', { retainUntil: '2026-12-07T00:00:00Z', retireAfterVersion: 'release-2' });
+  assert.equal(plan.writes.length, 2);
+  assert.equal(plan.physical[1].operation, 'retire');
+  assert.equal(plan.publishOrder.at(-1), 'media.ver');
 });
 
 test('the content tree offers every editable text file the manifests reference', async () => {
@@ -82,9 +157,10 @@ test('editing a field and restoring it gives byte-identical text for every edita
   }
 });
 
-test('content-kit v2 describes a data-driven API and edits JSON descriptors safely', async () => {
+test('Content-Kit 3 describes a data-driven API and edits JSON descriptors safely', async () => {
   const api = describe();
-  assert.equal(api.api, 2);
+  assert.equal(api.api, 3);
+  assert.match(api.version, /^3\.\d{8}-\d{6}$/);
   assert.ok(api.contracts['source-master']);
   assert.ok(api.contracts.deck);
   const { files } = await editableFiles();
@@ -161,5 +237,5 @@ test('line endings, byte order mark and blank lines survive an edit', () => {
   const edited = updateItem(file, text, '1.1:2', { text: 'Second' });
   assert.equal(edited, '﻿sid#order#text\r\n1.1#1#One\r\n\r\n1.1#2#Second\r\n');
   assert.equal(readItems(file, edited).items[1].label, '1.1 #2');
-  assert.throws(() => readItems({ path: 'book/test/audio/catalog.csv', contract: null }, text), /not editable/);
+  assert.throws(() => readItems({ path: 'book/test/audio/catalog.csv', contract: null }, text), /no declared Content-Kit contract/);
 });
