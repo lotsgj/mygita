@@ -1,0 +1,17 @@
+{
+  "configured_experience": {
+    "product_id": "bhagavad-gita",
+    "experience_id": "gita-yoga",
+    "bindings": {
+      "primary-audio": {
+        "content_type": "audio",
+        "part": "recording",
+        "variantPreferences": { "languages": [["sa", "kn", "en"], ["sa"], "none"], "mode": ["learn", "chant"], "voice": ["aj-padma-aj-vijay", "none"] },
+        "renditionPreferences": { "format": ["ogg", "mp3"] }
+      }
+    }
+  },
+  "rows": [
+    { "owner_key": "1.1", "order": 1, "binding_slot_id": "primary-audio", "book_id": "bhagavad-gita", "content_type": "audio", "collection_id": "chanting-aj-padma-aj-vijay-learn-mode", "item_key": "1.1:1" }
+  ]
+}

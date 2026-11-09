@@ -22,6 +22,15 @@ Human-facing design lives in docs/design/ (including sampada.md). This folder is
 - Fix without a feature: log as "S: fix".
 - Sampada status (To unfold → Done): only with the user's OK, updated in docs/design/sampada.md together with its Rachana docs.
 
+## Plan, test, commit, checkpoint (all agents)
+1. Plan first: a W-entry starts with numbered steps, each ending in a check that can be run ("Accept when: …").
+   Hand-off items from another agent go in the feature file's Open section with an id and a status (asked, accepted, done, rejected).
+2. Tests first: write or update the failing test for a step before implementing it. Never change a test only to make half-done code pass.
+3. Finish each step whole: tests green, generated bundles and the Media inventory rebuilt, then propose a commit
+   (rule 1 still applies), so the uncommitted diff is only ever the step in progress.
+4. Checkpoint after each step and before stopping: update the W-entry's row in now.md with done / in progress /
+   not started, the files the step in progress touched, and tests known to fail. This checkpoint needs no approval.
+
 ## Ids
 Work items: W-0001… (next id = last in log.md + 1). Features: S-<sampada number>. Decisions: ADR-001…
 Dates: YYYY-MM-DD, IST.

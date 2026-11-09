@@ -1,0 +1,20 @@
+{
+  "book_id": "bhagavad-gita",
+  "content_type": "audio",
+  "collection_id": "chanting-aj-padma-aj-vijay-learn-mode",
+  "parts": {
+    "recording": {
+      "default_variant_id": "padma-vijay-learn",
+      "expected_keys": ["1.1:1", "1.2:1"],
+      "variants": [
+        {
+          "collection_id": "chanting-aj-padma-aj-vijay-learn-mode", "variant_id": "padma-vijay-learn", "attributes": { "languages": ["sa", "kn", "en"], "voice": "aj-padma-aj-vijay", "mode": "learn" }, "content_url": "book/bhagavad-gita/audio/padma-vijay/catalog.csv",
+          "items": [
+            { "key": "1.1:1", "renditions": [{ "rendition_id": "ogg", "format": "ogg", "asset": "audio/bhagavad-gita/padma-vijay/1.1.ogg" }, { "rendition_id": "mp3", "format": "mp3", "asset": "audio/bhagavad-gita/padma-vijay/1.1.mp3" }] },
+            { "key": "1.2:1", "renditions": [{ "rendition_id": "ogg", "format": "ogg", "asset": "audio/bhagavad-gita/padma-vijay/1.2.ogg" }] }
+          ]
+        }
+      ]
+    }
+  }
+}

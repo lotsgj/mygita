@@ -69,7 +69,7 @@ test('the handbook exposes the approved product, experience, system, and future 
   const expected = {
     Product: ['purpose-and-principles', 'platform-and-product-model', 'experience-model', 'terminology'],
     Experiences: ['profiles-and-first-use', 'home-and-experience-selection', 'shared-player', 'gita-chant', 'gita-yoga', 'gita-700', 'gita-sara', 'local-content-editing', 'install-offline-and-updates'],
-    System: ['architecture-overview', 'collections-and-media', 'catalog-to-player', 'profiles-and-local-storage', 'events-analytics-and-resume', 'pwa-cache-and-updates', 'build-test-and-deployment'],
+    System: ['architecture-overview', 'collections-and-media', 'content-kit-4-variants', 'catalog-to-player', 'profiles-and-local-storage', 'events-analytics-and-resume', 'pwa-cache-and-updates', 'build-test-and-deployment'],
     'Future possibilities': ['sampada']
   };
   for (const [title, routes] of Object.entries(expected)) {
@@ -117,6 +117,7 @@ test('Sampada preserves both future possibilities and completed enhancements wit
   assert.match(markdown, /^### 12\. Gita Yoga foundation\n\n\*\*Status:\*\* Done/m);
   assert.match(markdown, /^### 13\. Gita Yoga cue-region playback\n\n\*\*Status:\*\* To unfold/m);
   assert.match(markdown, /^### 14\. Gita Sara expanded media\n\n\*\*Status:\*\* To unfold/m);
+  assert.match(markdown, /^### 23\. Multi-attribute content variants\n\n\*\*Status:\*\* To unfold/m);
   assert.equal(markdown.includes('Treasure Trove'), false);
 });
 

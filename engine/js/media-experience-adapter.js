@@ -56,11 +56,16 @@ export async function loadMediaBookExperience(experienceId, {
   const text = createMediaResourceReader({ mediaSource, productText });
   const resolveMediaUrl = createMediaUrlResolver({ mediaSource, resolveProductMediaUrl });
   const source = Object.freeze({ type: 'media-book', bookId, contentVersion: manifest.content_version });
+  const runtimeManifest = Object.freeze({
+    ...manifest,
+    verses: manifest.runtime_view?.verses,
+    registries: manifest.runtime_view?.registries
+  });
   const dataset = await loadCollectionExperienceWithReader(experienceId, {
     text,
     resolveMediaUrl,
     collectionId,
-    manifest,
+    manifest: runtimeManifest,
     tableCache,
     onCoreReady: typeof onCoreReady === 'function' ? async (coreDataset) => {
       coreDataset.contentSource = source;
@@ -73,7 +78,7 @@ export async function loadMediaBookExperience(experienceId, {
   if (configuredBooks.length > 1) {
     dataset.collections = await Promise.all(configuredBooks.map(async (id, order) => {
       const book = id === manifest.book_id ? manifest : (mediaSource.books?.get(id) || await mediaSource.loadBook(id));
-      const languages = [...new Set([...Object.keys(book.verses?.masters || {}), ...Object.keys(book.name || {})])];
+      const languages = [...new Set([...Object.keys(book.runtime_view?.verses?.masters || {}), ...Object.keys(book.name || {})])];
       const localized = Object.fromEntries(languages.map((language) => {
         const name = String(book.name?.[language] || book.name?.en || id);
         return [language, { name, shortName: name, description: '' }];

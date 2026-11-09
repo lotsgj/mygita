@@ -3,9 +3,9 @@
 'use strict';
 
 // Source: js/media-contract.js
-const MEDIA_NAMESPACES = Object.freeze(['book', 'audio', 'image', 'video', 'deck', 'docs']);
-const CURRENT_MEDIA_SCHEMA_VERSION = 3;
-const CURRENT_CONTENT_KIT_MAJOR = 3;
+const MEDIA_NAMESPACES = Object.freeze(['book', 'audio', 'image', 'video', 'deck', 'docs', 'registry']);
+const CURRENT_MEDIA_SCHEMA_VERSION = 4;
+const CURRENT_CONTENT_KIT_MAJOR = 4;
 
 const NAMESPACE_SET = new Set(MEDIA_NAMESPACES);
 
@@ -49,8 +49,7 @@ function validateLocalFolder(value) {
 function kitMajor(value) { return Number(String(value || '').split('.')[0]); }
 
 function normalizeMediaCatalog(catalog, { catalogRoot = '' } = {}) {
-  const legacySchema = Number(catalog?.schema_version) === CURRENT_MEDIA_SCHEMA_VERSION && !catalog?.content_kit_version;
-  if (!catalog || (!legacySchema && kitMajor(catalog.content_kit_version) !== CURRENT_CONTENT_KIT_MAJOR)) throw new Error(`Media catalog requires Content-Kit ${CURRENT_CONTENT_KIT_MAJOR}.`);
+  if (!catalog || kitMajor(catalog.content_kit_version) !== CURRENT_CONTENT_KIT_MAJOR) throw new Error(`Media catalog requires Content-Kit ${CURRENT_CONTENT_KIT_MAJOR}.`);
   if (!String(catalog.content_version || '').trim()) throw new Error('Media catalog requires content_version.');
   if (!Array.isArray(catalog.books) || !catalog.books.length) throw new Error('Media catalog requires at least one book.');
   const ids = new Set();
@@ -61,25 +60,29 @@ function normalizeMediaCatalog(catalog, { catalogRoot = '' } = {}) {
     safeMediaPath(book.manifest);
     if (!/^[a-f0-9]{64}$/.test(String(book.manifest_hash || ''))) throw new Error(`Media catalog book ${id} requires a SHA-256 manifest_hash.`);
   });
-  if (!Array.isArray(catalog.mounts) || !catalog.mounts.length) throw new Error('Schema 3 media catalog requires mounts.');
+  if (!Array.isArray(catalog.mounts) || !catalog.mounts.length) throw new Error('Content-Kit 4 media catalog requires mounts.');
   const prefixes = new Set(); const mountIds = new Set();
   const mounts = catalog.mounts.map((mount, index) => {
     const mountId = String(mount?.mount_id || `legacy-${index + 1}`).trim();
     if (!mountId || mountIds.has(mountId)) throw new Error(`Duplicate or missing media mount id: ${mountId || '(empty)'}.`);
     mountIds.add(mountId);
     const declared = Array.isArray(mount?.prefixes) ? mount.prefixes : [mount?.prefix].filter(Boolean);
-    if (!declared.length) throw new Error(`Media mount ${mountId} requires transitional prefixes until the runtime inventory cutover.`);
     const normalizedPrefixes = declared.map(validatePrefix);
     for (const prefix of normalizedPrefixes) { if (prefixes.has(prefix)) throw new Error(`Duplicate media mount prefix: ${prefix}.`); prefixes.add(prefix); }
-    const inventories = Array.isArray(mount?.inventories) ? mount.inventories.map((entry) => ({ id: String(entry?.id || '').trim(), path: String(entry?.path || '').trim(), hash: String(entry?.hash || '').trim() })) : [];
+    const inventories = Array.isArray(mount?.inventories) ? mount.inventories.map((entry) => {
+      const path = String(entry?.path || '').trim();
+      if (!/^[^/\\][^\\]*\.json$/.test(path) || path.split('/').some((part) => !part || part === '.' || part === '..')) throw new Error(`Media mount ${mountId} has an invalid inventory path.`);
+      return { id: String(entry?.id || '').trim(), path, hash: String(entry?.hash || '').trim() };
+    }) : [];
+    if (!inventories.length || inventories.some((entry) => !entry.id || !/^[a-f0-9]{64}$/.test(entry.hash))) throw new Error(`Media mount ${mountId} requires hashed inventories.`);
     return { ...mount, mount_id: mountId, prefixes: Object.freeze(normalizedPrefixes), inventories: Object.freeze(inventories), remote: normalizedRemoteRoot(mount?.remote, `Media mount ${mountId}`), local: validateLocalFolder(mount?.local) };
   });
-  return Object.freeze({ ...catalog, mounts: Object.freeze(mounts.sort((left, right) => Math.max(...right.prefixes.map((value) => value.length)) - Math.max(...left.prefixes.map((value) => value.length)))) });
+  return Object.freeze({ ...catalog, mounts: Object.freeze(mounts.sort((left, right) => Math.max(0, ...right.prefixes.map((value) => value.length)) - Math.max(0, ...left.prefixes.map((value) => value.length)))) });
 }
 
 function selectMediaMount(catalog, logicalPath) {
   const path = safeMediaPath(logicalPath);
-  const mount = catalog?.mounts?.find((candidate) => candidate.prefixes.some((prefix) => path.startsWith(prefix)));
+  const mount = catalog?.mounts?.find((candidate) => candidate.prefixes.some((prefix) => path.startsWith(prefix))) || (catalog?.mounts?.length === 1 ? catalog.mounts[0] : null);
   if (!mount) throw new Error(`No media mount resolves ${path}.`);
   return mount;
 }
@@ -98,8 +101,7 @@ function mediaCacheKey(logicalPath, fileHash) {
 }
 
 function validateBookManifest(manifest, expectedBookId = '') {
-  const legacySchema = Number(manifest?.schema_version) === CURRENT_MEDIA_SCHEMA_VERSION && !manifest?.content_kit_version;
-  if (!manifest || (!legacySchema && kitMajor(manifest.content_kit_version) !== CURRENT_CONTENT_KIT_MAJOR)) throw new Error(`Book manifest requires Content-Kit ${CURRENT_CONTENT_KIT_MAJOR}.`);
+  if (!manifest || kitMajor(manifest.content_kit_version) !== CURRENT_CONTENT_KIT_MAJOR) throw new Error(`Book manifest requires Content-Kit ${CURRENT_CONTENT_KIT_MAJOR}.`);
   const id = String(manifest.book_id || '').trim();
   if (!id) throw new Error('Book manifest requires book_id.');
   if (expectedBookId && id !== expectedBookId) throw new Error(`Book manifest ${id} does not match catalog book_id ${expectedBookId}.`);
@@ -118,11 +120,20 @@ function validateBookManifest(manifest, expectedBookId = '') {
     if (declared.size && !declared.has(path)) throw new Error(`Book manifest ${id} does not declare ${label}: ${path}.`);
     return path;
   };
-  requireDeclared(manifest.verses?.catalog, 'verse catalog');
-  const masters = manifest.verses?.masters || {};
+  if (!Array.isArray(manifest.collections) || !manifest.collections.length) throw new Error(`Book manifest ${id} requires Content-Kit 4 collections.`);
+  for (const collection of manifest.collections) {
+    if (!collection?.content_type || !collection?.registry || !collection?.defaults) throw new Error(`Book manifest ${id} has an incomplete collection declaration.`);
+    requireDeclared(collection.registry, `${collection.content_type} collection registry`);
+    requireDeclared(collection.defaults, `${collection.content_type} defaults registry`);
+    for (const [collectionId, path] of Object.entries(collection.indexes || {})) requireDeclared(path, `${collection.content_type}/${collectionId} item index`);
+    for (const [part, declaration] of Object.entries(collection.parts || {})) requireDeclared(declaration.variants, `${collection.content_type}/${part} variants`);
+  }
+  const runtime = manifest.runtime_view || {};
+  requireDeclared(runtime.verses?.catalog, 'runtime verse catalog');
+  const masters = runtime.verses?.masters || {};
   if (!Object.keys(masters).length) throw new Error(`Book manifest ${id} requires verse masters.`);
   for (const [language, path] of Object.entries(masters)) requireDeclared(path, `${language} verse master`);
-  const registries = manifest.registries || {};
+  const registries = runtime.registries || {};
   requireDeclared(registries.verses?.structural, 'verse registry');
   for (const [language, path] of Object.entries(registries.verses?.localized || {})) requireDeclared(path, `${language} verse metadata`);
   requireDeclared(registries.audio, 'audio registry');
@@ -234,9 +245,9 @@ function languageLabel(model, language) {
   return entry?.nativeName || entry?.name || language;
 }
 
-// Source: js/content-kit-version.js
-// Stamped once when a Content-Kit contract release is approved. Builds do not alter it.
-const CONTENT_KIT_VERSION = '3.20261107-051550';
+// Source: js/content-kit-v4-version.js
+// Human-approved major; generated minor identifies this reviewed contract revision.
+const CONTENT_KIT_V4_VERSION = '4.20261109-085011';
 
 // Source: js/player/collection-contracts.js
 const VERSE_CATALOG_HEADERS = Object.freeze(['language', 'content_type', 'content_url']);
@@ -1272,25 +1283,37 @@ async function readCollectionTextFromDirectory(rootHandle, url) {
 }
 
 // Source: js/content-kit.js
-// Content-Kit 3: pure content contracts and transaction planning. Callers own all I/O.
+// Content-Kit 4: shared file contracts and transaction planning. Callers own all I/O.
 
 
 
 
 
-const KIT_API = 3;
-const KIT_VERSION = CONTENT_KIT_VERSION;
+const KIT_API = 4;
+const KIT_VERSION = CONTENT_KIT_V4_VERSION;
 // The browser bundle replaces this marker with a reproducible hash of its canonical sources.
-const KIT_BUILD = 'e64262e17a70';
+const KIT_BUILD = '2aaf0fa647e9';
 const VERSE_LOCKED = Object.freeze(['cid', 'snum', 'sid', 'chapter_name']);
 const MEDIA_EXTENSIONS = Object.freeze({ mp3: 'audio', m4a: 'audio', ogg: 'audio', opus: 'audio', wav: 'audio', png: 'image', jpg: 'image', jpeg: 'image', webp: 'image', gif: 'image', svg: 'image', mp4: 'video', webm: 'video', pdf: 'asset' });
 const inferredFieldType = (name) => name === 'json' ? 'json' : name === 'order' || name === 'position' || name.endsWith('_order') ? 'number' : name.endsWith('_ms') ? 'ms' : name === 'path' || name.endsWith('_url') ? 'media-path' : 'text';
 const field = (type, options = {}) => Object.freeze({ type, required: options.required === true, ...options });
 const fieldsFor = (headers, declarations = {}, required = []) => Object.fromEntries(headers.map((name) => [name, declarations[name] || field(inferredFieldType(name), { required: required.includes(name) })]));
-const csv = (id, role, headers, key, locked = key, extra = {}) => Object.freeze({ id, format: 'csv', role, contentModel: 'records', entityType: extra.entityType || role, headers: headers ? Object.freeze([...headers]) : undefined, headerRule: extra.headerRule, key: Object.freeze([...key]), locked: Object.freeze([...locked]), fields: headers ? Object.freeze(fieldsFor(headers, extra.fields, key)) : Object.freeze(extra.fields || {}), fieldPatterns: Object.freeze(extra.fieldPatterns || []), views: Object.freeze(extra.views || []), references: Object.freeze(extra.references || []), editable: extra.editable !== false, generated: false });
+const csv = (id, role, headers, key, locked = key, extra = {}) => Object.freeze({ id, format: 'csv', role, contentModel: 'records', entityType: extra.entityType || role, headers: headers ? Object.freeze([...headers]) : undefined, headerRule: extra.headerRule, key: Object.freeze([...key]), locked: Object.freeze([...locked]), fields: headers ? Object.freeze(fieldsFor(headers, extra.fields, key)) : Object.freeze(extra.fields || {}), fieldPatterns: Object.freeze(extra.fieldPatterns || []), views: Object.freeze(extra.views || []), references: Object.freeze(extra.references || []), editable: extra.editable !== false, generated: extra.generated === true });
 const json = (id, role, { editable = true, generated = false, references = [], contentModel = 'single', entityType = role } = {}) => Object.freeze({ id, format: 'json', role, contentModel, entityType, key: Object.freeze(['path']), locked: Object.freeze([]), fields: Object.freeze({ json: Object.freeze({ type: 'json' }) }), views: Object.freeze([]), references: Object.freeze(references), editable, generated });
 
 const CONTRACTS = Object.freeze({
+  'ck4-collection-registry': csv('ck4-collection-registry', 'registry', ['collection_id', 'contributors', 'license', 'source'], ['collection_id']),
+  'ck4-defaults-registry': csv('ck4-defaults-registry', 'registry', ['collection_id', 'part', 'default_variant_id'], ['collection_id', 'part']),
+  'ck4-variant-registry': csv('ck4-variant-registry', 'registry', null, ['collection_id', 'variant_id'], ['collection_id', 'variant_id']),
+  'ck4-collection-metadata': csv('ck4-collection-metadata', 'metadata', ['collection_id', 'title', 'short_name', 'description', 'attribution'], ['collection_id']),
+  'ck4-contributors-registry': csv('ck4-contributors-registry', 'registry', ['contributor_id', 'name', 'roles'], ['contributor_id']),
+  'ck4-cue-purposes-registry': csv('ck4-cue-purposes-registry', 'registry', ['cue_id', 'language', 'purpose', 'description'], ['cue_id', 'language']),
+  'runtime-verse-registry': csv('runtime-verse-registry', 'runtime', STRUCTURAL_VERSE_REGISTRY_HEADERS, ['collection_id'], undefined, { fields: { path: field('text') }, editable: false, generated: true }),
+  'runtime-verse-details': csv('runtime-verse-details', 'runtime', VERSE_LOCALIZED_REGISTRY_HEADERS, ['collection_id'], undefined, { editable: false, generated: true }),
+  'runtime-audio-registry': csv('runtime-audio-registry', 'runtime', AUDIO_REGISTRY_HEADERS, ['collection_id'], undefined, { editable: false, generated: true }),
+  'runtime-image-registry': csv('runtime-image-registry', 'runtime', null, ['collection_id'], ['collection_id'], { headerRule: 'localized-images', editable: false, generated: true }),
+  'runtime-text-registry': csv('runtime-text-registry', 'runtime', null, ['collection_id'], ['collection_id'], { headerRule: 'localized-text', editable: false, generated: true }),
+  'runtime-deck-registry': csv('runtime-deck-registry', 'runtime', DECK_REGISTRY_HEADERS, ['collection_id'], undefined, { editable: false, generated: true }),
   'source-master': csv('source-master', 'master', SOURCE_MASTER_HEADERS, ['sid'], VERSE_LOCKED, { entityType: 'verse', views: ['chapters'], fields: { shloka_raw: field('multiline'), shloka: field('multiline'), word_by_word: field('multiline') } }),
   'localized-master': csv('localized-master', 'master', LOCALIZED_MASTER_HEADERS, ['sid'], VERSE_LOCKED, { entityType: 'verse', views: ['chapters'], fields: { transliteration: field('multiline'), meaning: field('multiline'), word_by_word_meaning: field('multiline') } }),
   'verse-details': csv('verse-details', 'details', VERSE_LOCALIZED_REGISTRY_HEADERS, ['collection_id']),
@@ -1359,51 +1382,127 @@ async function openMedia(readText) {
     }
     inventoryParts.push(Object.freeze({ ...part, mountId: mount.mount_id, value: inventory }));
   }
-  const books = await Promise.all(catalog.books.map(async (entry) => { try { const manifest = validateBookManifest(JSON.parse(await readText(entry.manifest)), entry.book_id); return Object.freeze({ id: entry.book_id, manifestPath: entry.manifest, manifest, name: manifest.name || {}, languages: Object.freeze(Object.keys(manifest.verses.masters)), problems: Object.freeze([]) }); } catch (error) { return Object.freeze({ id: entry.book_id, manifestPath: entry.manifest, manifest: null, name: {}, languages: Object.freeze([]), problems: Object.freeze([{ path: entry.manifest, message: error.message }]) }); } }));
-  return Object.freeze({ catalog, catalogFile: Object.freeze({ path: 'catalog.json', contract: 'media-catalog', language: null, role: 'media-catalog' }), books: Object.freeze(books), fileIndex, inventoryParts: Object.freeze(inventoryParts), readText });
+  const globalRegistries = {};
+  for (const [name, path] of Object.entries(catalog.registries || {})) {
+    const file = fileIndex.get(path);
+    if (!file) throw kitError(`Global registry ${name} is not inventoried: ${path}.`, { path });
+    const contract = contractFor(file);
+    globalRegistries[name] = Object.freeze({ path, file, rows: Object.freeze(parseCollectionTable(await readText(path), expectedHeaders(contract), path).rows.map(Object.freeze)) });
+  }
+  const books = await Promise.all(catalog.books.map(async (entry) => { try { const manifest = validateBookManifest(JSON.parse(await readText(entry.manifest)), entry.book_id); return Object.freeze({ id: entry.book_id, manifestPath: entry.manifest, manifest, name: manifest.name || {}, languages: Object.freeze(Object.keys(manifest.runtime_view?.verses?.masters || {})), problems: Object.freeze([]) }); } catch (error) { return Object.freeze({ id: entry.book_id, manifestPath: entry.manifest, manifest: null, name: {}, languages: Object.freeze([]), problems: Object.freeze([{ path: entry.manifest, message: error.message }]) }); } }));
+  return Object.freeze({ catalog, catalogFile: Object.freeze({ path: 'catalog.json', contract: 'media-catalog', language: null, role: 'media-catalog' }), books: Object.freeze(books), fileIndex, inventoryParts: Object.freeze(inventoryParts), registries: Object.freeze(globalRegistries), readText });
 }
 function openMediaSnapshot(snapshot) {
   const values = snapshot?.texts instanceof Map ? snapshot.texts : new Map(Object.entries(snapshot?.texts || {}));
   if (snapshot?.catalogText != null) values.set('catalog.json', String(snapshot.catalogText));
   return openMedia(async (path) => { if (!values.has(path)) throw kitError(`Snapshot does not contain ${path}.`, { path }); return values.get(path); });
 }
+
+function encodeItemKey(...components) {
+  const values = components.flat().map((value) => String(value ?? ''));
+  if (!values.length || values.some((value) => !value || value.includes(':'))) throw kitError('Item-key components must be non-empty and cannot contain a colon.');
+  return values.join(':');
+}
+
+function parsedAttribute(name, value) {
+  if (name === 'languages' || name === 'subtitles') return ['none', 'any'].includes(value) ? value : String(value).split(',').map((item) => item.trim()).filter(Boolean);
+  return value;
+}
+
+function collectionFile(media, path, language = null) {
+  const entry = media.fileIndex.get(path);
+  if (!entry) throw kitError(`Mount inventories do not declare ${path}.`, { path });
+  const contract = contractFor(entry);
+  return Object.freeze({ path, contract: entry.contract, language, role: contract.role, editable: contract.editable && !path.includes('/runtime/'), generated: contract.generated || path.includes('/runtime/'), hash: entry.hash, size: entry.size, mimeType: entry.mime_type, mountId: entry.mountId });
+}
+
+function renditionFor(media, values, order = 1) {
+  const asset = Object.entries(values).find(([field, value]) => field.endsWith('_url') && isLogicalMediaPath(value))?.[1];
+  if (!asset) return [];
+  const file = media.fileIndex.get(asset);
+  if (!file) return [];
+  const mime = String(file.mime_type || '').split(';')[0].toLowerCase();
+  const format = Object.freeze({
+    'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/ogg': 'ogg', 'audio/opus': 'opus',
+    'image/svg+xml': 'svg', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+    'video/mp4': 'mp4', 'video/webm': 'webm', 'application/json': 'json'
+  })[mime] || mime.split('/')[1] || 'asset';
+  return [Object.freeze({ rendition_id: `rendition-${order}`, order, format, mime_type: file.mime_type, asset, hash: file.hash })];
+}
+
+async function collections(media, bookId) {
+  const book = media?.books?.find((entry) => entry.id === bookId);
+  if (!book?.manifest) throw kitError(book?.problems?.[0]?.message || `Unknown book ${bookId}.`, { path: book?.manifestPath });
+  const result = [];
+  const contributorIds = new Set((media.registries.contributors?.rows || []).map((row) => row.contributor_id));
+  for (const declaration of book.manifest.collections || []) {
+    const registryFile = collectionFile(media, declaration.registry);
+    const defaultsFile = collectionFile(media, declaration.defaults);
+    const registry = parseCollectionTable(await media.readText(declaration.registry), expectedHeaders(contractFor(registryFile)), declaration.registry);
+    const defaults = parseCollectionTable(await media.readText(declaration.defaults), expectedHeaders(contractFor(defaultsFile)), declaration.defaults);
+    const partTables = new Map();
+    for (const [partId, partDeclaration] of Object.entries(declaration.parts || {})) {
+      const file = collectionFile(media, partDeclaration.variants);
+      partTables.set(partId, { file, table: parseCollectionTable(await media.readText(partDeclaration.variants), expectedHeaders(contractFor(file)), partDeclaration.variants) });
+    }
+    for (const row of registry.rows) {
+      const problems = []; const parts = {}; const registryFiles = { collection: registryFile, defaults: defaultsFile, variants: {} };
+      const contributors = String(row.contributors || '').split(',').map((value) => value.trim()).filter(Boolean);
+      for (const contributor of contributors) if (!contributorIds.has(contributor)) problems.push(Object.freeze({ field: 'contributors', message: `Unknown contributor ${contributor}.` }));
+      for (const [partId, value] of partTables) {
+        registryFiles.variants[partId] = value.file;
+        const variants = [];
+        for (const variantRow of value.table.rows.filter((candidate) => candidate.collection_id === row.collection_id)) {
+          try {
+            const contentFile = collectionFile(media, variantRow.content_url, Array.isArray(parsedAttribute('languages', variantRow.languages)) && parsedAttribute('languages', variantRow.languages).length === 1 ? parsedAttribute('languages', variantRow.languages)[0] : null);
+            const parsed = readItems(contentFile, await media.readText(contentFile.path));
+            const attributes = Object.fromEntries(Object.entries(variantRow).filter(([name]) => !['collection_id', 'variant_id', 'content_url'].includes(name)).map(([name, item]) => [name, parsedAttribute(name, item)]));
+            if (attributes.voice && attributes.voice !== 'none' && !contributorIds.has(attributes.voice)) problems.push(Object.freeze({ part: partId, variant_id: variantRow.variant_id, field: 'voice', message: `Unknown contributor ${attributes.voice}.` }));
+            const items = parsed.items.map((item, index) => Object.freeze({ key: item.key, values: Object.freeze({ ...item.values }), renditions: Object.freeze(renditionFor(media, item.values, index + 1)) }));
+            variants.push(Object.freeze({ collection_id: row.collection_id, variant_id: variantRow.variant_id, attributes: Object.freeze(attributes), content_url: variantRow.content_url, file: contentFile, items: Object.freeze(items) }));
+          } catch (error) { problems.push(Object.freeze({ part: partId, variant_id: variantRow.variant_id, message: error.message })); }
+        }
+        const defaultVariantId = defaults.rows.find((item) => item.collection_id === row.collection_id && item.part === partId)?.default_variant_id || '';
+        const baseline = variants.find((variant) => variant.variant_id === defaultVariantId) || variants[0];
+        parts[partId] = Object.freeze({ default_variant_id: defaultVariantId, expected_keys: Object.freeze((baseline?.items || []).map((item) => item.key)), variants: Object.freeze(variants) });
+      }
+      const itemIndex = declaration.indexes?.[row.collection_id] ? collectionFile(media, declaration.indexes[row.collection_id]) : null;
+      result.push(Object.freeze({ book_id: bookId, content_type: declaration.content_type, collection_id: row.collection_id, contributors: Object.freeze(contributors), license: row.license || '', source: row.source || '', parts: Object.freeze(parts), item_index: itemIndex, registry_files: Object.freeze({ ...registryFiles, variants: Object.freeze(registryFiles.variants) }), problems: Object.freeze(problems) }));
+    }
+  }
+  return Object.freeze(result);
+}
 async function contentTree(media, bookId) {
   const book = media?.books?.find((entry) => entry.id === bookId); if (!book?.manifest) throw kitError(book?.problems?.[0]?.message || `Unknown book ${bookId}.`, { path: book?.manifestPath });
   const listed = new Set([book.manifestPath, ...manifestPaths(book.manifest)]); const claimed = new Map(); const nodes = [];
   const languageByPath = new Map([
-    ...Object.entries(book.manifest.verses.masters || {}).map(([language, path]) => [path, language]),
-    ...Object.entries(book.manifest.registries?.verses?.localized || {}).map(([language, path]) => [path, language])
+    ...Object.entries(book.manifest.runtime_view?.verses?.masters || {}).map(([language, path]) => [path, language]),
+    ...Object.entries(book.manifest.runtime_view?.registries?.verses?.localized || {}).map(([language, path]) => [path, language])
   ]);
-  const descriptor = (path) => { const entry = media.fileIndex.get(path); if (!entry) throw kitError(`Mount inventories do not declare ${path}.`, { path }); const contract = CONTRACTS[entry.contract]; return Object.freeze({ path, contract: entry.contract, language: languageByPath.get(path) || null, role: contract.role, editable: contract.editable, views: contract.views, mountId: entry.mountId, hash: entry.hash, size: entry.size, mimeType: entry.mime_type }); };
+  const descriptor = (path) => { const entry = media.fileIndex.get(path); if (!entry) throw kitError(`Mount inventories do not declare ${path}.`, { path }); const contract = CONTRACTS[entry.contract]; const generated = contract.generated || path.includes('/runtime/'); return Object.freeze({ path, contract: entry.contract, language: languageByPath.get(path) || null, role: contract.role, editable: contract.editable && !generated, generated, views: contract.views, mountId: entry.mountId, hash: entry.hash, size: entry.size, mimeType: entry.mime_type }); };
   const claim = (path, owner) => { if (!listed.has(path)) return null; const previous = claimed.get(path); if (previous) return { used: true, owner: previous, file: descriptor(path) }; claimed.set(path, owner); return { used: false, owner, file: descriptor(path) }; };
   const addNode = (kind, id, title, paths, { registry = null, uses = [] } = {}) => { const owned = []; const referenced = [...uses]; for (const path of [...new Set(paths.filter(Boolean))]) { const result = claim(path, `${kind}:${id}`); if (!result) continue; if (result.used) referenced.push(path); else owned.push(result.file); } nodes.push(Object.freeze({ kind, id, collectionId: id, title: String(title || id), editable: owned.some((file) => file.editable) ? 'text' : 'none', files: Object.freeze(owned), uses: Object.freeze([...new Set(referenced)]), registry: registry ? Object.freeze(registry) : undefined })); };
-  addNode('verses', bookId, book.name?.en || bookId, [book.manifest.verses.catalog, ...Object.values(book.manifest.verses.masters || {})]);
-  addNode('details', bookId, book.name?.en || bookId, Object.values(book.manifest.registries?.verses?.localized || {}));
-  const registries = [
-    ['questions', book.manifest.registries?.text], ['images', book.manifest.registries?.images], ['audio', book.manifest.registries?.audio], ['deck', book.manifest.registries?.deck]
-  ].filter(([, path]) => path);
-  for (const [kind, registryPath] of registries) {
-    const registryFile = descriptor(registryPath); const registryContract = CONTRACTS[registryFile.contract]; const table = parseCollectionTable(await media.readText(registryPath), expectedHeaders(registryContract), registryPath);
-    for (const row of table.rows) {
-      const directEntries = Object.entries(row).filter(([field, value]) => value && (field.endsWith('_url') || field === 'catalog_url'));
-      for (const [field, path] of directEntries) {
-        const localized = field.match(/^(?:metadata|master)_(?<language>[a-z0-9-]+)_url$/);
-        if (localized && isLogicalMediaPath(path)) languageByPath.set(path, localized.groups.language);
-      }
-      const direct = directEntries.map(([, value]) => value).filter(isLogicalMediaPath);
-      const paths = [...direct];
-      for (const path of direct) {
-        if (!/\.(?:csv|json)$/i.test(path)) continue;
-        let text; try { text = await media.readText(path); } catch { continue; }
-        for (const reference of logicalReferences(text)) if (listed.has(reference)) paths.push(reference);
-      }
-      addNode(kind, row.collection_id, row.title || row.collection_id, paths, { registry: { path: registryPath, key: row.collection_id } });
+  for (const collection of await collections(media, bookId)) {
+    const paths = [collection.registry_files.collection.path, collection.registry_files.defaults.path, collection.item_index?.path, ...Object.values(collection.registry_files.variants).map((file) => file.path)];
+    for (const part of Object.values(collection.parts)) for (const variant of part.variants) {
+      paths.push(variant.content_url);
+      if (Array.isArray(variant.attributes.languages) && variant.attributes.languages.length === 1) languageByPath.set(variant.content_url, variant.attributes.languages[0]);
+      for (const item of variant.items) for (const rendition of item.renditions || []) paths.push(rendition.asset);
     }
+    const metadata = collection.parts['collection-metadata']?.variants.flatMap((variant) => variant.items).find((item) => item.values.title)?.values;
+    addNode('collection', `${collection.content_type}:${collection.collection_id}`, metadata?.title || collection.collection_id, paths, { registry: { path: collection.registry_files.collection.path, key: collection.collection_id } });
   }
+  const runtimePaths = [
+    book.manifest.runtime_view?.verses?.catalog,
+    ...Object.values(book.manifest.runtime_view?.verses?.masters || {}),
+    book.manifest.runtime_view?.registries?.verses?.structural,
+    ...Object.values(book.manifest.runtime_view?.registries?.verses?.localized || {}),
+    ...['audio', 'images', 'deck', 'text'].map((name) => book.manifest.runtime_view?.registries?.[name]).filter(Boolean)
+  ];
+  addNode('runtime', bookId, 'Generated runtime view', runtimePaths);
   for (const experience of book.manifest.experiences || []) {
     addNode('experience', experience.id, experience.id, experience.files || []);
   }
-  addNode('registry', 'registry', 'registry', [book.manifest.registries?.verses?.structural, ...registries.map(([, path]) => path)]);
   addNode('manifest', 'manifest', 'manifest', [book.manifestPath]);
   const remaining = [...listed].filter((path) => !claimed.has(path)); if (remaining.length) addNode('other', 'other', 'other', remaining);
   const resources = [...listed].filter((path) => media.fileIndex.has(path)).map(descriptor);
@@ -1536,7 +1635,9 @@ async function related(media, file, key, { workspace = null } = {}) {
   return Object.freeze({ file: file.path, key, references: Object.freeze(references), referencedBy: Object.freeze(referencedBy), workspace: Boolean(workspace) });
 }
 async function checkSave(media, file, newText, { readText = media?.readText, exists = null, workspace = null } = {}) {
-  const blocking = [...checkFile(file, newText)]; const pending = [];
+  const blocking = []; const pending = [];
+  if (file?.generated || String(file?.path || '').includes('/runtime/')) blocking.push({ path: file.path, message: 'Generated runtime files cannot be edited directly; edit their canonical Content-Kit source.' });
+  blocking.push(...checkFile(file, newText));
   if (blocking.length || typeof readText !== 'function') return Object.freeze({ blocking: Object.freeze(blocking), pending: Object.freeze(pending), workspace: Boolean(workspace), readText: Boolean(readText) });
   const originalText = await readText(file.path);
   const texts = await mediaTextIndex({ ...media, readText }, { path: file.path, text: newText });
@@ -1615,12 +1716,47 @@ function experienceMembership(manifest, paths, workspace) {
   }
   return [...existing].map(([id, files]) => ({ id, files: files.sort() })).sort((a, b) => a.id.localeCompare(b.id));
 }
+function csvText(headers, rows) { return `${headers.join('#')}\n${rows.map((row) => headers.map((header) => encode(row[header] ?? '')).join('#')).join('\n')}${rows.length ? '\n' : ''}`; }
+function languageValue(value) { return Array.isArray(value) ? value.join('-') : value === 'none' ? '' : String(value || ''); }
+function defaultVariant(collection, part) { const value = collection.parts[part]; return value?.variants.find((variant) => variant.variant_id === value.default_variant_id) || value?.variants[0]; }
+function localizedVariant(collection, part, language) { return collection.parts[part]?.variants.find((variant) => Array.isArray(variant.attributes.languages) && variant.attributes.languages.includes(language)); }
+function metadataValues(collection, language = 'en') { return localizedVariant(collection, 'collection-metadata', language)?.items[0]?.values || collection.parts['collection-metadata']?.variants[0]?.items[0]?.values || {}; }
+async function runtimeProjection(media, book) {
+  const output = new Map(); const runtime = book.manifest.runtime_view || {}; const models = await collections(media, book.id);
+  const byType = (type) => models.filter((collection) => collection.content_type === type);
+  const verse = byType('verse')[0];
+  if (verse && runtime.registries?.verses) {
+    output.set(runtime.registries.verses.structural, csvText(STRUCTURAL_VERSE_REGISTRY_HEADERS, [{ collection_id: verse.collection_id, order: '1', enabled: 'true', path: verse.collection_id, catalog_url: runtime.verses.catalog }]));
+    for (const [language, target] of Object.entries(runtime.registries.verses.localized || {})) {
+      const source = localizedVariant(verse, 'collection-metadata', language)?.content_url;
+      if (source) output.set(target, await media.readText(source));
+    }
+  }
+  const contributorNames = new Map((media.registries.contributors?.rows || []).map((row) => [row.contributor_id, row.name]));
+  if (runtime.registries?.audio) output.set(runtime.registries.audio, csvText(AUDIO_REGISTRY_HEADERS, byType('audio').map((collection) => {
+    const variant = defaultVariant(collection, 'recording'); const meta = metadataValues(collection); const contributor = collection.contributors[0] || variant?.attributes.voice || '';
+    return { collection_id: collection.collection_id, title: meta.title || collection.collection_id, contributor: contributorNames.get(contributor) || contributor, language: languageValue(variant?.attributes.languages), catalog_url: variant?.content_url || '', cue_purpose_url: '', cue_url: '', attribution: meta.attribution || '', license: collection.license, source: collection.source };
+  })));
+  if (runtime.registries?.images) output.set(runtime.registries.images, csvText(['collection_id', 'title', 'catalog_url', 'metadata_en_url', 'metadata_kn_url', 'attribution', 'license', 'source'], byType('image').map((collection) => {
+    const meta = metadataValues(collection); return { collection_id: collection.collection_id, title: meta.title || collection.collection_id, catalog_url: defaultVariant(collection, 'image')?.content_url || '', metadata_en_url: localizedVariant(collection, 'metadata', 'en')?.content_url || '', metadata_kn_url: localizedVariant(collection, 'metadata', 'kn')?.content_url || '', attribution: meta.attribution || '', license: collection.license, source: collection.source };
+  })));
+  if (runtime.registries?.text) {
+    output.set(runtime.registries.text, csvText(['collection_id', 'title', 'catalog_url', 'master_en_url', 'master_kn_url', 'attribution', 'license', 'source'], byType('question').map((collection) => {
+      const meta = metadataValues(collection); return { collection_id: collection.collection_id, title: meta.title || collection.collection_id, catalog_url: collection.item_index?.path || '', master_en_url: localizedVariant(collection, 'text', 'en')?.content_url || '', master_kn_url: localizedVariant(collection, 'text', 'kn')?.content_url || '', attribution: meta.attribution || '', license: collection.license, source: collection.source };
+    })));
+  }
+  if (runtime.registries?.deck) output.set(runtime.registries.deck, csvText(DECK_REGISTRY_HEADERS, byType('deck').map((collection) => {
+    const meta = metadataValues(collection); return { collection_id: collection.collection_id, title: meta.title || collection.collection_id, provider: 'Google', language: languageValue(defaultVariant(collection, 'presentation')?.attributes.languages), catalog_url: defaultVariant(collection, 'presentation')?.content_url || '', attribution: meta.attribution || '', license: collection.license, source: collection.source };
+  })));
+  return output;
+}
 async function publish(media, { readText, hashOf, workspace = null, releaseLabel = '', updatedAt = new Date().toISOString() } = {}) {
   if (typeof readText !== 'function' || typeof hashOf !== 'function') throw kitError('publish requires readText and hashOf functions.'); const writes = []; const changed = []; const blocking = []; const pending = []; const catalog = structuredClone(media.catalog);
   for (const book of media.books) {
     if (!book.manifest) { blocking.push(...book.problems); continue; }
-    const manifest = structuredClone(book.manifest); const paths = await completeBookInventory(manifest, readText); const entries = [];
-    for (const path of paths) { let hash; try { hash = String(await hashOf(path)).toLowerCase(); } catch (error) { blocking.push({ path, message: error.message }); continue; } if (!/^[a-f0-9]{64}$/.test(hash)) { blocking.push({ path, message: 'SHA-256 hash must be 64 lowercase hexadecimal characters.' }); continue; } entries.push({ path, hash }); }
+    const manifest = structuredClone(book.manifest); const generated = await runtimeProjection({ ...media, readText }, book); const paths = await completeBookInventory(manifest, readText); const entries = [];
+    for (const [path, text] of generated) { const old = await readText(path); if (old !== text) { writes.push({ path, text }); changed.push(path); } }
+    for (const path of paths) { let hash; try { hash = String(await hashOf(path, generated.get(path) ?? null)).toLowerCase(); } catch (error) { blocking.push({ path, message: error.message }); continue; } if (!/^[a-f0-9]{64}$/.test(hash)) { blocking.push({ path, message: 'SHA-256 hash must be 64 lowercase hexadecimal characters.' }); continue; } entries.push({ path, hash }); }
     delete manifest.schema_version; manifest.content_kit_version = KIT_VERSION; manifest.files = entries; manifest.experiences = experienceMembership(manifest, paths, workspace); manifest.content_version = releaseLabel || manifest.content_version;
     const oldText = await readText(book.manifestPath); const withoutTimestamp = `${JSON.stringify(manifest, null, 2)}\n`;
     if (withoutTimestamp !== oldText) manifest.updated_at = updatedAt;
@@ -1628,10 +1764,11 @@ async function publish(media, { readText, hashOf, workspace = null, releaseLabel
     const manifestHash = String(await hashOf(book.manifestPath, text)).toLowerCase(); const catalogBook = catalog.books.find((entry) => entry.book_id === book.id); catalogBook.manifest_hash = manifestHash;
   }
   delete catalog.schema_version; catalog.content_kit_version = KIT_VERSION; catalog.minimum_kit_version ||= KIT_VERSION; catalog.content_version = releaseLabel || catalog.content_version;
+  for (const mount of catalog.mounts || []) if (!mount.prefixes?.length) delete mount.prefixes;
   const oldCatalog = await readText('catalog.json'); const withoutTimestamp = `${JSON.stringify(catalog, null, 2)}\n`; if (withoutTimestamp !== oldCatalog) catalog.updated_at = updatedAt;
   const catalogText = `${JSON.stringify(catalog, null, 2)}\n`; if (catalogText !== oldCatalog) { writes.push({ path: 'catalog.json', text: catalogText }); changed.push('catalog.json'); }
   return Object.freeze({ writes: Object.freeze(writes), changed: Object.freeze(changed), problems: Object.freeze({ blocking: Object.freeze(blocking), pending: Object.freeze(pending) }), workspace: Boolean(workspace) });
 }
 
-globalThis.MyGitaContentKit = Object.freeze({ KIT_API, KIT_VERSION, KIT_BUILD, describe, listProducts, openMedia, openMediaSnapshot, contentTree, readItems, updateItem, insertItem, removeItem, newFile, checkFile, addToManifest, removeFromManifest, buildReferenceGraph, planMove, related, checkSave, publish });
+globalThis.MyGitaContentKit = Object.freeze({ KIT_API, KIT_VERSION, KIT_BUILD, describe, listProducts, openMedia, openMediaSnapshot, encodeItemKey, collections, contentTree, readItems, updateItem, insertItem, removeItem, newFile, checkFile, addToManifest, removeFromManifest, buildReferenceGraph, planMove, related, checkSave, publish });
 })();

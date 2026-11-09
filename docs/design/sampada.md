@@ -1,7 +1,7 @@
 # Sampada — Treasure trove of MyGita enhancements
 
 **Status:** Current  
-**Last updated:** 7 November 2026
+**Last updated:** 9 November 2026
 
 Sampada keeps both future possibilities and completed enhancements. Items retain their number after completion so decisions and delivery history remain traceable.
 
@@ -11,6 +11,26 @@ Sampada keeps both future possibilities and completed enhancements. Items retain
 | **Done** | Enhancements that have been implemented, documented and regression-tested. |
 
 ## To unfold
+
+### 23. Multi-attribute content variants
+
+**Status:** To unfold
+
+**Tag:** Major
+
+Replace language-specific filename and column conventions with explicit, contract-driven content variants. Each collection exposes independently dimensioned parts—such as recordings, images, metadata and questions—using semantic attributes including ordered languages, voice, mode and theme. Format and quality remain selectable renditions of the same semantic content. MyGita and Media Admin share one deterministic resolver, coverage model and transaction-plan contract.
+
+Content-Kit 4 Tranches 1 and the local migration portion of Tranche 2 are complete. CK4 is active in MyGita; all Media books expose canonical collection, variant, metadata and defaults registries; contributor and cue-purpose identities are Media-wide; and Media Admin can consume real collections through one shared API. Renderer-facing files under `runtime/` are generated, read-only projections rebuilt by the publisher. Current asset renditions are derived from inventory MIME type and hash. Product binding slots, higher-level add/move plan builders and the coordinated Media-first remote cutover remain to unfold.
+
+### 22. Deterministic analytics integration tests
+
+**Status:** To unfold
+
+**Tag:** Minor
+
+Keep browser regression independent of live Microsoft Clarity and Google Analytics script availability. Intercept their external scripts with deterministic local no-op test adapters while continuing to verify MyGita's analytics event mapping, privacy projection and provider adapters through automated unit and integration tests.
+
+Consider a separate non-blocking live-provider smoke check for detecting upstream integration changes. A failure or exception inside a live third-party analytics script should be reported for investigation without blocking an otherwise verified MyGita build and deployment.
 
 ### 21. Configurable content languages and renderer panels
 

@@ -23,3 +23,7 @@ Why: incremental hashes, multiple repositories and future inventory splitting ne
 ## ADR-006 · 2026-11-07 · Accepted · Content-Kit plans; callers perform I/O
 Content-Kit is pure contract/edit/validation/reference/plan logic. Media Admin reads, writes, hashes, retries and executes plans; move and publish plans are explicit multi-file exceptions.
 Why: one content-rule implementation without embedding editor or filesystem behavior in MyGita. Supersedes: ADR-003 only for explicit move/publish transactions.
+
+## ADR-007 · 2026-11-08 · Accepted · Content-Kit 4 explicit variants and clean cutover
+Parts declare representation and semantic dimensions; composition binds collection items while one pure resolver chooses variants then renditions. Paths carry no semantics.
+Why: languages, voices, modes, themes and formats must scale as data. Cutover has no v3 compatibility or dual publication; Media publishes before MyGita. Supersedes: Content-Kit 3 localized filename/column conventions.

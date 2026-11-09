@@ -57,3 +57,23 @@ Tests: MyGita unit 61 and contract 26; Media contract 4; full browser regression
 Changed: tree language and experience assignment now use manifest/registry relationships only; illustration `alt_text` is explicitly multiline; kit compatibility compares numeric majors and rejects malformed versions.
 Transition: mount prefixes are documented and tested as authoritative runtime routing only until the Tranche 2 inventory cutover; they do not express Content-Kit ownership.
 Tests: MyGita unit 61 and contract 26; focused Content-Kit/docs 28; Media contract 4; generated bundles and whitespace checks pass.
+
+## W-0015 · 2026-11-07 · Codex · S-22 · analytics integration-test backlog
+Changed: Sampada records deterministic local Clarity/GA stubs for blocking browser regression and a separate optional non-blocking live-provider smoke check.
+Reason: CI run 42350581717 passed application tests but was blocked by an exception inside Clarity's externally hosted beta script.
+
+## W-0016 · 2026-11-08 · Codex · S-23 · Content-Kit 4 Tranche 1
+Changed: frozen separate v4 contract and standalone bundle for parts, variants, renditions, defaults, structured identity, generic bindings, resolver explanations, coverage and idempotent publication plans; active v3 runtime unchanged.
+Fixtures: representative verse, question, image, audio, composition and transaction data for parallel Media Admin/MyGita implementation.
+Docs: S-23 added to Sampada; Rachana contract, S-23 context and ADR-007 record the clean three-tranche Media-first cutover.
+Tests: focused v4/docs 20, full unit 68, full contract 29, production MyGita build and whitespace checks pass.
+
+## W-0017 · 2026-11-08 · Codex · S-23 · Content-Kit 4 Tranche 2
+Changed: activated CK4 across MyGita and locally migrated all three Media books to canonical collection/variant/default registries. Renderer compatibility is explicitly separated under `runtime_view`; inventory-owned mounts no longer depend on prefixes.
+Media Admin: unblocked on the shared CK4 bundle, content tree, file contracts, validator and idempotent publisher.
+Tests: Media 4/4; MyGita unit 68/68 and contract 29/29.
+
+## W-0018 · 2026-11-09 · Codex · S-23 · Content-Kit 4 Tranche 2A hardening
+Changed: added the canonical `collections(media, bookId)` join and one tree node per collection; defined stable item keys and default-variant coverage authority; added Media-wide contributor/cue-purpose registries; corrected image versus metadata parts; and derived current renditions from inventory MIME type and hash.
+Publication: canonical CK4 metadata now regenerates read-only `runtime/` compatibility files; direct runtime edits are blocked; the Media publisher refreshes inventory, manifests, catalog and `media.ver` after generated writes.
+Tests: publish acceptance proves a canonical title edit reaches the runtime copy and its hashes; all canonical variants validate against real language/contributor registries. Product bindings and higher-level mutation-plan builders remain Tranche 2B.

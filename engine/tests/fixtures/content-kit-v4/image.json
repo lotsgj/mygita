@@ -1,0 +1,21 @@
+{
+  "book_id": "bhagavad-gita",
+  "content_type": "image",
+  "collection_id": "gita-sara-illustrations",
+  "parts": {
+    "image": {
+      "default_variant_id": "contemplative-neutral",
+      "expected_keys": ["1.1:1"],
+      "variants": [
+        {
+          "collection_id": "gita-sara-illustrations", "variant_id": "contemplative-neutral", "attributes": { "languages": "none", "theme": "any" }, "content_url": "book/bhagavad-gita/illustration/gita-sara/catalog.csv",
+          "items": [{ "key": "1.1:1", "renditions": [{ "rendition_id": "webp-medium", "format": "webp", "quality": "medium", "asset": "image/bhagavad-gita/gita-sara/1.1-1.webp" }] }]
+        },
+        {
+          "collection_id": "gita-sara-illustrations", "variant_id": "english-dark", "attributes": { "languages": ["en"], "theme": "dark" }, "content_url": "book/bhagavad-gita/illustration/gita-sara/catalog-dark-en.csv",
+          "items": [{ "key": "1.1:1", "renditions": [{ "rendition_id": "png-large", "format": "png", "quality": "large", "asset": "image/bhagavad-gita/gita-sara/1.1-1-dark.png" }] }]
+        }
+      ]
+    }
+  }
+}

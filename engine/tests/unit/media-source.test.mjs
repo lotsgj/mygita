@@ -4,12 +4,13 @@ import { DirectoryMediaSource, FilesMediaSource, RemoteMediaSource } from '../..
 import { mediaCacheKey, normalizeMediaCatalog, resolveRemoteMediaUrl, safeMediaPath, selectMediaMount } from '../../js/media-contract.js';
 
 const catalog = {
-  schema_version: 3,
+  content_kit_version: '4.20261108-061242',
+  minimum_kit_version: '4.20261108-061242',
   content_version: '2026.11.03.2',
   mounts: [
-    { prefix: 'book/', remote: 'https://books.example/', local: 'media' },
-    { prefix: 'book/bhagavad-gita/', remote: 'https://gita.example/', local: 'media' },
-    ...['audio', 'image', 'video', 'deck', 'docs'].map((prefix) => ({ prefix: `${prefix}/`, remote: 'https://media.example/', local: 'media' }))
+    { mount_id: 'books', prefix: 'book/', remote: 'https://books.example/', local: 'media', inventories: [{ id: 'books', path: 'files.json', hash: 'f'.repeat(64) }] },
+    { mount_id: 'gita', prefix: 'book/bhagavad-gita/', remote: 'https://gita.example/', local: 'media', inventories: [{ id: 'gita', path: 'files.json', hash: 'e'.repeat(64) }] },
+    ...['audio', 'image', 'video', 'deck', 'docs'].map((prefix) => ({ mount_id: prefix, prefix: `${prefix}/`, remote: 'https://media.example/', local: 'media', inventories: [{ id: prefix, path: 'files.json', hash: 'd'.repeat(64) }] }))
   ],
   books: [{ book_id: 'bhagavad-gita', manifest: 'book/bhagavad-gita/manifest.json', manifest_hash: 'a'.repeat(64) }]
 };
@@ -20,15 +21,15 @@ const manifestPaths = [
   'book/bhagavad-gita/registry/audio/collection.csv', 'book/bhagavad-gita/registry/image/collection.csv'
 ].sort();
 const manifest = {
-  schema_version: 3,
+  content_kit_version: catalog.content_kit_version,
   book_id: 'bhagavad-gita',
   content_version: catalog.content_version,
-  verses: { catalog: 'book/bhagavad-gita/verses/catalog.csv', masters: Object.fromEntries(['sa', 'en', 'kn'].map((language) => [language, `book/bhagavad-gita/verses/master_${language}.csv`])) },
-  registries: {
+  collections: [{ content_type: 'verse', registry: 'book/bhagavad-gita/registry/verses/collection.csv', defaults: 'book/bhagavad-gita/registry/verses/collection.csv', parts: { text: { variants: 'book/bhagavad-gita/registry/verses/collection.csv' } } }],
+  runtime_view: { verses: { catalog: 'book/bhagavad-gita/verses/catalog.csv', masters: Object.fromEntries(['sa', 'en', 'kn'].map((language) => [language, `book/bhagavad-gita/verses/master_${language}.csv`])) }, registries: {
     verses: { structural: 'book/bhagavad-gita/registry/verses/collection.csv', localized: Object.fromEntries(['sa', 'en', 'kn'].map((language) => [language, `book/bhagavad-gita/registry/verses/collection_${language}.csv`])) },
     audio: 'book/bhagavad-gita/registry/audio/collection.csv',
     images: 'book/bhagavad-gita/registry/image/collection.csv'
-  },
+  } },
   experiences: [{ id: 'gita-700', files: manifestPaths }],
   files: manifestPaths.map((path, index) => ({ path, hash: hash(index + 1) }))
 };
@@ -38,7 +39,7 @@ test('logical media paths are strict and namespace based', () => {
   for (const value of ['', '../outside', 'book/../outside', '/rooted', 'https://other.example/file', 'book\\bad.csv', 'unknown/file']) assert.throws(() => safeMediaPath(value));
 });
 
-test('schema 3 mounts use longest prefix and content-addressed URLs', () => {
+test('Content-Kit 4 mounts use longest explicit prefix and content-addressed URLs', () => {
   const normalized = normalizeMediaCatalog(catalog);
   assert.equal(selectMediaMount(normalized, 'book/bhagavad-gita/manifest.json').remote, 'https://gita.example/');
   const resolved = new URL(resolveRemoteMediaUrl(normalized, 'book/bhagavad-gita/manifest.json', 'a'.repeat(64)));
@@ -50,9 +51,9 @@ test('schema 3 mounts use longest prefix and content-addressed URLs', () => {
 
 test('invalid mounts and legacy schemas fail', () => {
   assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book', remote: 'https://x.example/', local: 'media' }] }), /end with/);
-  assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book/', remote: 'http://x.example/', local: 'media' }] }), /HTTPS/);
-  assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book/', remote: 'https://x.example/', local: '../media' }] }), /one folder/);
-  assert.throws(() => normalizeMediaCatalog({ ...catalog, schema_version: 2 }), /Content-Kit 3/);
+  assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book/', remote: 'http://x.example/', local: 'media', inventories: catalog.mounts[0].inventories }] }), /HTTPS/);
+  assert.throws(() => normalizeMediaCatalog({ ...catalog, mounts: [{ prefix: 'book/', remote: 'https://x.example/', local: '../media', inventories: catalog.mounts[0].inventories }] }), /one folder/);
+  assert.throws(() => normalizeMediaCatalog({ ...catalog, content_kit_version: '3.0' }), /Content-Kit 4/);
 });
 
 test('remote source checks its catalog once per app session and refreshes only when asked', async () => {

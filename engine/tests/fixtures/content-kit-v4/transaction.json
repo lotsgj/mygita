@@ -1,0 +1,8 @@
+{
+  "transactionId": "add-gita-image-1.2",
+  "operations": [
+    { "operation_id": "activate", "stage": "media.ver", "operation": "write", "path": "media.ver", "precondition": { "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, "postcondition": { "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" } },
+    { "operation_id": "asset", "stage": "asset", "operation": "create", "path": "image/bhagavad-gita/gita-sara/1.2-1.webp", "precondition": { "absent": true }, "postcondition": { "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" } },
+    { "operation_id": "catalog", "stage": "content", "operation": "upsert-record", "path": "book/bhagavad-gita/illustration/gita-sara/catalog.csv", "precondition": { "hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" }, "postcondition": { "hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } }
+  ]
+}

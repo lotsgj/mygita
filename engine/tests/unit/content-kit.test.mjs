@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
-import { buildReferenceGraph, checkFile, checkSave, contentTree, describe, insertItem, listProducts, openMedia, openMediaSnapshot, planMove, readItems, removeItem, updateItem } from '../../js/content-kit.js';
+import { buildReferenceGraph, checkFile, checkSave, collections, contentTree, describe, insertItem, listProducts, openMedia, openMediaSnapshot, planMove, publish, readItems, removeItem, updateItem } from '../../js/content-kit.js';
+import { validateVariant } from '../../js/content-kit-v4.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
 const mediaRoot = process.env.MYGITA_MEDIA_ROOT || path.resolve(repoRoot, '../media');
@@ -53,7 +55,7 @@ test('the media root opens every book with its declared languages', async () => 
 
 test('a workspace requiring a newer kit is rejected before any content is activated', async () => {
   const catalog = JSON.parse(await readText('catalog.json'));
-  catalog.minimum_kit_version = '3.99999999-999999';
+  catalog.minimum_kit_version = '4.99999999-999999';
   await assert.rejects(openMediaSnapshot({ catalogText: JSON.stringify(catalog), texts: {} }), (error) => error.code === 'KIT_UPDATE_REQUIRED');
   catalog.minimum_kit_version = '10.20261107-000000';
   await assert.rejects(openMediaSnapshot({ catalogText: JSON.stringify(catalog), texts: {} }), (error) => error.code === 'KIT_UPDATE_REQUIRED');
@@ -61,7 +63,7 @@ test('a workspace requiring a newer kit is rejected before any content is activa
   await assert.rejects(openMediaSnapshot({ catalogText: JSON.stringify(catalog), texts: {} }), (error) => error.code === 'INVALID_KIT_VERSION');
 });
 
-test('the Content-Kit 3 tree separates collections and assigns every book file once', async () => {
+test('the Content-Kit 4 tree separates collections and assigns every book file once', async () => {
   const media = await openMedia(readText);
   for (const book of media.books) {
     const tree = await contentTree(media, book.id);
@@ -72,15 +74,36 @@ test('the Content-Kit 3 tree separates collections and assigns every book file o
     assert.equal(tree.find((node) => node.kind === 'other'), undefined, `${book.id} has no unclassified files`);
   }
   const gita = await contentTree(media, 'bhagavad-gita');
-  assert.ok(gita.some((node) => node.kind === 'questions' && node.id === 'gita-sara-contemplations' && node.title === 'Gita Sara Contemplations'));
-  assert.ok(gita.some((node) => node.kind === 'questions' && node.id === 'gita-sara-default-contemplation'));
-  assert.ok(gita.some((node) => node.kind === 'images' && node.id === 'gita-sara-illustrations'));
-  assert.ok(gita.some((node) => node.kind === 'images' && node.id === 'gita-sara-default-illustration'));
-  assert.ok(gita.find((node) => node.id === 'gita-chapter-icons').files.some((file) => file.path.endsWith('chapter-01.svg')));
+  assert.ok(gita.some((node) => node.kind === 'collection' && node.id === 'question:gita-sara-contemplations' && node.title === 'Gita Sara Contemplations'));
+  assert.ok(gita.some((node) => node.kind === 'collection' && node.id === 'question:gita-sara-default-contemplation'));
+  assert.ok(gita.some((node) => node.kind === 'collection' && node.id === 'image:gita-sara-illustrations'));
+  assert.ok(gita.some((node) => node.kind === 'collection' && node.id === 'image:gita-sara-default-illustration'));
+  assert.ok(gita.find((node) => node.id === 'image:gita-chapter-icons').files.some((file) => file.path.endsWith('chapter-01.svg')));
   assert.deepEqual(gita.find((node) => node.kind === 'experience' && node.id === 'gita-sara').uses, ['book/bhagavad-gita/experience/gita-700/images.csv']);
-  assert.equal(gita.find((node) => node.kind === 'verses').files.find((file) => file.path === 'book/bhagavad-gita/verses/master_en.csv').language, 'en');
-  assert.equal(gita.find((node) => node.kind === 'details').files.find((file) => file.path === 'book/bhagavad-gita/registry/verses/collection_kn.csv').language, 'kn');
-  assert.equal(gita.find((node) => node.kind === 'questions' && node.id === 'gita-sara-contemplations').files.find((file) => file.path.endsWith('/master_en.csv')).language, 'en');
+  const files = gita.flatMap((node) => node.files);
+  assert.equal(files.find((file) => file.path === 'book/bhagavad-gita/verses/master_en.csv').language, 'en');
+  assert.equal(files.find((file) => file.path === 'book/bhagavad-gita/registry/verses/collection_kn.csv').language, 'kn');
+  assert.equal(files.find((file) => file.path.endsWith('/questions/gita-sara-contemplations/master_en.csv')).language, 'en');
+});
+
+test('canonical collections expose validated variants, stable keys and current renditions', async () => {
+  const media = await openMedia(readText);
+  const contributorIds = media.registries.contributors.rows.map((row) => row.contributor_id);
+  const gita = await collections(media, 'bhagavad-gita');
+  assert.equal(gita.length, 9);
+  for (const collection of gita) {
+    assert.deepEqual(collection.problems, [], `${collection.collection_id} has no contract problems`);
+    for (const [partId, part] of Object.entries(collection.parts)) {
+      assert.deepEqual(part.expected_keys, part.variants.find((variant) => variant.variant_id === part.default_variant_id)?.items.map((item) => item.key) || []);
+      for (const variant of part.variants) validateVariant(collection.content_type, partId, variant, { languages: ['sa', 'en', 'kn'], contributors: contributorIds });
+    }
+  }
+  const illustrations = gita.find((collection) => collection.collection_id === 'gita-sara-illustrations');
+  assert.match(illustrations.parts.image.variants[0].content_url, /catalog\.csv$/);
+  assert.ok(illustrations.parts.metadata.variants.every((variant) => /master_(?:en|kn)\.csv$/.test(variant.content_url)));
+  const audio = gita.find((collection) => collection.collection_id === 'chanting-swami-brahmananda');
+  assert.equal(audio.parts.recording.variants[0].attributes.voice, 'swami-brahmananda');
+  assert.ok(audio.parts.recording.variants.flatMap((variant) => variant.items).flatMap((item) => item.renditions).every((rendition) => ['mp3', 'ogg', 'opus'].includes(rendition.format)));
 });
 
 test('field types come from contracts and committed single-line values contain no line breaks', async () => {
@@ -127,15 +150,37 @@ test('the pure reference graph produces a grace-aware move plan for Media Admin'
 test('the content tree offers every editable text file the manifests reference', async () => {
   const { media, files } = await editableFiles();
   const offered = new Set(files.map((file) => file.path));
-  const editableKind = /\/(?:verses\/master_[a-z]+|registry\/verses\/collection_[a-z]+|(?:questions|illustration)\/[^/]+\/master_[a-z]+)\.csv$/;
+  const editableKind = /\/(?:verses\/master_[a-z]+|registry\/verse\/metadata\/[^/]+\/master_[a-z]+|(?:questions|illustration)\/[^/]+\/master_[a-z]+)\.csv$/;
   for (const book of media.books) {
     for (const entry of book.manifest.files.filter((entry) => editableKind.test(entry.path))) {
       assert.ok(offered.has(entry.path), `${entry.path} is offered for editing`);
     }
   }
   const gita = await contentTree(media, 'bhagavad-gita');
-  assert.equal(gita.find((node) => node.kind === 'audio').editable, 'text');
-  assert.equal(gita.find((node) => node.kind === 'verses').files.find((file) => file.language === 'sa').contract, 'source-master');
+  assert.equal(gita.find((node) => node.id === 'audio:chanting-swami-brahmananda').editable, 'text');
+  assert.equal(gita.find((node) => node.id === 'verse:bhagavad-gita').files.find((file) => file.contract === 'source-master').contract, 'source-master');
+});
+
+test('runtime views are generated, read-only and rebuilt from canonical content during publish', async () => {
+  const media = await openMedia(readText);
+  const runtimePath = 'book/bhagavad-gita/runtime/registry/verses/collection_en.csv';
+  const runtimeFile = (await contentTree(media, 'bhagavad-gita')).flatMap((node) => node.files).find((file) => file.path === runtimePath);
+  assert.equal(runtimeFile.generated, true);
+  assert.equal(runtimeFile.editable, false);
+  const runtimeText = await readText(runtimePath);
+  assert.throws(() => updateItem(runtimeFile, runtimeText, 'bhagavad-gita', { title: 'Direct edit' }), /generated/);
+
+  const canonicalPath = 'book/bhagavad-gita/registry/verses/collection_en.csv';
+  const original = await readText(canonicalPath);
+  const changed = original.replace('Bhagavad Gita', 'Bhagavad Gita publish acceptance');
+  assert.notEqual(changed, original);
+  const readOverride = async (logicalPath) => logicalPath === canonicalPath ? changed : readText(logicalPath);
+  const hashOf = async (logicalPath, override = null) => createHash('sha256').update(override == null ? await readOverride(logicalPath) : override).digest('hex');
+  const result = await publish(media, { readText: readOverride, hashOf, releaseLabel: media.catalog.content_version, updatedAt: media.catalog.updated_at });
+  assert.deepEqual(result.problems.blocking, []);
+  const runtimeWrite = result.writes.find((write) => write.path === runtimePath);
+  assert.ok(runtimeWrite);
+  assert.match(runtimeWrite.text, /publish acceptance/);
 });
 
 test('editing a field and restoring it gives byte-identical text for every editable file', async () => {
@@ -157,10 +202,10 @@ test('editing a field and restoring it gives byte-identical text for every edita
   }
 });
 
-test('Content-Kit 3 describes a data-driven API and edits JSON descriptors safely', async () => {
+test('Content-Kit 4 describes a data-driven API and edits JSON descriptors safely', async () => {
   const api = describe();
-  assert.equal(api.api, 3);
-  assert.match(api.version, /^3\.\d{8}-\d{6}$/);
+  assert.equal(api.api, 4);
+  assert.match(api.version, /^4\.\d{8}-\d{6}$/);
   assert.ok(api.contracts['source-master']);
   assert.ok(api.contracts.deck);
   const { files } = await editableFiles();

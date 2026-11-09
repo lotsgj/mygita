@@ -1,0 +1,15 @@
+{
+  "book_id": "bhagavad-gita",
+  "content_type": "question",
+  "collection_id": "gita-sara-contemplations",
+  "parts": {
+    "text": {
+      "default_variant_id": "questions-en",
+      "expected_keys": ["1.1:1", "1.1:2"],
+      "variants": [
+        { "collection_id": "gita-sara-contemplations", "variant_id": "questions-en", "attributes": { "languages": ["en"] }, "content_url": "book/bhagavad-gita/questions/gita-sara/master_en.csv", "items": [{ "key": "1.1:1" }, { "key": "1.1:2" }] },
+        { "collection_id": "gita-sara-contemplations", "variant_id": "questions-kn", "attributes": { "languages": ["kn"] }, "content_url": "book/bhagavad-gita/questions/gita-sara/master_kn.csv", "items": [{ "key": "1.1:1" }, { "key": "1.1:2" }] }
+      ]
+    }
+  }
+}

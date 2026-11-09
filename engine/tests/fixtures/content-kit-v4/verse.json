@@ -1,0 +1,16 @@
+{
+  "book_id": "bhagavad-gita",
+  "content_type": "verse",
+  "collection_id": "bhagavad-gita",
+  "parts": {
+    "text": {
+      "default_variant_id": "canonical-sa",
+      "expected_keys": ["1.1", "1.2"],
+      "variants": [
+        { "collection_id": "bhagavad-gita", "variant_id": "canonical-sa", "attributes": { "languages": ["sa"] }, "content_url": "book/bhagavad-gita/verses/master_sa.csv", "items": [{ "key": "1.1" }, { "key": "1.2" }] },
+        { "collection_id": "bhagavad-gita", "variant_id": "translation-en", "attributes": { "languages": ["en"] }, "content_url": "book/bhagavad-gita/verses/master_en.csv", "items": [{ "key": "1.1" }, { "key": "1.2" }] },
+        { "collection_id": "bhagavad-gita", "variant_id": "translation-kn", "attributes": { "languages": ["kn"] }, "content_url": "book/bhagavad-gita/verses/master_kn.csv", "items": [{ "key": "1.1" }] }
+      ]
+    }
+  }
+}

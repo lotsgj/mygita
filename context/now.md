@@ -1,15 +1,15 @@
-# Now — 2026-11-07 · Codex
+# Now — 2026-11-09 · Codex
 
 ## Active
 | Work | Agent | S | Scope | Claimed paths | State |
 | --- | --- | --- | --- | --- | --- |
-_None._
 
 ## Needs user
 - —
 
 ## Handoffs (last 5)
+- 2026-11-09 Codex → user/Media Admin: W-0018 corrects the early W-0017 handoff: Media Admin is now unblocked for canonical item/collection-field editing and publishing through `collections(media, bookId)`; generated runtime files are read-only. Product bindings and higher-level mutation-plan builders remain Tranche 2B.
+- 2026-11-08 Codex → user/Media Admin: W-0017 Content-Kit 4 Tranche 2 local cutover complete; Media Admin is unblocked on canonical CK4 registries and shared tooling. Remote publication remains Tranche 3.
+- 2026-11-08 Codex → user/Media Admin: W-0016 Content-Kit 4 Tranche 1 executable contract and fixtures complete and verified locally; changes remain uncommitted for review/sync.
+- 2026-11-07 Codex → user: S-22 records the Clarity/GA integration-test automation possibility; documentation change remains uncommitted.
 - 2026-11-07 Codex → user: W-0014 pre–Tranche 2 Content-Kit review corrections complete and locally verified; changes remain uncommitted.
-- 2026-11-07 Codex → user/Media Admin: W-0013 Content-Kit 3 Tranche 1 contracts are complete and locally verified; changes remain uncommitted. Media Admin can begin against the read-only tree, typed contracts, reference graph and move-plan API. Runtime/PWA cutover remains Tranche 2.
-- 2026-11-06 Codex → user: W-0012 complete and verified locally in mygita + media; changes remain uncommitted pending sync.
-- 2026-11-04 Claude → any: content-kit shipped (a2faa16, CI #9 green). API in features/19-independent-media.md.
