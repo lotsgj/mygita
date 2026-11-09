@@ -90,8 +90,14 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
   assert.match(page.url(), /[?&]product=bhagavad-gita/);
   assert.equal(await page.locator('#sid-label').innerText(), '2.47');
   assert.equal(await page.title(), 'MyGita');
+  await page.goto(`${base}docs.html`, { waitUntil: 'networkidle' });
+  await page.locator('.docs-article h1').waitFor();
+  assert.equal(await page.locator('.docs-article h1').innerText(), 'Welcome to Rachana');
+  assert.equal(await page.locator('.docs-brand small').innerText(), 'MyGita design details');
+  assert.equal(await page.title(), 'Welcome to Rachana — Rachana');
+  assert.equal(assetManifest.precache.some((name) => name === 'docs.html' || name.startsWith('docs/')), false);
   assert.deepEqual(errors, []);
   await browser.close();
   server.close();
-  console.log('PASS: MyGita product pills switch product distributions and open the selected experience.');
+  console.log('PASS: MyGita switches products, opens experiences, and serves browser-only Rachana documentation.');
 })().catch((error) => { console.error(error); server.close(); process.exitCode = 1; });

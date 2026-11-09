@@ -31,6 +31,9 @@ if (gaMeasurementId && !/^G-[A-Z0-9]+$/i.test(gaMeasurementId)) throw new Error(
 
 function run(script) { execFileSync(process.execPath, [script], { cwd: engineRoot, stdio: 'inherit' }); }
 function isAudio(relative) { return /\.(mp3|m4a|ogg|opus|wav)$/i.test(relative); }
+function isDocumentationAsset(relative) {
+  return relative === 'docs.html' || relative.startsWith('docs/');
+}
 async function copyDirectory(source, destination, filter = () => true) {
   await cp(source, destination, { recursive: true, filter: (entry) => filter(path.relative(source, entry).split(path.sep).join('/')) });
 }
@@ -65,6 +68,7 @@ function prefixApp(config) {
 
 run('scripts/build-font-css.mjs');
 run('scripts/build-player.mjs');
+run('scripts/build-docs.mjs');
 await rm(output, { recursive: true, force: true });
 await mkdir(path.join(output, 'js'), { recursive: true });
 await copyDirectory(path.join(engineRoot, 'css'), path.join(output, 'css'), (relative) => !relative.endsWith('.DS_Store') && relative !== 'docs.css');
@@ -131,6 +135,23 @@ html = html
 await writeFile(path.join(output, 'player.html'), html);
 await writeFile(path.join(output, 'index.html'), html);
 
+let docsHtml = await readFile(path.join(root, 'docs.html'), 'utf8');
+docsHtml = docsHtml
+  .replace('<meta name="app-version" content="dev">', `<meta name="app-version" content="${version}">`)
+  .replace('<meta name="clarity-project-id" content="">', `<meta name="clarity-project-id" content="${clarityProjectId}">`)
+  .replace('<meta name="ga-measurement-id" content="">', `<meta name="ga-measurement-id" content="${gaMeasurementId}">`)
+  .replace('href="engine/css/player.css?v=dev"', `href="css/player.css?v=${version}"`)
+  .replaceAll('https://gitaverse.gitajyoti.org/', workspace.app.canonicalUrl)
+  .replaceAll('Gitaverse', workspace.app.name)
+  .replaceAll('?v=dev', `?v=${version}`);
+await writeFile(path.join(output, 'docs.html'), docsHtml);
+await copyDirectory(path.join(root, 'docs'), path.join(output, 'docs'), (relative) => !relative.endsWith('.DS_Store'));
+const deployedDocsBundle = (await readFile(path.join(root, 'docs', 'assets', 'docs.bundle.js'), 'utf8'))
+  .replaceAll('https://gitaverse.gitajyoti.org/', workspace.app.canonicalUrl)
+  .replaceAll('Gitaverse', workspace.app.name);
+await writeFile(path.join(output, 'docs', 'assets', 'docs.bundle.js'), deployedDocsBundle);
+await cp(path.join(engineRoot, 'js', 'vendor', 'MARKED-LICENSE.md'), path.join(output, 'docs', 'assets', 'MARKED-LICENSE.md'));
+
 const manifest = {
   id: './', name: workspace.app.name, short_name: workspace.app.shortName, description: workspace.app.description,
   start_url: './player.html', scope: './', display: 'standalone', orientation: 'any',
@@ -165,5 +186,9 @@ const precache = Object.keys(assets).filter((relative) => (
   || relative === 'data/app-version.json'
   || relative === 'data/version-history.json'
 ));
+if (precache.some(isDocumentationAsset)) throw new Error('Rachana documentation must not be part of the PWA precache.');
+for (const required of ['docs.html', 'docs/navigation.json', 'docs/welcome.md', 'docs/assets/docs.css', 'docs/assets/docs.bundle.js', 'docs/assets/MARKED-LICENSE.md']) {
+  if (!assets[required]) throw new Error(`Rachana deployment is missing ${required}.`);
+}
 await writeFile(path.join(output, 'asset-manifest.json'), JSON.stringify({ version, distribution: workspace.app.id, assets, precache }, null, 2) + '\n');
 console.log(`Built ${workspace.app.name} ${version} with ${builtProducts.length} products into ${output}.`);

@@ -93,3 +93,7 @@ Tests: every plan applies to an isolated real-Media snapshot; resulting collecti
 ## W-0022 · 2026-11-09 · Codex · S-23 · Content-Kit 4 remote cutover
 Changed: published the verified Media commits first and MyGita commits second, then aligned Rachana, Sampada and the feature checkpoint with the deployed state.
 Deployment: MyGita workflow run 42564134772 passed for exact commit `aa65af8c`; local and remote main matched before deployment verification.
+
+## W-0023 · 2026-11-09 · Codex · fix · Restore deployed Rachana
+Changed: the unified platform build now versions, brands and publishes Rachana while explicitly excluding every documentation asset from the PWA precache and service-worker handling.
+Tests: distribution contracts require the complete documentation surface; the platform browser regression opens `docs.html` from `dist/mygita`; focused contracts and both Rachana browser modes pass.

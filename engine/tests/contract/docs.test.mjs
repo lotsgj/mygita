@@ -158,11 +158,13 @@ test('the Rachana viewer uses a manifest allowlist, local Markdown parser, and f
 
 test('Rachana is browser-loaded and excluded from the PWA cache boundary', async () => {
   const [deployment, serviceWorker] = await Promise.all([
-    readFile(path.join(projectRoot, 'engine/scripts/build-distribution.mjs'), 'utf8'),
+    readFile(path.join(projectRoot, 'engine/scripts/build-platform.mjs'), 'utf8'),
     readFile(path.join(projectRoot, 'engine/service-worker.js'), 'utf8')
   ]);
-  assert.doesNotMatch(deployment, /path\.join\(repositoryRoot, 'docs'/);
-  assert.match(deployment, /path\.resolve\(repositoryRoot, 'dist', product\)/);
+  assert.match(deployment, /path\.join\(root, 'docs\.html'\)/);
+  assert.match(deployment, /path\.join\(root, 'docs'\)/);
+  assert.match(deployment, /function isDocumentationAsset\(relative\)/);
+  assert.match(deployment, /precache\.some\(isDocumentationAsset\)/);
   assert.match(serviceWorker, /function isDocumentationRequest\(url\)/);
   assert.match(serviceWorker, /if \(isDocumentationRequest\(url\)\) return/);
 });

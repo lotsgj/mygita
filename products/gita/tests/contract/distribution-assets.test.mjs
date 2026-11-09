@@ -27,10 +27,17 @@ test('every configured Bhagavad Gita visual and theme belongs to the product', a
   assert.ok(paths.every((entry) => entry.startsWith('assets/') || entry.startsWith('css/')));
 });
 
-test('the generated distribution contains no Rachana documentation', async () => {
-  const entries = await readdir(dist);
-  assert.equal(entries.includes('docs.html'), false);
-  assert.equal(entries.includes('docs'), false);
+test('the generated distribution serves Rachana without adding it to the PWA precache', async () => {
+  const [entries, assetManifest] = await Promise.all([
+    readdir(dist),
+    readFile(path.join(dist, 'asset-manifest.json'), 'utf8').then(JSON.parse)
+  ]);
+  assert.equal(entries.includes('docs.html'), true);
+  assert.equal(entries.includes('docs'), true);
+  for (const required of ['docs.html', 'docs/navigation.json', 'docs/welcome.md', 'docs/assets/docs.css', 'docs/assets/docs.bundle.js']) {
+    assert.ok(assetManifest.assets[required], `Rachana deployment is missing ${required}`);
+    assert.equal(assetManifest.precache.includes(required), false, `${required} must not be PWA-precached`);
+  }
 });
 
 test('generated platform metadata references Bhagavad Gita-owned assets', async () => {
