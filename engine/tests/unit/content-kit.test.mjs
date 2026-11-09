@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
-import { buildReferenceGraph, checkFile, checkSave, collections, contentTree, describe, insertItem, listProducts, openMedia, openMediaSnapshot, planMove, publish, readItems, removeItem, updateItem } from '../../js/content-kit.js';
+import { buildReferenceGraph, checkFile, checkSave, collections, contentTree, describe, insertItem, listProducts, openMedia, openMediaSnapshot, planMove, publish, readItems, removeItem, updateItem, validationRegistries } from '../../js/content-kit.js';
 import { validateVariant } from '../../js/content-kit-v4.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
@@ -51,6 +51,12 @@ test('the media root opens every book with its declared languages', async () => 
     assert.deepEqual(book.problems, []);
     assert.deepEqual([...book.languages].sort(), ['en', 'kn', 'sa']);
   }
+  assert.deepEqual(media.registries.languages.rows.map((row) => row.language_id), ['sa', 'en', 'kn']);
+  assert.deepEqual(validationRegistries(media), {
+    languages: ['sa', 'en', 'kn'],
+    contributors: ['swami-brahmananda', 'aj-padma-aj-vijay'],
+    cuePurposes: []
+  });
 });
 
 test('a workspace requiring a newer kit is rejected before any content is activated', async () => {
@@ -88,14 +94,14 @@ test('the Content-Kit 4 tree separates collections and assigns every book file o
 
 test('canonical collections expose validated variants, stable keys and current renditions', async () => {
   const media = await openMedia(readText);
-  const contributorIds = media.registries.contributors.rows.map((row) => row.contributor_id);
+  const registries = validationRegistries(media);
   const gita = await collections(media, 'bhagavad-gita');
   assert.equal(gita.length, 9);
   for (const collection of gita) {
     assert.deepEqual(collection.problems, [], `${collection.collection_id} has no contract problems`);
     for (const [partId, part] of Object.entries(collection.parts)) {
       assert.deepEqual(part.expected_keys, part.variants.find((variant) => variant.variant_id === part.default_variant_id)?.items.map((item) => item.key) || []);
-      for (const variant of part.variants) validateVariant(collection.content_type, partId, variant, { languages: ['sa', 'en', 'kn'], contributors: contributorIds });
+      for (const variant of part.variants) validateVariant(collection.content_type, partId, variant, registries);
     }
   }
   const illustrations = gita.find((collection) => collection.collection_id === 'gita-sara-illustrations');

@@ -19,6 +19,20 @@ test('Content-Kit 4 freezes the reviewed type, part and registry vocabulary', ()
   assert.deepEqual(contract.identifiers.collection.scope, ['book_id', 'content_type', 'collection_id']);
   assert.equal(contract.registries.contributors.scope, 'media');
   assert.equal(contract.registries.cuePurposes.scope, 'media');
+  assert.equal(contract.labels.contentTypes.audio, 'Audio');
+  assert.equal(contract.labels.parts.recording, 'Recording');
+  assert.equal(contract.labels.attributes.languages, 'Languages');
+  assert.equal(contract.labels.values.none, 'No value');
+  assert.equal(contract.labels.fields.collection_id, 'Collection ID');
+});
+
+test('languages reject mixed none and unknown registry ids', async () => {
+  const verse = await fixture('verse');
+  const variant = structuredClone(verse.parts.text.variants[0]);
+  variant.attributes.languages = ['none', 'en'];
+  assert.throws(() => validateVariant('verse', 'text', variant, { languages: ['sa', 'en', 'kn'] }), /none.*own/i);
+  variant.attributes.languages = ['xx'];
+  assert.throws(() => validateVariant('verse', 'text', variant, { languages: ['sa', 'en', 'kn'] }), /unknown language/i);
 });
 
 test('representative file and record variants validate without path inference', async () => {
@@ -59,6 +73,22 @@ test('any is a lower-ranked match and none requires an explicit fallback', async
   assert.ok(fallback.reason.fallback.includes('theme:any'));
   const absent = resolveVariant(image, { part: 'image', key: '1.1:1', preferences: { languages: [['kn']], theme: ['dark'] }, capabilities: { formats: ['webp'] } });
   assert.equal(absent.variant, null);
+});
+
+test('declared attribute priority is lexicographic and preference any is indifferent', async () => {
+  const image = await fixture('image');
+  const highLanguage = structuredClone(image.parts.image.variants[0]);
+  highLanguage.variant_id = 'kn-any';
+  highLanguage.attributes = { languages: ['kn'], theme: 'any' };
+  const lowLanguage = structuredClone(image.parts.image.variants[1]);
+  lowLanguage.variant_id = 'en-dark';
+  image.parts.image.variants = [highLanguage, lowLanguage];
+  image.parts.image.default_variant_id = 'en-dark';
+  const prioritized = resolveVariant(image, { part: 'image', key: '1.1:1', preferences: { languages: [['kn'], ['en']], theme: ['dark', 'any'] }, capabilities: { formats: ['webp', 'png'] } });
+  assert.equal(prioritized.variant.variant_id, 'kn-any');
+
+  const indifferent = resolveVariant(image, { part: 'image', key: '1.1:1', preferences: { languages: ['any'], theme: ['any'] }, capabilities: { formats: ['webp', 'png'] } });
+  assert.equal(indifferent.variant.variant_id, 'en-dark', 'the default wins when the caller is indifferent');
 });
 
 test('coverage distinguishes complete and sparse variants without reading binaries', async () => {

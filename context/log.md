@@ -77,3 +77,7 @@ Tests: Media 4/4; MyGita unit 68/68 and contract 29/29.
 Changed: added the canonical `collections(media, bookId)` join and one tree node per collection; defined stable item keys and default-variant coverage authority; added Media-wide contributor/cue-purpose registries; corrected image versus metadata parts; and derived current renditions from inventory MIME type and hash.
 Publication: canonical CK4 metadata now regenerates read-only `runtime/` compatibility files; direct runtime edits are blocked; the Media publisher refreshes inventory, manifests, catalog and `media.ver` after generated writes.
 Tests: publish acceptance proves a canonical title edit reaches the runtime copy and its hashes; all canonical variants validate against real language/contributor registries. Product bindings and higher-level mutation-plan builders remain Tranche 2B.
+
+## W-0019 · 2026-11-09 · Codex · S-23 · Content-Kit 4 contract completion
+Changed: added Media-wide language IDs and validator-ready registries, contract-owned English labels, declared lexicographic attribute priorities, preference-side `any` semantics and scalar-only `none` validation.
+Tests: MyGita 115 non-browser checks; Media 4/4 plus validator over 1,155 files and three books.

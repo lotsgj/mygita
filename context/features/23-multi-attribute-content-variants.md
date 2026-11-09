@@ -12,12 +12,40 @@ Updated 2026-11-09 · Codex · Sampada: docs/design/sampada.md §23 · ADR: 007
 ## Parts
 - [x] Tranche 1 executable contract, fixtures, resolver, coverage and plan shapes — W-0016
 - [x] Tranche 2A local Media migration, canonical collection API and derived runtime publication — W-0017, W-0018
-- [ ] Tranche 2B product bindings and higher-level mutation-plan builders
+- [ ] Tranche 2B product bindings and higher-level mutation-plan builders — W-0019 contract completion done
 - [ ] Tranche 3 coordinated Media-first remote cutover
 
 ## Open
 - Exact existing-content migration IDs and verification report are implementation outputs, not runtime legacy mappings.
 - Media Admin can now implement item and collection-field editing against `collections(media, bookId)`, the shared contract bundle, canonical tree, validation and safe publication workflow.
+- MA-1 · accepted · Mutation plans for item, variant, default and collection changes — W-0021.
+- MA-2 · accepted · Kit-4 product and experience binding slots and composition — W-0020.
+- MA-3 · accepted · Shared collection/variant usage queries — W-0020.
+- MA-4 · done · Media-wide language registry — W-0019.
+- MA-5 · done · Shared validation-registry adapter — W-0019.
+- MA-6 · done · Contract-owned English display labels — W-0019.
+- MA-7 · done · Declared lexicographic resolver priorities — W-0019.
+- MA-8 · done · Preference-side versus variant-side `any` semantics — W-0019.
+- MA-9 · done · Scalar-only `none` sentinel — W-0019.
+- MA-10 · done · Verified W-0016–W-0018 baselines checkpointed per repository.
+
+### W-0019 plan — contract completion
+1. Add the Media language registry and validation-registry adapter. Accept when unknown variant languages fail without caller-built ID lists.
+2. Add contract-owned English labels. Accept when Media Admin can obtain type, part, attribute, value and field labels from `describe()`.
+3. Make resolver comparison lexicographic and formalize `any`/`none`. Accept when declared higher-priority attributes win, preference-side `any` is indifferent, variant-side `any` is a fallback, and mixed `none` lists fail.
+4. Rebuild bundles and inventories, run full relevant regression, then checkpoint and commit.
+
+### W-0020 plan — product bindings and usage
+1. Define binding slots and kit-4 composition rows. Accept when all Gita and Sukta experience rows resolve against real collections.
+2. Migrate player loading to the normalized binding model. Accept when existing browser behavior is unchanged and `audioBinding` is absent.
+3. Add `usage()`. Accept when every experience using `chanting-swami-brahmananda` is reported.
+4. Rebuild, run full regression, then checkpoint and commit.
+
+### W-0021 plan — mutation plans
+1. Add item mutation plans. Accept when add/change/remove round-trip through a snapshot and `collections()`.
+2. Add variant/default mutation plans. Accept when add/change/default operations validate and resolve.
+3. Add collection mutation plans with usage-aware removal warnings. Accept when canonical and generated publication effects preview correctly and Media validates.
+4. Rebuild, run full regression, then checkpoint and commit.
 
 ## Details
 - Rachana: docs/design/system/content-kit-4-variants.md

@@ -30,6 +30,7 @@ const CONTRACTS = Object.freeze({
   'ck4-collection-metadata': csv('ck4-collection-metadata', 'metadata', ['collection_id', 'title', 'short_name', 'description', 'attribution'], ['collection_id']),
   'ck4-contributors-registry': csv('ck4-contributors-registry', 'registry', ['contributor_id', 'name', 'roles'], ['contributor_id']),
   'ck4-cue-purposes-registry': csv('ck4-cue-purposes-registry', 'registry', ['cue_id', 'language', 'purpose', 'description'], ['cue_id', 'language']),
+  'ck4-languages-registry': csv('ck4-languages-registry', 'registry', ['language_id', 'native_name', 'english_name', 'script'], ['language_id']),
   'runtime-verse-registry': csv('runtime-verse-registry', 'runtime', STRUCTURAL_VERSE_REGISTRY_HEADERS, ['collection_id'], undefined, { fields: { path: field('text') }, editable: false, generated: true }),
   'runtime-verse-details': csv('runtime-verse-details', 'runtime', VERSE_LOCALIZED_REGISTRY_HEADERS, ['collection_id'], undefined, { editable: false, generated: true }),
   'runtime-audio-registry': csv('runtime-audio-registry', 'runtime', AUDIO_REGISTRY_HEADERS, ['collection_id'], undefined, { editable: false, generated: true }),
@@ -118,6 +119,15 @@ export function openMediaSnapshot(snapshot) {
   const values = snapshot?.texts instanceof Map ? snapshot.texts : new Map(Object.entries(snapshot?.texts || {}));
   if (snapshot?.catalogText != null) values.set('catalog.json', String(snapshot.catalogText));
   return openMedia(async (path) => { if (!values.has(path)) throw kitError(`Snapshot does not contain ${path}.`, { path }); return values.get(path); });
+}
+
+export function validationRegistries(media) {
+  const ids = (name, field) => Object.freeze((media?.registries?.[name]?.rows || []).map((row) => row[field]).filter(Boolean));
+  return Object.freeze({
+    languages: ids('languages', 'language_id'),
+    contributors: ids('contributors', 'contributor_id'),
+    cuePurposes: ids('cue_purposes', 'cue_id')
+  });
 }
 
 export function encodeItemKey(...components) {

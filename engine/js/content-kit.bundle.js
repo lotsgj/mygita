@@ -247,7 +247,7 @@ function languageLabel(model, language) {
 
 // Source: js/content-kit-v4-version.js
 // Human-approved major; generated minor identifies this reviewed contract revision.
-const CONTENT_KIT_V4_VERSION = '4.20261109-085011';
+const CONTENT_KIT_V4_VERSION = '4.20261109-091928';
 
 // Source: js/player/collection-contracts.js
 const VERSE_CATALOG_HEADERS = Object.freeze(['language', 'content_type', 'content_url']);
@@ -1292,7 +1292,7 @@ async function readCollectionTextFromDirectory(rootHandle, url) {
 const KIT_API = 4;
 const KIT_VERSION = CONTENT_KIT_V4_VERSION;
 // The browser bundle replaces this marker with a reproducible hash of its canonical sources.
-const KIT_BUILD = '2aaf0fa647e9';
+const KIT_BUILD = 'b63f85f1c042';
 const VERSE_LOCKED = Object.freeze(['cid', 'snum', 'sid', 'chapter_name']);
 const MEDIA_EXTENSIONS = Object.freeze({ mp3: 'audio', m4a: 'audio', ogg: 'audio', opus: 'audio', wav: 'audio', png: 'image', jpg: 'image', jpeg: 'image', webp: 'image', gif: 'image', svg: 'image', mp4: 'video', webm: 'video', pdf: 'asset' });
 const inferredFieldType = (name) => name === 'json' ? 'json' : name === 'order' || name === 'position' || name.endsWith('_order') ? 'number' : name.endsWith('_ms') ? 'ms' : name === 'path' || name.endsWith('_url') ? 'media-path' : 'text';
@@ -1308,6 +1308,7 @@ const CONTRACTS = Object.freeze({
   'ck4-collection-metadata': csv('ck4-collection-metadata', 'metadata', ['collection_id', 'title', 'short_name', 'description', 'attribution'], ['collection_id']),
   'ck4-contributors-registry': csv('ck4-contributors-registry', 'registry', ['contributor_id', 'name', 'roles'], ['contributor_id']),
   'ck4-cue-purposes-registry': csv('ck4-cue-purposes-registry', 'registry', ['cue_id', 'language', 'purpose', 'description'], ['cue_id', 'language']),
+  'ck4-languages-registry': csv('ck4-languages-registry', 'registry', ['language_id', 'native_name', 'english_name', 'script'], ['language_id']),
   'runtime-verse-registry': csv('runtime-verse-registry', 'runtime', STRUCTURAL_VERSE_REGISTRY_HEADERS, ['collection_id'], undefined, { fields: { path: field('text') }, editable: false, generated: true }),
   'runtime-verse-details': csv('runtime-verse-details', 'runtime', VERSE_LOCALIZED_REGISTRY_HEADERS, ['collection_id'], undefined, { editable: false, generated: true }),
   'runtime-audio-registry': csv('runtime-audio-registry', 'runtime', AUDIO_REGISTRY_HEADERS, ['collection_id'], undefined, { editable: false, generated: true }),
@@ -1396,6 +1397,15 @@ function openMediaSnapshot(snapshot) {
   const values = snapshot?.texts instanceof Map ? snapshot.texts : new Map(Object.entries(snapshot?.texts || {}));
   if (snapshot?.catalogText != null) values.set('catalog.json', String(snapshot.catalogText));
   return openMedia(async (path) => { if (!values.has(path)) throw kitError(`Snapshot does not contain ${path}.`, { path }); return values.get(path); });
+}
+
+function validationRegistries(media) {
+  const ids = (name, field) => Object.freeze((media?.registries?.[name]?.rows || []).map((row) => row[field]).filter(Boolean));
+  return Object.freeze({
+    languages: ids('languages', 'language_id'),
+    contributors: ids('contributors', 'contributor_id'),
+    cuePurposes: ids('cue_purposes', 'cue_id')
+  });
 }
 
 function encodeItemKey(...components) {
@@ -1770,5 +1780,5 @@ async function publish(media, { readText, hashOf, workspace = null, releaseLabel
   return Object.freeze({ writes: Object.freeze(writes), changed: Object.freeze(changed), problems: Object.freeze({ blocking: Object.freeze(blocking), pending: Object.freeze(pending) }), workspace: Boolean(workspace) });
 }
 
-globalThis.MyGitaContentKit = Object.freeze({ KIT_API, KIT_VERSION, KIT_BUILD, describe, listProducts, openMedia, openMediaSnapshot, encodeItemKey, collections, contentTree, readItems, updateItem, insertItem, removeItem, newFile, checkFile, addToManifest, removeFromManifest, buildReferenceGraph, planMove, related, checkSave, publish });
+globalThis.MyGitaContentKit = Object.freeze({ KIT_API, KIT_VERSION, KIT_BUILD, describe, listProducts, openMedia, openMediaSnapshot, validationRegistries, encodeItemKey, collections, contentTree, readItems, updateItem, insertItem, removeItem, newFile, checkFile, addToManifest, removeFromManifest, buildReferenceGraph, planMove, related, checkSave, publish });
 })();

@@ -19,21 +19,21 @@ Icon is not a separate type: chapter icons are an image collection whose configu
 
 ## Attributes and renditions
 
-Semantic attributes include ordered languages, voice, mode, theme and subtitles. `any` matches a requested value below an exact match. `none` has no value and is eligible only when explicitly requested, explicitly listed as a fallback, or the caller is indifferent. An omitted attribute does not apply to the part.
+Semantic attributes include ordered languages, voice, mode, theme and subtitles. Variant-side `any` is a wildcard fallback ranked below an exact match. Preference-side `any` means the caller is indifferent to that attribute; defaults and later tie-breakers decide. `none` has no value and is eligible only when explicitly requested, explicitly listed as a fallback, or the caller is indifferent. It is a scalar sentinel and cannot appear inside an ordered language list. An omitted attribute does not apply to the part.
 
 Format and optional quality, dimensions, resolution, bitrate and sample rate are rendition attributes. Resolution always selects a semantic variant before selecting a supported rendition. Current Media catalogs derive one rendition for each referenced asset from the inventory MIME type and hash; filenames do not determine format. Dedicated rendition registries remain a later extension.
 
 ## Identity and registries
 
-A collection is identified by book, content type and collection ID. A variant is additionally scoped by part and variant ID; a rendition ID is scoped by its variant. Binding-slot IDs are scoped by product and configured experience. Contributor IDs and cue-purpose IDs are Media-global.
+A collection is identified by book, content type and collection ID. A variant is additionally scoped by part and variant ID; a rendition ID is scoped by its variant. Binding-slot IDs are scoped by product and configured experience. Language, contributor and cue-purpose IDs are Media-global.
 
-Variant registries live at `registry/<type>/<part>-variants.csv`; rendition registries use `<part>-renditions.csv`; and `registry/<type>/defaults.csv` holds one default variant per collection part. Contributors and cue purposes are ID-based, Media-wide vocabularies declared by the root catalog. Ordered languages serialize as comma-separated BCP-47 codes, preserving order.
+Variant registries live at `registry/<type>/<part>-variants.csv`; rendition registries use `<part>-renditions.csv`; and `registry/<type>/defaults.csv` holds one default variant per collection part. Languages, contributors and cue purposes are ID-based, Media-wide vocabularies declared by the root catalog. Ordered languages serialize as comma-separated BCP-47 codes, preserving order. The kit exposes these registries in validator-ready form, so callers do not rebuild ID lists.
 
 Item keys follow each part contract's declared key components. A single component remains unchanged; compound components join with `:` in declaration order, so `sid + order` becomes `1.1:2`. The default variant of a part defines its `expected_keys`; coverage compares every other variant with that stable baseline.
 
 ## Composition and configured experiences
 
-Composition rows name a binding slot, structured collection identity and logical item key. They never name a variant. Product configuration defines the slot's content type, part, semantic preferences and rendition preferences. The shared resolver combines profile preferences, configured-experience preferences, product defaults, collection defaults, capabilities and explicit fallbacks, then returns the chosen variant and rendition together with its reasoning.
+Composition rows name a binding slot, structured collection identity and logical item key. They never name a variant. Product configuration defines the slot's content type, part, semantic preferences and rendition preferences. The shared resolver combines profile preferences, configured-experience preferences, product defaults, collection defaults, capabilities and explicit fallbacks, then returns the chosen variant and rendition together with its reasoning. Semantic attributes are compared lexicographically in each part contract's declared priority order; a lower-priority exact match cannot outweigh a higher-priority preference.
 
 ## Coverage and segments
 

@@ -21,6 +21,14 @@ export const SPECIAL_ATTRIBUTE_VALUES = Object.freeze({
   none: 'Has no value; matches only an explicit none fallback or an indifferent request.'
 });
 
+export const LABELS = Object.freeze({
+  contentTypes: Object.freeze({ verse: 'Verse', question: 'Question', image: 'Image', audio: 'Audio', video: 'Video', deck: 'Deck' }),
+  parts: Object.freeze({ text: 'Text', metadata: 'Metadata', image: 'Image', recording: 'Recording', segments: 'Segments', presentation: 'Presentation', 'collection-metadata': 'Collection metadata' }),
+  attributes: Object.freeze({ languages: 'Languages', voice: 'Voice', mode: 'Mode', theme: 'Theme', subtitles: 'Subtitles', format: 'Format', quality: 'Quality', width: 'Width', height: 'Height', resolution: 'Resolution', bitrate: 'Bitrate', sample_rate: 'Sample rate' }),
+  values: Object.freeze({ none: 'No value', any: 'Any value', chant: 'Chant', learn: 'Learn', recite: 'Recite', light: 'Light', dark: 'Dark' }),
+  fields: Object.freeze({ collection_id: 'Collection ID', variant_id: 'Variant ID', rendition_id: 'Rendition ID', content_url: 'Content file', default_variant_id: 'Default variant', contributors: 'Contributors', contributor_id: 'Contributor ID', license: 'License', source: 'Source', title: 'Title', short_name: 'Short name', description: 'Description', attribution: 'Attribution', sid: 'Verse ID', order: 'Order', item_key: 'Item key', binding_slot_id: 'Binding slot ID' })
+});
+
 export const ATTRIBUTES = Object.freeze({
   languages: attribute('ordered-language-list', { registry: 'languages', reserved: ['none'] }),
   voice: attribute('registry-reference', { registry: 'contributors', role: 'voice', reserved: ['none'] }),
@@ -125,6 +133,7 @@ function validateAttribute(name, value, registries = {}) {
   if (definition.type === 'ordered-language-list') {
     if (value === 'none') return;
     if (!Array.isArray(value) || !value.length || value.some((entry) => typeof entry !== 'string' || !entry)) fail(`${name} must be a non-empty ordered list.`, { attribute: name });
+    if (value.includes('none')) fail(`${name} uses none only on its own.`, { attribute: name });
     const allowed = registries.languages;
     if (allowed && value.some((entry) => !allowed.includes(entry))) fail(`${name} contains an unknown language.`, { attribute: name });
   } else if (definition.type === 'enum' && !definition.values.includes(value)) fail(`${name} has invalid value ${value}.`, { attribute: name });
@@ -142,6 +151,7 @@ export function describe() {
     version: KIT_VERSION,
     build: KIT_BUILD,
     specialValues: SPECIAL_ATTRIBUTE_VALUES,
+    labels: LABELS,
     attributes: ATTRIBUTES,
     contentTypes: CONTENT_TYPES,
     registries: REGISTRIES,
@@ -168,11 +178,14 @@ export function validateVariant(contentType, partId, variant, registries = {}) {
 }
 
 function preferenceRank(candidate, requested) {
-  if (!requested?.length) return { compatible: true, score: 0, kind: 'indifferent' };
-  if (scalar(candidate) === 'any') return { compatible: true, score: 500, kind: 'any' };
+  if (!requested?.length) return { compatible: true, score: 0, priority: [0, 0], kind: 'indifferent' };
+  const wildcard = requested.findIndex((value) => value === 'any');
   const exact = requested.findIndex((value) => sameValue(candidate, value));
-  if (exact >= 0) return { compatible: true, score: 1000 - exact * 20, kind: exact ? 'fallback' : 'exact' };
-  return { compatible: false, score: -1, kind: scalar(candidate) === 'none' ? 'none-not-requested' : 'mismatch' };
+  if (exact >= 0 && exact !== wildcard) return { compatible: true, score: 1000 - exact * 20, priority: [3, -exact], kind: exact ? 'fallback' : 'exact' };
+  if (scalar(candidate) === 'any' && !(wildcard === 0 && requested.length === 1)) return { compatible: true, score: 500, priority: [1, 0], kind: 'any' };
+  if (wildcard >= 0) return { compatible: true, score: 0, priority: [0, -wildcard], kind: 'indifferent' };
+  if (scalar(candidate) === 'any') return { compatible: true, score: 500, priority: [1, 0], kind: 'any' };
+  return { compatible: false, score: -1, priority: [-1, 0], kind: scalar(candidate) === 'none' ? 'none-not-requested' : 'mismatch' };
 }
 function itemFor(variant, key) { return key == null ? null : (variant.items || []).find((item) => String(item.key) === String(key)); }
 function supportedRenditions(item, request) {
@@ -199,18 +212,27 @@ export function resolveVariant(collection, request = {}) {
   for (const variant of partValue.variants || []) {
     const item = itemFor(variant, request.key);
     if (request.key != null && !item) { considered.push({ variant_id: variant.variant_id, compatible: false, reason: 'missing-key' }); continue; }
-    let score = variant.variant_id === partValue.default_variant_id ? 1 : 0; const matched = []; const fallback = []; let compatible = true;
+    let score = 0; const priority = []; const matched = []; const fallback = []; let compatible = true;
     for (const name of definition.semanticAttributes) {
       const rank = preferenceRank(variant.attributes?.[name], request.preferences?.[name]);
       if (!rank.compatible) { compatible = false; fallback.push(`${name}:${rank.kind}`); break; }
       score += rank.score;
+      priority.push(rank.priority);
       (rank.kind === 'exact' ? matched : fallback).push(`${name}:${rank.kind}`);
     }
     const rendition = compatible ? chooseRendition(item, request) : null;
     if (compatible && item?.renditions?.length && !rendition) { compatible = false; fallback.push('rendition:unsupported'); }
-    considered.push({ variant_id: variant.variant_id, compatible, score, matched, fallback, item, rendition });
+    considered.push({ variant_id: variant.variant_id, compatible, score, priority, isDefault: variant.variant_id === partValue.default_variant_id, matched, fallback, item, rendition });
   }
-  const eligible = considered.filter((entry) => entry.compatible).sort((left, right) => right.score - left.score || String(left.variant_id).localeCompare(String(right.variant_id)));
+  const eligible = considered.filter((entry) => entry.compatible).sort((left, right) => {
+    const length = Math.max(left.priority.length, right.priority.length);
+    for (let index = 0; index < length; index += 1) {
+      const a = left.priority[index] || [0, 0]; const b = right.priority[index] || [0, 0];
+      if (a[0] !== b[0]) return b[0] - a[0];
+      if (a[1] !== b[1]) return b[1] - a[1];
+    }
+    return Number(right.isDefault) - Number(left.isDefault) || String(left.variant_id).localeCompare(String(right.variant_id));
+  });
   const chosen = eligible[0];
   if (!chosen) return Object.freeze({ variant: null, item: null, rendition: null, reason: Object.freeze({ matched: [], fallback: ['no-compatible-variant'] }), considered: Object.freeze(clone(considered)) });
   const variant = partValue.variants.find((entry) => entry.variant_id === chosen.variant_id);
