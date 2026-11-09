@@ -504,15 +504,21 @@ function verifyOrderedComposition(referenceRows, composition, label, { multiple 
   });
 }
 
-function audioBinding(experience) {
+function primaryAudioSource(experience) {
+  const slot = experience?.bindings?.['primary-audio'] || {};
   return {
-    collectionField: experience?.audioBinding?.collectionField || 'chant_full_sa_collection',
-    orderField: experience?.audioBinding?.orderField || 'chant_full_sa_order'
+    collectionField: slot.collectionField || 'chant_full_sa_collection',
+    orderField: slot.orderField || 'chant_full_sa_order'
   };
 }
 
+function bindingCollections(experience, bindingSlotId) {
+  const values = experience?.bindings?.[bindingSlotId]?.collections;
+  return Array.isArray(values) ? values : [];
+}
+
 function audioCompositionHeaders(experience) {
-  const binding = audioBinding(experience);
+  const binding = primaryAudioSource(experience);
   return ['cid', 'snum', 'sid', binding.collectionField, binding.orderField];
 }
 
@@ -610,7 +616,7 @@ function normalizeCollectionData({ sa, en, kn, languageTables = null, sequence =
   if (illustrationComposition) verifyOrderedComposition(sourceRows, illustrationComposition, 'Experience illustration composition', { multiple: true, sparse: true });
   if (contemplationComposition) verifyOrderedComposition(sourceRows, contemplationComposition, 'Experience contemplation composition', { multiple: true, sparse: true });
   if (mediaComposition) verifyOrderedComposition(sourceRows, mediaComposition, 'Experience media composition', { multiple: true, sparse: true });
-  const binding = audioBinding(experience);
+  const binding = primaryAudioSource(experience);
   const bySid = (table) => new Map(table.rows.map((row) => [row.sid, row]));
   const localizedByLanguage = Object.fromEntries(Object.entries(localizedTables).map(([language, table]) => [language, bySid(table)]));
   const audioBySid = bySid(audioComposition);
@@ -1007,20 +1013,20 @@ async function loadCollectionExperience(experienceId, { version = '', collection
     mediaCompositionUrl ? fetchTable(mediaCompositionUrl, MEDIA_COMPOSITION_HEADERS, version) : null
   ]);
   const [audioCollections, imageCatalogs, deckCatalogs, illustrationCatalogs, contemplationCatalogs] = await Promise.all([
-    loadAudioCatalogs(audioComposition, audioBinding(experience).collectionField, version),
+    loadAudioCatalogs(audioComposition, primaryAudioSource(experience).collectionField, version),
     loadMediaCatalogs('images', imageComposition, 'chapter_icon_collection', ['sid', 'order', 'image_url'], version),
-    deckComposition ? loadMediaCatalogs('deck', deckComposition, 'deck_collection', DECK_CATALOG_HEADERS, version, experience.deckCollections || []) : new Map(),
+    deckComposition ? loadMediaCatalogs('deck', deckComposition, 'deck_collection', DECK_CATALOG_HEADERS, version, bindingCollections(experience, 'deck')) : new Map(),
     illustrationComposition ? loadLocalizedCatalogs({
       type: 'images', composition: illustrationComposition, collectionField: 'image_collection',
       catalogHeaders: ILLUSTRATION_CATALOG_HEADERS, localizedHeaders: ILLUSTRATION_METADATA_HEADERS,
       localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: localizedRegistryHeaderRule('images'),
-      version, declaredIds: experience.illustrationCollections || []
+      version, declaredIds: bindingCollections(experience, 'illustration')
     }) : new Map(),
     contemplationComposition ? loadLocalizedCatalogs({
       type: 'text', composition: contemplationComposition, collectionField: 'text_collection',
       catalogHeaders: CONTEMPLATION_CATALOG_HEADERS, localizedHeaders: CONTEMPLATION_MASTER_HEADERS,
       localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: localizedRegistryHeaderRule('text'),
-      version, declaredIds: experience.contemplationCollections || []
+      version, declaredIds: bindingCollections(experience, 'contemplation')
     }) : new Map()
   ]);
   const dataset = normalizeCollectionData({
@@ -1161,7 +1167,7 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
     const catalogs = new Map();
     const cueIndexes = new Map();
     const cueErrors = new Map();
-    const binding = audioBinding(experience);
+    const binding = primaryAudioSource(experience);
     for (const id of new Set(audioComposition.rows.map((row) => row[binding.collectionField]).filter(Boolean))) {
       const entry = registryEntry(registry, id, 'audio');
       const catalog = await table(entry.catalog_url, AUDIO_CATALOG_HEADERS);
@@ -1207,18 +1213,18 @@ async function loadCollectionExperienceWithReader(experienceId, { text, resolveM
   const [audioCollections, imageCatalogs, deckCatalogs, illustrationCatalogs, contemplationCatalogs] = await Promise.all([
     localAudioCatalogs(),
     localCatalogs('images', imageComposition, 'chapter_icon_collection', ['sid', 'order', 'image_url']),
-    deckComposition ? localCatalogs('deck', deckComposition, 'deck_collection', DECK_CATALOG_HEADERS, experience.deckCollections || []) : new Map(),
+    deckComposition ? localCatalogs('deck', deckComposition, 'deck_collection', DECK_CATALOG_HEADERS, bindingCollections(experience, 'deck')) : new Map(),
     illustrationComposition ? localLocalizedCatalogs({
       type: 'images', composition: illustrationComposition, collectionField: 'image_collection',
       catalogHeaders: ILLUSTRATION_CATALOG_HEADERS, localizedHeaders: ILLUSTRATION_METADATA_HEADERS,
       localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: localizedRegistryHeaderRule('images'),
-      declaredIds: experience.illustrationCollections || []
+      declaredIds: bindingCollections(experience, 'illustration')
     }) : new Map(),
     contemplationComposition ? localLocalizedCatalogs({
       type: 'text', composition: contemplationComposition, collectionField: 'text_collection',
       catalogHeaders: CONTEMPLATION_CATALOG_HEADERS, localizedHeaders: CONTEMPLATION_MASTER_HEADERS,
       localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: localizedRegistryHeaderRule('text'),
-      declaredIds: experience.contemplationCollections || []
+      declaredIds: bindingCollections(experience, 'contemplation')
     }) : new Map()
   ]);
   const dataset = normalizeCollectionData({
@@ -1292,7 +1298,7 @@ async function readCollectionTextFromDirectory(rootHandle, url) {
 const KIT_API = 4;
 const KIT_VERSION = CONTENT_KIT_V4_VERSION;
 // The browser bundle replaces this marker with a reproducible hash of its canonical sources.
-const KIT_BUILD = 'b63f85f1c042';
+const KIT_BUILD = '03698fc32fcc';
 const VERSE_LOCKED = Object.freeze(['cid', 'snum', 'sid', 'chapter_name']);
 const MEDIA_EXTENSIONS = Object.freeze({ mp3: 'audio', m4a: 'audio', ogg: 'audio', opus: 'audio', wav: 'audio', png: 'image', jpg: 'image', jpeg: 'image', webp: 'image', gif: 'image', svg: 'image', mp4: 'video', webm: 'video', pdf: 'asset' });
 const inferredFieldType = (name) => name === 'json' ? 'json' : name === 'order' || name === 'position' || name.endsWith('_order') ? 'number' : name.endsWith('_ms') ? 'ms' : name === 'path' || name.endsWith('_url') ? 'media-path' : 'text';
@@ -1364,6 +1370,77 @@ function parseCsv(file, contract, text) { try { return parseCollectionTable(text
 function listProducts(workspace = globalThis.__MYGITA_LOCAL_WORKSPACE__) {
   if (!Array.isArray(workspace?.products)) throw kitError('The MyGita local workspace is not loaded.');
   return [...workspace.products].sort((a, b) => Number(a.order || 0) - Number(b.order || 0)).map((product) => { const config = product.config || {}; const problems = []; const bookIds = []; for (const experience of config.experiences || []) { const listed = Array.isArray(experience.bookIds) && experience.bookIds.length ? experience.bookIds : []; if (experience.bookId && listed.length && !listed.includes(experience.bookId)) problems.push({ message: `Experience ${experience.id} names book ${experience.bookId} outside its bookIds.` }); for (const id of listed.length ? listed : [experience.bookId].filter(Boolean)) if (!bookIds.includes(id)) bookIds.push(id); } let languages = null; try { languages = normalizeLanguageModel(config.languages); } catch (error) { problems.push({ message: error.message }); } return Object.freeze({ id: product.id, path: product.path, name: String(config.name || product.id), metadata: product.metadata || {}, bookIds: Object.freeze(bookIds), languages, experiences: Object.freeze(config.experiences || []), productText: product.productText || {}, problems: Object.freeze(problems) }); });
+}
+
+function looseRows(text) {
+  const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
+  const headers = (lines.shift() || '').split('#');
+  return lines.map((line) => Object.fromEntries(line.split('#').map((value, index) => [headers[index], decode(value)])));
+}
+
+function productExperience(product, experienceId) {
+  const path = `data/experiences/${experienceId}/experience.json`;
+  const text = product.productText?.[path];
+  if (!text) throw kitError(`Product ${product.id} does not provide ${path}.`, { path });
+  try { return JSON.parse(text); } catch (error) { throw kitError(`${path} is not valid JSON: ${error.message}`, { path }); }
+}
+
+async function configuredExperiences(workspace, media) {
+  const products = listProducts(workspace); const rawProducts = new Map(workspace.products.map((product) => [product.id, product])); const collectionCache = new Map(); const result = [];
+  const bookCollections = async (bookId) => { if (!collectionCache.has(bookId)) collectionCache.set(bookId, await collections(media, bookId)); return collectionCache.get(bookId); };
+  for (const product of products) {
+    const raw = rawProducts.get(product.id);
+    for (const summary of product.experiences) {
+      const config = productExperience(raw, summary.id); const bindings = {}; const rows = [];
+      const bookIds = Array.isArray(config.verseCollections) && config.verseCollections.length ? config.verseCollections : (Array.isArray(summary.bookIds) && summary.bookIds.length ? summary.bookIds : [summary.bookId || config.verseCollection].filter(Boolean));
+      for (const [bindingSlotId, input] of Object.entries(config.bindings || {})) {
+        const slot = Object.freeze({ binding_slot_id: bindingSlotId, content_type: input.contentType, part: input.part, follows_profile_language: input.followsProfileLanguage === true, variantPreferences: Object.freeze(input.variantPreferences || {}), renditionPreferences: Object.freeze(input.renditionPreferences || {}), collections: Object.freeze([...(input.collections || [])]) });
+        if (!slot.content_type || !slot.part) throw kitError(`${product.id}/${summary.id}/${bindingSlotId} requires contentType and part.`);
+        bindings[bindingSlotId] = slot;
+        for (const bookId of bookIds) {
+          const resource = config.collectionResources?.[bookId]?.[input.resource] || config.resources?.[input.resource];
+          if (input.collection) {
+            const collectionId = input.collection === '$book' ? bookId : input.collection;
+            const collection = (await bookCollections(bookId)).find((entry) => entry.content_type === slot.content_type && entry.collection_id === collectionId);
+            if (!collection) throw kitError(`${product.id}/${summary.id}/${bindingSlotId} references unknown collection ${collectionId}.`);
+            let keys = collection.parts[slot.part]?.expected_keys || [];
+            if (resource) keys = looseRows(await media.readText(resource)).map((row) => row.sid).filter(Boolean);
+            for (const [index, key] of keys.entries()) rows.push(Object.freeze({ owner_key: key, order: String(index + 1), binding_slot_id: bindingSlotId, book_id: bookId, content_type: slot.content_type, collection_id: collectionId, item_key: key }));
+            continue;
+          }
+          if (!resource || !input.collectionField || !input.orderField) throw kitError(`${product.id}/${summary.id}/${bindingSlotId} requires a resource and collection/order fields.`);
+          for (const row of looseRows(await media.readText(resource))) {
+            const collectionId = row[input.collectionField]; const itemOrder = row[input.orderField];
+            if (!collectionId && !itemOrder) continue;
+            if (!collectionId || !itemOrder) throw kitError(`${resource} has an incomplete ${bindingSlotId} reference at ${row.sid || row.owner_key}.`, { path: resource });
+            rows.push(Object.freeze({ owner_key: row.sid || row.owner_key, order: row.order || '1', binding_slot_id: bindingSlotId, book_id: bookId, content_type: slot.content_type, collection_id: collectionId, item_key: encodeItemKey(row.sid || row.owner_key, itemOrder) }));
+          }
+        }
+      }
+      result.push(Object.freeze({ product_id: product.id, experience_id: summary.id, book_ids: Object.freeze(bookIds), bindings: Object.freeze(bindings), rows: Object.freeze(rows) }));
+    }
+  }
+  return Object.freeze(result);
+}
+
+async function usage(workspace, media, target, { resolveVariant = null } = {}) {
+  const matches = []; const collectionCache = new Map();
+  for (const experience of await configuredExperiences(workspace, media)) for (const row of experience.rows) {
+    if (target.book_id && row.book_id !== target.book_id) continue;
+    if (target.content_type && row.content_type !== target.content_type) continue;
+    if (row.collection_id !== target.collection_id) continue;
+    const slot = experience.bindings[row.binding_slot_id];
+    if (target.variant_id) {
+      if (typeof resolveVariant !== 'function') throw kitError('Variant-specific usage requires the shared resolveVariant function.');
+      if (!collectionCache.has(row.book_id)) collectionCache.set(row.book_id, await collections(media, row.book_id));
+      const collection = collectionCache.get(row.book_id).find((entry) => entry.content_type === row.content_type && entry.collection_id === row.collection_id);
+      const resolved = resolveVariant(collection, { part: slot.part, key: row.item_key, preferences: slot.variantPreferences, renditionPreferences: slot.renditionPreferences });
+      if (resolved.variant?.variant_id !== target.variant_id) continue;
+    }
+    const key = `${experience.product_id}:${experience.experience_id}:${row.binding_slot_id}:${row.book_id}:${row.collection_id}`;
+    if (!matches.some((entry) => entry.key === key)) matches.push(Object.freeze({ key, product_id: experience.product_id, experience_id: experience.experience_id, binding_slot_id: row.binding_slot_id, book_id: row.book_id, content_type: row.content_type, collection_id: row.collection_id, variant_id: target.variant_id || null }));
+  }
+  return Object.freeze(matches);
 }
 async function openMedia(readText) {
   if (typeof readText !== 'function') throw kitError('openMedia requires a readText(logicalPath) function.');
@@ -1780,5 +1857,5 @@ async function publish(media, { readText, hashOf, workspace = null, releaseLabel
   return Object.freeze({ writes: Object.freeze(writes), changed: Object.freeze(changed), problems: Object.freeze({ blocking: Object.freeze(blocking), pending: Object.freeze(pending) }), workspace: Boolean(workspace) });
 }
 
-globalThis.MyGitaContentKit = Object.freeze({ KIT_API, KIT_VERSION, KIT_BUILD, describe, listProducts, openMedia, openMediaSnapshot, validationRegistries, encodeItemKey, collections, contentTree, readItems, updateItem, insertItem, removeItem, newFile, checkFile, addToManifest, removeFromManifest, buildReferenceGraph, planMove, related, checkSave, publish });
+globalThis.MyGitaContentKit = Object.freeze({ KIT_API, KIT_VERSION, KIT_BUILD, describe, listProducts, configuredExperiences, usage, openMedia, openMediaSnapshot, validationRegistries, encodeItemKey, collections, contentTree, readItems, updateItem, insertItem, removeItem, newFile, checkFile, addToManifest, removeFromManifest, buildReferenceGraph, planMove, related, checkSave, publish });
 })();

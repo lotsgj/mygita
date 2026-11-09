@@ -19,6 +19,7 @@ test('Sukta product retains configuration but no scripture content', async () =>
   const config = JSON.parse(await readFile(path.join(folder, 'experience.json'), 'utf8'));
   assert.equal(config.id, 'sukta-chant');
   assert.deepEqual(config.verseCollections, ['ganesha-atharva', 'purusha-sukta']);
+  assert.ok(config.bindings && Object.keys(config.bindings).length, 'sukta-chant declares kit-4 bindings');
 });
 
 test('both Sukta books load content only through the media contract', () => {

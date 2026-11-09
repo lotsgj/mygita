@@ -9,17 +9,14 @@
     "kn"
   ],
   "renderer": "gita-sara",
-  "deckCollections": [
-    "gita-sara-google-decks"
-  ],
-  "illustrationCollections": [
-    "gita-sara-illustrations",
-    "gita-sara-default-illustration"
-  ],
-  "contemplationCollections": [
-    "gita-sara-contemplations",
-    "gita-sara-default-contemplation"
-  ],
+  "bindings": {
+    "primary-verse": { "contentType": "verse", "part": "text", "collection": "bhagavad-gita", "resource": "sequence", "followsProfileLanguage": true, "variantPreferences": { "languages": ["any"] } },
+    "primary-audio": { "contentType": "audio", "part": "recording", "resource": "audio", "collectionField": "audio_collection", "orderField": "audio_order", "followsProfileLanguage": false, "variantPreferences": { "languages": [["sa"], "any"], "mode": ["chant", "any"] }, "renditionPreferences": { "format": ["mp3", "ogg"] } },
+    "chapter-icon": { "contentType": "image", "part": "image", "resource": "images", "collectionField": "chapter_icon_collection", "orderField": "chapter_icon_order", "followsProfileLanguage": false, "variantPreferences": { "languages": ["none", "any"], "theme": ["any"] } },
+    "illustration": { "contentType": "image", "part": "image", "resource": "illustrations", "collectionField": "image_collection", "orderField": "image_order", "collections": ["gita-sara-illustrations", "gita-sara-default-illustration"], "followsProfileLanguage": false, "variantPreferences": { "languages": ["none", "any"], "theme": ["any"] } },
+    "contemplation": { "contentType": "question", "part": "text", "resource": "contemplations", "collectionField": "text_collection", "orderField": "text_order", "collections": ["gita-sara-contemplations", "gita-sara-default-contemplation"], "followsProfileLanguage": true, "variantPreferences": { "languages": ["any"] } },
+    "deck": { "contentType": "deck", "part": "presentation", "resource": "decks", "collectionField": "deck_collection", "orderField": "deck_order", "collections": ["gita-sara-google-decks"], "followsProfileLanguage": true, "variantPreferences": { "languages": ["any"] } }
+  },
   "fallbacks": {
     "illustration": {
       "collection": "gita-sara-default-illustration",
@@ -31,10 +28,6 @@
       "sid": "DEFAULT",
       "order": "1"
     }
-  },
-  "audioBinding": {
-    "collectionField": "audio_collection",
-    "orderField": "audio_order"
   },
   "resources": {
     "sequence": "book/bhagavad-gita/experience/gita-sara/sequence.csv",

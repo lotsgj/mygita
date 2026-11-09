@@ -9,9 +9,10 @@
     "kn"
   ],
   "renderer": "gita-yoga",
-  "audioBinding": {
-    "collectionField": "audio_collection",
-    "orderField": "audio_order"
+  "bindings": {
+    "primary-verse": { "contentType": "verse", "part": "text", "collection": "bhagavad-gita", "followsProfileLanguage": true, "variantPreferences": { "languages": ["any"] } },
+    "primary-audio": { "contentType": "audio", "part": "recording", "resource": "audio", "collectionField": "audio_collection", "orderField": "audio_order", "followsProfileLanguage": true, "variantPreferences": { "languages": [["sa", "kn", "en"], "any"], "mode": ["learn", "any"] }, "renditionPreferences": { "format": ["ogg", "opus", "mp3"] } },
+    "chapter-icon": { "contentType": "image", "part": "image", "resource": "images", "collectionField": "chapter_icon_collection", "orderField": "chapter_icon_order", "followsProfileLanguage": false, "variantPreferences": { "languages": ["none", "any"], "theme": ["any"] } }
   },
   "resources": {
     "audio": "book/bhagavad-gita/experience/gita-yoga/audio.csv",

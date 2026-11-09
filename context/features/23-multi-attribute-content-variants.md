@@ -19,8 +19,8 @@ Updated 2026-11-09 · Codex · Sampada: docs/design/sampada.md §23 · ADR: 007
 - Exact existing-content migration IDs and verification report are implementation outputs, not runtime legacy mappings.
 - Media Admin can now implement item and collection-field editing against `collections(media, bookId)`, the shared contract bundle, canonical tree, validation and safe publication workflow.
 - MA-1 · accepted · Mutation plans for item, variant, default and collection changes — W-0021.
-- MA-2 · accepted · Kit-4 product and experience binding slots and composition — W-0020.
-- MA-3 · accepted · Shared collection/variant usage queries — W-0020.
+- MA-2 · done · Kit-4 product and experience binding slots and composition — W-0020.
+- MA-3 · done · Shared collection/variant usage queries — W-0020.
 - MA-4 · done · Media-wide language registry — W-0019.
 - MA-5 · done · Shared validation-registry adapter — W-0019.
 - MA-6 · done · Contract-owned English display labels — W-0019.

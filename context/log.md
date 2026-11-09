@@ -81,3 +81,7 @@ Tests: publish acceptance proves a canonical title edit reaches the runtime copy
 ## W-0019 · 2026-11-09 · Codex · S-23 · Content-Kit 4 contract completion
 Changed: added Media-wide language IDs and validator-ready registries, contract-owned English labels, declared lexicographic attribute priorities, preference-side `any` semantics and scalar-only `none` validation.
 Tests: MyGita 115 non-browser checks; Media 4/4 plus validator over 1,155 files and three books.
+
+## W-0020 · 2026-11-09 · Codex · S-23 · Content-Kit 4 product bindings and usage
+Changed: every Gita and Sukta experience declares kit-4 binding slots; `configuredExperiences()` normalizes product configuration and real Media compositions; player audio and declared collections use those slots; `usage()` reports collection and resolved-variant consumers.
+Tests: every real normalized row resolves through CK4; Swami Brahmananda usage covers Gita 700, Gita Chant and Gita Sara; Gita/Sukta contracts and browser parity pass.

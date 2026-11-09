@@ -204,15 +204,21 @@ function verifyOrderedComposition(referenceRows, composition, label, { multiple 
   });
 }
 
-function audioBinding(experience) {
+function primaryAudioSource(experience) {
+  const slot = experience?.bindings?.['primary-audio'] || {};
   return {
-    collectionField: experience?.audioBinding?.collectionField || 'chant_full_sa_collection',
-    orderField: experience?.audioBinding?.orderField || 'chant_full_sa_order'
+    collectionField: slot.collectionField || 'chant_full_sa_collection',
+    orderField: slot.orderField || 'chant_full_sa_order'
   };
 }
 
+function bindingCollections(experience, bindingSlotId) {
+  const values = experience?.bindings?.[bindingSlotId]?.collections;
+  return Array.isArray(values) ? values : [];
+}
+
 function audioCompositionHeaders(experience) {
-  const binding = audioBinding(experience);
+  const binding = primaryAudioSource(experience);
   return ['cid', 'snum', 'sid', binding.collectionField, binding.orderField];
 }
 
@@ -310,7 +316,7 @@ export function normalizeCollectionData({ sa, en, kn, languageTables = null, seq
   if (illustrationComposition) verifyOrderedComposition(sourceRows, illustrationComposition, 'Experience illustration composition', { multiple: true, sparse: true });
   if (contemplationComposition) verifyOrderedComposition(sourceRows, contemplationComposition, 'Experience contemplation composition', { multiple: true, sparse: true });
   if (mediaComposition) verifyOrderedComposition(sourceRows, mediaComposition, 'Experience media composition', { multiple: true, sparse: true });
-  const binding = audioBinding(experience);
+  const binding = primaryAudioSource(experience);
   const bySid = (table) => new Map(table.rows.map((row) => [row.sid, row]));
   const localizedByLanguage = Object.fromEntries(Object.entries(localizedTables).map(([language, table]) => [language, bySid(table)]));
   const audioBySid = bySid(audioComposition);
@@ -707,20 +713,20 @@ export async function loadCollectionExperience(experienceId, { version = '', col
     mediaCompositionUrl ? fetchTable(mediaCompositionUrl, MEDIA_COMPOSITION_HEADERS, version) : null
   ]);
   const [audioCollections, imageCatalogs, deckCatalogs, illustrationCatalogs, contemplationCatalogs] = await Promise.all([
-    loadAudioCatalogs(audioComposition, audioBinding(experience).collectionField, version),
+    loadAudioCatalogs(audioComposition, primaryAudioSource(experience).collectionField, version),
     loadMediaCatalogs('images', imageComposition, 'chapter_icon_collection', ['sid', 'order', 'image_url'], version),
-    deckComposition ? loadMediaCatalogs('deck', deckComposition, 'deck_collection', DECK_CATALOG_HEADERS, version, experience.deckCollections || []) : new Map(),
+    deckComposition ? loadMediaCatalogs('deck', deckComposition, 'deck_collection', DECK_CATALOG_HEADERS, version, bindingCollections(experience, 'deck')) : new Map(),
     illustrationComposition ? loadLocalizedCatalogs({
       type: 'images', composition: illustrationComposition, collectionField: 'image_collection',
       catalogHeaders: ILLUSTRATION_CATALOG_HEADERS, localizedHeaders: ILLUSTRATION_METADATA_HEADERS,
       localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: localizedRegistryHeaderRule('images'),
-      version, declaredIds: experience.illustrationCollections || []
+      version, declaredIds: bindingCollections(experience, 'illustration')
     }) : new Map(),
     contemplationComposition ? loadLocalizedCatalogs({
       type: 'text', composition: contemplationComposition, collectionField: 'text_collection',
       catalogHeaders: CONTEMPLATION_CATALOG_HEADERS, localizedHeaders: CONTEMPLATION_MASTER_HEADERS,
       localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: localizedRegistryHeaderRule('text'),
-      version, declaredIds: experience.contemplationCollections || []
+      version, declaredIds: bindingCollections(experience, 'contemplation')
     }) : new Map()
   ]);
   const dataset = normalizeCollectionData({
@@ -861,7 +867,7 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
     const catalogs = new Map();
     const cueIndexes = new Map();
     const cueErrors = new Map();
-    const binding = audioBinding(experience);
+    const binding = primaryAudioSource(experience);
     for (const id of new Set(audioComposition.rows.map((row) => row[binding.collectionField]).filter(Boolean))) {
       const entry = registryEntry(registry, id, 'audio');
       const catalog = await table(entry.catalog_url, AUDIO_CATALOG_HEADERS);
@@ -907,18 +913,18 @@ export async function loadCollectionExperienceWithReader(experienceId, { text, r
   const [audioCollections, imageCatalogs, deckCatalogs, illustrationCatalogs, contemplationCatalogs] = await Promise.all([
     localAudioCatalogs(),
     localCatalogs('images', imageComposition, 'chapter_icon_collection', ['sid', 'order', 'image_url']),
-    deckComposition ? localCatalogs('deck', deckComposition, 'deck_collection', DECK_CATALOG_HEADERS, experience.deckCollections || []) : new Map(),
+    deckComposition ? localCatalogs('deck', deckComposition, 'deck_collection', DECK_CATALOG_HEADERS, bindingCollections(experience, 'deck')) : new Map(),
     illustrationComposition ? localLocalizedCatalogs({
       type: 'images', composition: illustrationComposition, collectionField: 'image_collection',
       catalogHeaders: ILLUSTRATION_CATALOG_HEADERS, localizedHeaders: ILLUSTRATION_METADATA_HEADERS,
       localizedFields: LOCALIZED_REGISTRY_FIELDS.images, registryHeaders: localizedRegistryHeaderRule('images'),
-      declaredIds: experience.illustrationCollections || []
+      declaredIds: bindingCollections(experience, 'illustration')
     }) : new Map(),
     contemplationComposition ? localLocalizedCatalogs({
       type: 'text', composition: contemplationComposition, collectionField: 'text_collection',
       catalogHeaders: CONTEMPLATION_CATALOG_HEADERS, localizedHeaders: CONTEMPLATION_MASTER_HEADERS,
       localizedFields: LOCALIZED_REGISTRY_FIELDS.text, registryHeaders: localizedRegistryHeaderRule('text'),
-      declaredIds: experience.contemplationCollections || []
+      declaredIds: bindingCollections(experience, 'contemplation')
     }) : new Map()
   ]);
   const dataset = normalizeCollectionData({

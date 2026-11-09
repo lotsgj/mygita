@@ -10,6 +10,11 @@
     "kn"
   ],
   "renderer": "verse-chant",
+  "bindings": {
+    "primary-verse": { "contentType": "verse", "part": "text", "collection": "bhagavad-gita", "followsProfileLanguage": true, "variantPreferences": { "languages": ["any"] } },
+    "primary-audio": { "contentType": "audio", "part": "recording", "resource": "audio", "collectionField": "chant_full_sa_collection", "orderField": "chant_full_sa_order", "followsProfileLanguage": false, "variantPreferences": { "languages": [["sa"], "any"], "mode": ["chant", "any"] }, "renditionPreferences": { "format": ["mp3", "ogg"] } },
+    "chapter-icon": { "contentType": "image", "part": "image", "resource": "images", "collectionField": "chapter_icon_collection", "orderField": "chapter_icon_order", "followsProfileLanguage": false, "variantPreferences": { "languages": ["none", "any"], "theme": ["any"] } }
+  },
   "resources": {
     "audio": "book/bhagavad-gita/experience/gita-700/audio.csv",
     "images": "book/bhagavad-gita/experience/gita-700/images.csv"

@@ -20,6 +20,8 @@ test('Gita product retains configuration but no scripture content', async () => 
     const config = JSON.parse(await readFile(path.join(folder, 'experience.json'), 'utf8'));
     assert.equal(config.id, id);
     assert.equal(config.verseCollection, 'bhagavad-gita');
+    assert.equal('audioBinding' in config, false);
+    assert.ok(config.bindings && Object.keys(config.bindings).length, `${id} declares kit-4 bindings`);
   }
 });
 

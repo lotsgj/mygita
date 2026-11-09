@@ -33,7 +33,9 @@ Item keys follow each part contract's declared key components. A single componen
 
 ## Composition and configured experiences
 
-Composition rows name a binding slot, structured collection identity and logical item key. They never name a variant. Product configuration defines the slot's content type, part, semantic preferences and rendition preferences. The shared resolver combines profile preferences, configured-experience preferences, product defaults, collection defaults, capabilities and explicit fallbacks, then returns the chosen variant and rendition together with its reasoning. Semantic attributes are compared lexicographically in each part contract's declared priority order; a lower-priority exact match cannot outweigh a higher-priority preference.
+Composition rows name a binding slot, structured collection identity and logical item key. They never name a variant. Product experience configuration defines each slot's content type, part, semantic preferences, rendition preferences, profile-language behavior and the composition fields that supply collection and item identity. `configuredExperiences()` normalizes Gita and Sukta configurations and their existing composition files into the same kit-4 rows. The player and Media Admin therefore consume one binding declaration without `audioBinding` or UI-side interpretation.
+
+The shared resolver combines profile preferences, configured-experience preferences, product defaults, collection defaults, capabilities and explicit fallbacks, then returns the chosen variant and rendition together with its reasoning. Semantic attributes are compared lexicographically in each part contract's declared priority order; a lower-priority exact match cannot outweigh a higher-priority preference. `usage()` reports every product, experience and binding slot using a collection; variant-specific usage applies the same resolver.
 
 ## Coverage and segments
 

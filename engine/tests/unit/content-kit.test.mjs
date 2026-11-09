@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
-import { buildReferenceGraph, checkFile, checkSave, collections, contentTree, describe, insertItem, listProducts, openMedia, openMediaSnapshot, planMove, publish, readItems, removeItem, updateItem, validationRegistries } from '../../js/content-kit.js';
-import { validateVariant } from '../../js/content-kit-v4.js';
+import { buildReferenceGraph, checkFile, checkSave, collections, configuredExperiences, contentTree, describe, insertItem, listProducts, openMedia, openMediaSnapshot, planMove, publish, readItems, removeItem, updateItem, usage, validationRegistries } from '../../js/content-kit.js';
+import { resolveVariant, validateVariant } from '../../js/content-kit-v4.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
 const mediaRoot = process.env.MYGITA_MEDIA_ROOT || path.resolve(repoRoot, '../media');
@@ -40,6 +40,36 @@ test('products list their books and normalized languages from the local workspac
   assert.deepEqual(byId.sukta.bookIds, ['ganesha-atharva', 'purusha-sukta']);
   assert.equal(byId.sukta.languages.source, 'sa');
   assert.deepEqual(products.flatMap((product) => product.problems), []);
+});
+
+test('configured experiences expose kit-4 binding slots and resolvable composition rows', async () => {
+  const workspace = await localWorkspace();
+  const media = await openMedia(readText);
+  const experiences = await configuredExperiences(workspace, media);
+  assert.deepEqual(experiences.map((entry) => entry.experience_id).sort(), ['gita-700', 'gita-chant', 'gita-sara', 'gita-yoga', 'sukta-chant']);
+  const collectionsByBook = new Map();
+  for (const book of media.books) collectionsByBook.set(book.id, await collections(media, book.id));
+  for (const experience of experiences) {
+    assert.ok(Object.keys(experience.bindings).length, `${experience.experience_id} has binding slots`);
+    for (const row of experience.rows) {
+      const slot = experience.bindings[row.binding_slot_id];
+      assert.ok(slot, `${row.binding_slot_id} is declared`);
+      assert.equal(row.content_type, slot.content_type);
+      const collection = collectionsByBook.get(row.book_id).find((entry) => entry.content_type === row.content_type && entry.collection_id === row.collection_id);
+      assert.ok(collection, `${row.collection_id} exists`);
+      const resolved = resolveVariant(collection, { part: slot.part, key: row.item_key, preferences: slot.variantPreferences, renditionPreferences: slot.renditionPreferences, capabilities: { formats: ['mp3', 'ogg', 'opus', 'webp', 'png', 'svg', 'jpg', 'json'] } });
+      assert.ok(resolved.variant, `${experience.experience_id}/${row.binding_slot_id}/${row.owner_key} resolves`);
+    }
+  }
+});
+
+test('usage reports every configured experience that uses Swami Brahmananda audio', async () => {
+  const workspace = await localWorkspace(); const media = await openMedia(readText);
+  const result = await usage(workspace, media, { book_id: 'bhagavad-gita', content_type: 'audio', collection_id: 'chanting-swami-brahmananda' });
+  assert.deepEqual(result.map((entry) => entry.experience_id).sort(), ['gita-700', 'gita-chant', 'gita-sara']);
+  assert.ok(result.every((entry) => entry.binding_slot_id === 'primary-audio'));
+  const variantResult = await usage(workspace, media, { book_id: 'bhagavad-gita', content_type: 'audio', collection_id: 'chanting-swami-brahmananda', variant_id: 'recording-default' }, { resolveVariant });
+  assert.deepEqual(variantResult.map((entry) => entry.experience_id).sort(), ['gita-700', 'gita-chant', 'gita-sara']);
 });
 
 test('the media root opens every book with its declared languages', async () => {
