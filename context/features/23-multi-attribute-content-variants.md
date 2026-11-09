@@ -12,13 +12,13 @@ Updated 2026-11-09 · Codex · Sampada: docs/design/sampada.md §23 · ADR: 007
 ## Parts
 - [x] Tranche 1 executable contract, fixtures, resolver, coverage and plan shapes — W-0016
 - [x] Tranche 2A local Media migration, canonical collection API and derived runtime publication — W-0017, W-0018
-- [ ] Tranche 2B product bindings and higher-level mutation-plan builders — W-0019 contract completion done
+- [x] Tranche 2B product bindings and higher-level mutation-plan builders — W-0019, W-0020, W-0021
 - [ ] Tranche 3 coordinated Media-first remote cutover
 
 ## Open
 - Exact existing-content migration IDs and verification report are implementation outputs, not runtime legacy mappings.
 - Media Admin can now implement item and collection-field editing against `collections(media, bookId)`, the shared contract bundle, canonical tree, validation and safe publication workflow.
-- MA-1 · accepted · Mutation plans for item, variant, default and collection changes — W-0021.
+- MA-1 · done · Mutation plans for item, variant, default and collection changes — W-0021.
 - MA-2 · done · Kit-4 product and experience binding slots and composition — W-0020.
 - MA-3 · done · Shared collection/variant usage queries — W-0020.
 - MA-4 · done · Media-wide language registry — W-0019.
@@ -56,3 +56,4 @@ Updated 2026-11-09 · Codex · Sampada: docs/design/sampada.md §23 · ADR: 007
 - 2026-11-08 Tranche 1 contract and representative fixtures created after MyGita/Media Admin design review (Codex)
 - 2026-11-08 Tranche 2 migrated all local Media books, activated CK4 in MyGita and exposed canonical files to Media Admin (Codex)
 - 2026-11-09 Tranche 2A completed canonical collection joins, ID vocabularies, MIME-derived current renditions and generated read-only runtime publication (Codex)
+- 2026-11-09 Tranche 2B completed contract vocabularies, resolver semantics, product bindings, usage queries and mutation-plan previews (Codex)

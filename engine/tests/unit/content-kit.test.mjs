@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
-import { buildReferenceGraph, checkFile, checkSave, collections, configuredExperiences, contentTree, describe, insertItem, listProducts, openMedia, openMediaSnapshot, planMove, publish, readItems, removeItem, updateItem, usage, validationRegistries } from '../../js/content-kit.js';
+import { buildReferenceGraph, checkFile, checkSave, collections, configuredExperiences, contentTree, describe, insertItem, listProducts, mutationSnapshot, openMedia, openMediaSnapshot, planCollectionMutation, planDefaultMutation, planItemMutation, planMove, planVariantMutation, publish, readItems, removeItem, updateItem, usage, validationRegistries } from '../../js/content-kit.js';
 import { resolveVariant, validateVariant } from '../../js/content-kit-v4.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
@@ -32,6 +32,7 @@ const changedLines = (before, after) => {
   const b = after.split('\n');
   return a.map((line, index) => (line === b[index] ? -1 : index)).filter((index) => index >= 0);
 };
+const hashText = async (text) => createHash('sha256').update(text).digest('hex');
 
 test('products list their books and normalized languages from the local workspace', async () => {
   const products = listProducts(await localWorkspace());
@@ -217,6 +218,73 @@ test('runtime views are generated, read-only and rebuilt from canonical content 
   const runtimeWrite = result.writes.find((write) => write.path === runtimePath);
   assert.ok(runtimeWrite);
   assert.match(runtimeWrite.text, /publish acceptance/);
+});
+
+test('item mutation plans add, change and remove through a validated snapshot', async () => {
+  const media = await openMedia(readText);
+  const target = { book_id: 'bhagavad-gita', content_type: 'question', collection_id: 'gita-sara-contemplations', part: 'text', variant_id: 'text-en' };
+  const changedPlan = await planItemMutation(media, { ...target, operation: 'change', key: '1.1:1', values: { text: 'Changed through a plan' } }, { hashText });
+  assert.ok(changedPlan.writes.every((write) => write.text && write.precondition && write.postcondition.hash));
+  let snapshot = mutationSnapshot(media, changedPlan);
+  let collection = (await collections(snapshot, 'bhagavad-gita')).find((entry) => entry.collection_id === target.collection_id);
+  assert.equal(collection.parts.text.variants.find((entry) => entry.variant_id === 'text-en').items.find((item) => item.key === '1.1:1').values.text, 'Changed through a plan');
+  const publishPreview = await publish(snapshot, { readText: snapshot.readText, hashOf: async (path, replacement = null) => hashText(replacement ?? await snapshot.readText(path)), releaseLabel: media.catalog.content_version, updatedAt: media.catalog.updated_at });
+  assert.deepEqual(publishPreview.problems.blocking, []);
+  assert.ok(publishPreview.writes.some((write) => write.path === 'book/bhagavad-gita/manifest.json'));
+
+  const addPlan = await planItemMutation(snapshot, { ...target, operation: 'add', values: { sid: '99.1', order: '1', text: 'New question' }, after: '2.47:2' }, { hashText });
+  snapshot = mutationSnapshot(snapshot, addPlan);
+  collection = (await collections(snapshot, 'bhagavad-gita')).find((entry) => entry.collection_id === target.collection_id);
+  assert.ok(collection.parts.text.variants.find((entry) => entry.variant_id === 'text-en').items.some((item) => item.key === '99.1:1'));
+
+  const removePlan = await planItemMutation(snapshot, { ...target, operation: 'remove', key: '99.1:1' }, { hashText });
+  snapshot = mutationSnapshot(snapshot, removePlan);
+  collection = (await collections(snapshot, 'bhagavad-gita')).find((entry) => entry.collection_id === target.collection_id);
+  assert.equal(collection.parts.text.variants.find((entry) => entry.variant_id === 'text-en').items.some((item) => item.key === '99.1:1'), false);
+  assert.ok(removePlan.affected.runtime.length);
+});
+
+test('variant and default plans add and retarget a valid semantic variant', async () => {
+  const media = await openMedia(readText);
+  const target = { book_id: 'bhagavad-gita', content_type: 'question', collection_id: 'gita-sara-contemplations', part: 'text' };
+  const variantPlan = await planVariantMutation(media, { ...target, operation: 'add', variant_id: 'text-sa', attributes: { languages: ['sa'] }, content_url: 'book/bhagavad-gita/questions/gita-sara-contemplations/master_sa.csv', contract: 'question-master', content_text: 'sid#order#text\n1.1#1#कः धृतराष्ट्रः?\n' }, { hashText });
+  let snapshot = mutationSnapshot(media, variantPlan);
+  let collection = (await collections(snapshot, 'bhagavad-gita')).find((entry) => entry.collection_id === target.collection_id);
+  const added = collection.parts.text.variants.find((entry) => entry.variant_id === 'text-sa');
+  assert.deepEqual(validateVariant('question', 'text', added, validationRegistries(snapshot)).attributes.languages, ['sa']);
+
+  const changePlan = await planVariantMutation(snapshot, { ...target, operation: 'change', variant_id: 'text-sa', attributes: { languages: ['kn'] } }, { hashText });
+  snapshot = mutationSnapshot(snapshot, changePlan);
+  collection = (await collections(snapshot, 'bhagavad-gita')).find((entry) => entry.collection_id === target.collection_id);
+  assert.deepEqual(collection.parts.text.variants.find((entry) => entry.variant_id === 'text-sa').attributes.languages, ['kn']);
+
+  const defaultPlan = await planDefaultMutation(snapshot, { ...target, variant_id: 'text-sa' }, { hashText });
+  snapshot = mutationSnapshot(snapshot, defaultPlan);
+  collection = (await collections(snapshot, 'bhagavad-gita')).find((entry) => entry.collection_id === target.collection_id);
+  assert.equal(collection.parts.text.default_variant_id, 'text-sa');
+});
+
+test('collection plans add and change a complete collection through one snapshot', async () => {
+  const media = await openMedia(readText);
+  const plan = await planCollectionMutation(media, {
+    operation: 'add', book_id: 'bhagavad-gita', content_type: 'question',
+    collection: { collection_id: 'sample-contemplation', contributors: '', license: 'CC0-1.0', source: 'test' },
+    index: { path: 'book/bhagavad-gita/questions/sample-contemplation/catalog.csv', contract: 'question-catalog', text: 'sid#order#line_type\n1.1#1#question\n' },
+    parts: {
+      text: { default_variant_id: 'text-en', variant_id: 'text-en', attributes: { languages: ['en'] }, content_url: 'book/bhagavad-gita/questions/sample-contemplation/master_en.csv', contract: 'question-master', content_text: 'sid#order#text\n1.1#1#A sample question?\n' },
+      'collection-metadata': { default_variant_id: 'metadata-en', variant_id: 'metadata-en', attributes: { languages: ['en'] }, content_url: 'book/bhagavad-gita/registry/question/metadata/sample-contemplation-en.csv', contract: 'ck4-collection-metadata', content_text: 'collection_id#title#short_name#description#attribution\nsample-contemplation#Sample contemplation#Sample#Test collection#\n' }
+    }
+  }, { hashText });
+  let snapshot = mutationSnapshot(media, plan);
+  let collection = (await collections(snapshot, 'bhagavad-gita')).find((entry) => entry.collection_id === 'sample-contemplation');
+  assert.equal(collection.license, 'CC0-1.0');
+  assert.deepEqual(collection.problems, []);
+  const changePlan = await planCollectionMutation(snapshot, { operation: 'change', book_id: 'bhagavad-gita', content_type: 'question', collection_id: 'sample-contemplation', values: { license: 'CC-BY-4.0' } }, { hashText });
+  snapshot = mutationSnapshot(snapshot, changePlan);
+  collection = (await collections(snapshot, 'bhagavad-gita')).find((entry) => entry.collection_id === 'sample-contemplation');
+  assert.equal(collection.license, 'CC-BY-4.0');
+  assert.ok(plan.affected.manifests.includes('book/bhagavad-gita/manifest.json'));
+  assert.ok(plan.affected.activation.includes('media.ver'));
 });
 
 test('editing a field and restoring it gives byte-identical text for every editable file', async () => {

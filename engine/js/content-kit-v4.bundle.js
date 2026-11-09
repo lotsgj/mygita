@@ -4,7 +4,7 @@
 
 // Source: js/content-kit-v4-version.js
 // Human-approved major; generated minor identifies this reviewed contract revision.
-const CONTENT_KIT_V4_VERSION = '4.20261109-091928';
+const CONTENT_KIT_V4_VERSION = '4.20261109-101633';
 
 // Source: js/content-kit-v4.js
 // Content-Kit 4: pure variant contracts, resolution, coverage and plan shapes.
@@ -13,7 +13,7 @@ const CONTENT_KIT_V4_VERSION = '4.20261109-091928';
 const KIT_API = 4;
 const KIT_VERSION = CONTENT_KIT_V4_VERSION;
 // The standalone bundle replaces this marker with a reproducible source hash.
-const KIT_BUILD = '60cc8cd6b16e';
+const KIT_BUILD = 'bc99ea14c908';
 
 const attribute = (type, options = {}) => Object.freeze({ type, ...options });
 const part = (representation, key, semanticAttributes = [], renditionAttributes = [], options = {}) => Object.freeze({

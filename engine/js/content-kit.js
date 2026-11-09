@@ -313,6 +313,140 @@ export async function contentTree(media, bookId) {
   return Object.freeze(nodes);
 }
 
+function mutationBook(media, bookId) {
+  const book = media?.books?.find((entry) => entry.id === bookId);
+  if (!book?.manifest) throw kitError(book?.problems?.[0]?.message || `Unknown book ${bookId}.`);
+  return book;
+}
+
+function runtimePaths(manifest) {
+  const paths = [];
+  const visit = (value) => { if (typeof value === 'string' && value.includes('/runtime/')) paths.push(value); else if (Array.isArray(value)) value.forEach(visit); else if (value && typeof value === 'object') Object.values(value).forEach(visit); };
+  visit(manifest.runtime_view || {});
+  return [...new Set(paths)].sort();
+}
+
+function mutationAffected(media, book) {
+  return Object.freeze({
+    runtime: Object.freeze(runtimePaths(book.manifest)),
+    inventories: Object.freeze(media.inventoryParts.map((entry) => entry.path)),
+    manifests: Object.freeze([book.manifestPath]),
+    catalog: Object.freeze(['catalog.json']),
+    activation: Object.freeze(['media.ver'])
+  });
+}
+
+async function mutationPlan(media, book, operation, specifications, hashText) {
+  if (typeof hashText !== 'function') throw kitError('Mutation planning requires hashText(text).');
+  const writes = [];
+  for (const specification of specifications) {
+    const text = String(specification.text); const existing = media.fileIndex.has(specification.path) || specification.path === book.manifestPath;
+    let before = '';
+    if (existing) before = await media.readText(specification.path);
+    const descriptor = { path: specification.path, contract: specification.contract };
+    const problems = checkFile(descriptor, text);
+    if (problems.length) throw kitError(problems[0].message, problems[0]);
+    writes.push(Object.freeze({
+      path: specification.path, contract: specification.contract, stage: specification.stage || (specification.path.includes('/registry/') ? 'registry' : 'content'), text,
+      precondition: Object.freeze(existing ? { hash: await hashText(before) } : { absent: true }),
+      postcondition: Object.freeze({ hash: await hashText(text) })
+    }));
+  }
+  return Object.freeze({ operation, book_id: book.id, writes: Object.freeze(writes), affected: mutationAffected(media, book) });
+}
+
+function mutationCollection(models, contentType, collectionId) {
+  const collection = models.find((entry) => entry.content_type === contentType && entry.collection_id === collectionId);
+  if (!collection) throw kitError(`Unknown ${contentType} collection ${collectionId}.`);
+  return collection;
+}
+
+function variantValues(input) {
+  return Object.fromEntries(Object.entries(input.attributes || {}).map(([name, value]) => [name, Array.isArray(value) ? value.join(',') : value]).concat([['content_url', input.content_url]]));
+}
+
+export async function planItemMutation(media, input, { hashText } = {}) {
+  const book = mutationBook(media, input.book_id); const collection = mutationCollection(await collections(media, input.book_id), input.content_type, input.collection_id);
+  const variant = collection.parts[input.part]?.variants.find((entry) => entry.variant_id === input.variant_id);
+  if (!variant) throw kitError(`${input.collection_id}/${input.part} has no variant ${input.variant_id}.`);
+  const original = await media.readText(variant.file.path); let text;
+  if (input.operation === 'add') text = insertItem(variant.file, original, input.values, { after: input.after || '' });
+  else if (input.operation === 'change') text = updateItem(variant.file, original, input.key, input.values);
+  else if (input.operation === 'remove') text = removeItem(variant.file, original, input.key);
+  else throw kitError(`Unsupported item mutation ${input.operation}.`);
+  return mutationPlan(media, book, `item:${input.operation}`, [{ path: variant.file.path, contract: variant.file.contract, text }], hashText);
+}
+
+export async function planVariantMutation(media, input, { hashText } = {}) {
+  const book = mutationBook(media, input.book_id); const collection = mutationCollection(await collections(media, input.book_id), input.content_type, input.collection_id);
+  const registry = collection.registry_files.variants[input.part];
+  if (!registry) throw kitError(`${input.collection_id} has no ${input.part} part.`);
+  const original = await media.readText(registry.path); const values = { collection_id: input.collection_id, variant_id: input.variant_id, ...variantValues(input) }; const specifications = [];
+  let text;
+  if (input.operation === 'add') {
+    text = insertItem(registry, original, values);
+    const contentText = input.content_text ?? newFile(input.contract, input.content_url);
+    specifications.push({ path: input.content_url, contract: input.contract, text: contentText, stage: 'content' });
+  } else if (input.operation === 'change') {
+    const existing = collection.parts[input.part].variants.find((entry) => entry.variant_id === input.variant_id);
+    if (!existing) throw kitError(`${input.collection_id}/${input.part} has no variant ${input.variant_id}.`);
+    const changes = { ...variantValues({ attributes: input.attributes || existing.attributes, content_url: input.content_url || existing.content_url }) };
+    text = updateItem(registry, original, encodeItemKey(input.collection_id, input.variant_id), changes);
+  } else throw kitError(`Unsupported variant mutation ${input.operation}.`);
+  specifications.unshift({ path: registry.path, contract: registry.contract, text, stage: 'registry' });
+  return mutationPlan(media, book, `variant:${input.operation}`, specifications, hashText);
+}
+
+export async function planDefaultMutation(media, input, { hashText } = {}) {
+  const book = mutationBook(media, input.book_id); const collection = mutationCollection(await collections(media, input.book_id), input.content_type, input.collection_id);
+  if (!collection.parts[input.part]?.variants.some((entry) => entry.variant_id === input.variant_id)) throw kitError(`${input.variant_id} is not a ${input.collection_id}/${input.part} variant.`);
+  const file = collection.registry_files.defaults; const original = await media.readText(file.path);
+  const text = updateItem(file, original, encodeItemKey(input.collection_id, input.part), { default_variant_id: input.variant_id });
+  return mutationPlan(media, book, 'default:change', [{ path: file.path, contract: file.contract, text, stage: 'registry' }], hashText);
+}
+
+export async function planCollectionMutation(media, input, { hashText } = {}) {
+  const book = mutationBook(media, input.book_id); const models = await collections(media, input.book_id); const declaration = book.manifest.collections.find((entry) => entry.content_type === input.content_type);
+  if (!declaration) throw kitError(`${input.book_id} does not declare ${input.content_type} collections.`);
+  const sample = models.find((entry) => entry.content_type === input.content_type); if (!sample) throw kitError(`${input.content_type} has no registry model.`);
+  const specifications = [];
+  if (input.operation === 'change') {
+    const collection = mutationCollection(models, input.content_type, input.collection_id); const file = collection.registry_files.collection; const original = await media.readText(file.path);
+    const text = updateItem(file, original, input.collection_id, input.values);
+    return mutationPlan(media, book, 'collection:change', [{ path: file.path, contract: file.contract, text, stage: 'registry' }], hashText);
+  }
+  if (input.operation !== 'add') throw kitError(`Unsupported collection mutation ${input.operation}.`);
+  const collectionId = input.collection?.collection_id; if (!collectionId) throw kitError('A new collection requires collection_id.');
+  const registry = sample.registry_files.collection; let registryText = await media.readText(registry.path);
+  registryText = insertItem(registry, registryText, input.collection); specifications.push({ path: registry.path, contract: registry.contract, text: registryText, stage: 'registry' });
+  const defaults = sample.registry_files.defaults; let defaultsText = await media.readText(defaults.path);
+  for (const [partId, partInput] of Object.entries(input.parts || {})) {
+    const variantRegistry = sample.registry_files.variants[partId]; if (!variantRegistry) throw kitError(`${input.content_type} does not declare part ${partId}.`);
+    let variantText = specifications.find((entry) => entry.path === variantRegistry.path)?.text ?? await media.readText(variantRegistry.path);
+    variantText = insertItem(variantRegistry, variantText, { collection_id: collectionId, variant_id: partInput.variant_id, ...variantValues(partInput) });
+    const existing = specifications.find((entry) => entry.path === variantRegistry.path); if (existing) existing.text = variantText; else specifications.push({ path: variantRegistry.path, contract: variantRegistry.contract, text: variantText, stage: 'registry' });
+    defaultsText = insertItem(defaults, defaultsText, { collection_id: collectionId, part: partId, default_variant_id: partInput.default_variant_id });
+    specifications.push({ path: partInput.content_url, contract: partInput.contract, text: partInput.content_text ?? newFile(partInput.contract, partInput.content_url), stage: 'content' });
+  }
+  specifications.push({ path: defaults.path, contract: defaults.contract, text: defaultsText, stage: 'registry' });
+  if (input.index) {
+    specifications.push({ path: input.index.path, contract: input.index.contract, text: input.index.text ?? newFile(input.index.contract, input.index.path), stage: 'content' });
+    const manifest = structuredClone(book.manifest); const target = manifest.collections.find((entry) => entry.content_type === input.content_type); target.indexes ||= {}; target.indexes[collectionId] = input.index.path;
+    specifications.push({ path: book.manifestPath, contract: 'manifest', text: `${JSON.stringify(manifest, null, 2)}\n`, stage: 'manifest' });
+  }
+  return mutationPlan(media, book, 'collection:add', specifications, hashText);
+}
+
+export function mutationSnapshot(media, plan) {
+  const overlay = new Map(plan.writes.map((write) => [write.path, write.text])); const fileIndex = new Map(media.fileIndex); const encoder = new TextEncoder();
+  for (const write of plan.writes) if (write.path !== media.catalogFile.path && !write.path.endsWith('/manifest.json')) {
+    const current = fileIndex.get(write.path) || {}; fileIndex.set(write.path, Object.freeze({ ...current, path: write.path, contract: write.contract, hash: write.postcondition.hash, size: encoder.encode(write.text).length, mime_type: current.mime_type || (write.path.endsWith('.json') ? 'application/json' : 'text/csv'), media_type: current.media_type || write.path.split('/')[0], mountId: current.mountId || media.catalog.mounts[0]?.mount_id, inventory: current.inventory || media.inventoryParts[0]?.path }));
+  }
+  const books = media.books.map((book) => { const text = overlay.get(book.manifestPath); return text ? Object.freeze({ ...book, manifest: JSON.parse(text) }) : book; });
+  const readText = async (path) => overlay.has(path) ? overlay.get(path) : media.readText(path);
+  return Object.freeze({ ...media, books: Object.freeze(books), fileIndex, readText });
+}
+
 export function readItems(file, text, { view = '' } = {}) {
   const contract = contractFor(file);
   if (contract.format === 'asset') return Object.freeze({ fields: Object.freeze([{ name: 'path', editable: false, type: 'path' }]), items: Object.freeze([{ key: file.path, label: file.path, values: { path: file.path, media_type: MEDIA_EXTENSIONS[file.path.split('.').pop()?.toLowerCase()] || 'asset' }, problems: [] }]) });

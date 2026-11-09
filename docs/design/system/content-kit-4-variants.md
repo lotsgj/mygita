@@ -45,10 +45,12 @@ Segment meaning and order are semantic, while timings are bound to a rendition a
 
 ## Plans and I/O
 
-Content-Kit is pure. It returns operations with stable IDs, logical paths, precondition hashes or absence checks, and postcondition hashes. Media Admin performs I/O and journals progress. Plans are idempotent and order assets before inventories, content and registries before manifests, the root catalog after manifests, and `media.ver` last.
+Content-Kit is pure. Item add/change/remove, variant add/change, default change, and collection add/change builders return complete canonical file texts with logical paths, contracts, precondition hashes or absence checks, and postcondition hashes. Every plan identifies the runtime projections, inventories, book manifest, root catalog and `media.ver` affected by later publication. `mutationSnapshot()` applies a plan in memory so Media Admin can rerun `collections()`, validation, usage checks and `publish()` preview before performing I/O.
+
+Media Admin performs the actual writes and journals progress. Publication remains idempotent and orders assets before inventories, content and registries before manifests, the root catalog after manifests, and `media.ver` last.
 
 ## Delivery tranches
 
-Tranche 1 froze the executable contract, standalone bundle, fixtures and tests. Tranche 2 migrated Media, activated CK4 in MyGita, added `collections(media, bookId)`, exposed one tree node per canonical collection, made renderer runtime files derived and read-only, and supplied Media Admin with a safe publisher. Product binding slots, higher-level mutation-plan builders and remote cutover remain later work. Tranche 3 publishes Media first and MyGita second in a controlled maintenance window. Content-Kit 4 is a clean remote cutover: there is no Content-Kit 3 compatibility or dual publication.
+Tranche 1 froze the executable contract, standalone bundle, fixtures and tests. Tranche 2 migrated Media, activated CK4 in MyGita, added canonical collections and validation registries, normalized every product experience into binding slots, added collection/variant usage queries, made renderer runtime files derived and read-only, and supplied Media Admin with mutation plans plus a safe publisher. Tranche 3 publishes Media first and MyGita second in a controlled maintenance window. Content-Kit 4 is a clean remote cutover: there is no Content-Kit 3 compatibility or dual publication.
 
 The executable source is `engine/js/content-kit-v4.js`; representative fixtures are under `engine/tests/fixtures/content-kit-v4/`.
