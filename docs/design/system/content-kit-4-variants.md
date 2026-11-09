@@ -3,7 +3,7 @@
 **Status:** Partial  
 **Last updated:** 9 November 2026
 
-Content-Kit 4 makes content variation explicit data. Its executable contract is frozen and the local Media/MyGita integration is complete. Canonical CK4 registries are authoritative; the existing renderers consume an explicitly isolated `runtime_view` until their normalized input layer is replaced. Files under `runtime/` are generated, read-only projections rebuilt during publication.
+Content-Kit 4 makes content variation explicit data. Its executable contract is frozen and the Media/MyGita integration is complete locally and remotely. Canonical CK4 registries are authoritative; the existing renderers consume an explicitly isolated `runtime_view` until their normalized input layer is replaced. Files under `runtime/` are generated, read-only projections rebuilt during publication.
 
 ## Canonical model
 
@@ -51,6 +51,6 @@ Media Admin performs the actual writes and journals progress. Publication remain
 
 ## Delivery tranches
 
-Tranche 1 froze the executable contract, standalone bundle, fixtures and tests. Tranche 2 migrated Media, activated CK4 in MyGita, added canonical collections and validation registries, normalized every product experience into binding slots, added collection/variant usage queries, made renderer runtime files derived and read-only, and supplied Media Admin with mutation plans plus a safe publisher. Tranche 3 publishes Media first and MyGita second in a controlled maintenance window. Content-Kit 4 is a clean remote cutover: there is no Content-Kit 3 compatibility or dual publication.
+Tranche 1 froze the executable contract, standalone bundle, fixtures and tests. Tranche 2 migrated Media, activated CK4 in MyGita, added canonical collections and validation registries, normalized every product experience into binding slots, added collection/variant usage queries, made renderer runtime files derived and read-only, and supplied Media Admin with mutation plans plus a safe publisher. Tranche 3 published Media first and MyGita second; the exact MyGita deployment commit passed GitHub Actions. Content-Kit 4 is a clean remote cutover: there is no Content-Kit 3 compatibility or dual publication.
 
 The executable source is `engine/js/content-kit-v4.js`; representative fixtures are under `engine/tests/fixtures/content-kit-v4/`.

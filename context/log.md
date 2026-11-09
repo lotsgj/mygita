@@ -89,3 +89,7 @@ Tests: every real normalized row resolves through CK4; Swami Brahmananda usage c
 ## W-0021 · 2026-11-09 · Codex · S-23 · Content-Kit 4 mutation plans
 Changed: added pure plans for item add/change/remove, variant add/change, default change and collection add/change; each supplies full canonical texts, hash conditions and affected publication files. `mutationSnapshot()` enables collections, validation, usage and publish preview before I/O.
 Tests: every plan applies to an isolated real-Media snapshot; resulting collections and variants validate; publish preview updates derived hashes without blocking.
+
+## W-0022 · 2026-11-09 · Codex · S-23 · Content-Kit 4 remote cutover
+Changed: published the verified Media commits first and MyGita commits second, then aligned Rachana, Sampada and the feature checkpoint with the deployed state.
+Deployment: MyGita workflow run 42564134772 passed for exact commit `aa65af8c`; local and remote main matched before deployment verification.

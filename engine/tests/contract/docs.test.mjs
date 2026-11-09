@@ -117,7 +117,7 @@ test('Sampada preserves both future possibilities and completed enhancements wit
   assert.match(markdown, /^### 12\. Gita Yoga foundation\n\n\*\*Status:\*\* Done/m);
   assert.match(markdown, /^### 13\. Gita Yoga cue-region playback\n\n\*\*Status:\*\* To unfold/m);
   assert.match(markdown, /^### 14\. Gita Sara expanded media\n\n\*\*Status:\*\* To unfold/m);
-  assert.match(markdown, /^### 23\. Multi-attribute content variants\n\n\*\*Status:\*\* To unfold/m);
+  assert.match(markdown, /^### 23\. Multi-attribute content variants\n\n\*\*Status:\*\* Done/m);
   assert.equal(markdown.includes('Treasure Trove'), false);
 });
 

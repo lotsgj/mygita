@@ -12,16 +12,6 @@ Sampada keeps both future possibilities and completed enhancements. Items retain
 
 ## To unfold
 
-### 23. Multi-attribute content variants
-
-**Status:** To unfold
-
-**Tag:** Major
-
-Replace language-specific filename and column conventions with explicit, contract-driven content variants. Each collection exposes independently dimensioned parts—such as recordings, images, metadata and questions—using semantic attributes including ordered languages, voice, mode and theme. Format and quality remain selectable renditions of the same semantic content. MyGita and Media Admin share one deterministic resolver, coverage model and transaction-plan contract.
-
-Content-Kit 4 Tranches 1 and 2 are complete locally. CK4 is active in MyGita; all Media books expose canonical registries; Media Admin receives validator-ready vocabularies and labels; every Gita and Sukta experience resolves through binding slots; usage queries protect referenced collections; and mutation builders preview item, variant, default and collection changes through an isolated snapshot and publisher. Renderer-facing files under `runtime/` remain generated and read-only. Only the coordinated Media-first remote cutover remains to unfold.
-
 ### 22. Deterministic analytics integration tests
 
 **Status:** To unfold
@@ -266,6 +256,18 @@ Persist note metadata and voice blobs locally in IndexedDB, separately from cano
 The reviewed visual direction is retained in `x/notes/`: it demonstrates both direct Notes-library navigation and the contextual `N` editor, including responsive mobile treatment. Revisit storage limits, recording formats, export packaging, accessibility, localization and optional future synchronization when implementation is scheduled.
 
 ## Done
+
+### 23. Multi-attribute content variants
+
+**Status:** Done
+
+**Tag:** Major
+
+**Completed:** 9 November 2026
+
+Content-Kit 4 replaces language-specific filename and column conventions with explicit, contract-driven content variants. Each collection exposes independently dimensioned parts—such as recordings, images, metadata and questions—using semantic attributes including ordered languages, voice, mode and theme. Format and quality are selectable renditions of the same semantic content. MyGita and Media Admin share one deterministic resolver, coverage model and mutation-plan contract.
+
+CK4 is active in MyGita and Media locally and remotely. All Media books expose canonical registries; Media Admin receives validator-ready vocabularies and labels; every Gita and Sukta experience resolves through binding slots; usage queries protect referenced collections; and mutation builders preview item, variant, default and collection changes through an isolated snapshot and publisher. Renderer-facing files under `runtime/` remain generated and read-only. The coordinated cutover published Media first and MyGita second, and the exact MyGita deployment commit passed GitHub Actions.
 
 ### 18. Installed-PWA foreground update check
 
