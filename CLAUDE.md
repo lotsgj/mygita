@@ -14,3 +14,9 @@
 4. Do not edit files another agent has claimed in context/now.md, or commit its uncommitted
    changes, without the user's OK.
 5. Commits: author vjmaker <vijayakumar.puttaraju@gmail.com>; no AI or assistant attribution.
+
+## Repository ownership
+- Codex edits `apps/gita-jyoti/mygita-app`, including engine, Content-Kit, products, docs and context.
+- Codex also owns `apps/gita-jyoti/website`, but Website work is handled in a separate conversation.
+- Claude edits `apps/gita-jyoti/media` and `apps/gita-jyoti/media-admin`, including content, registries, manifests, inventories, Media scripts, tests and publishing.
+- Do not edit `media` or `media-admin`; hand media changes to Claude through the user.

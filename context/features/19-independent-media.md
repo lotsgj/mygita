@@ -2,10 +2,12 @@
 Updated 2026-11-07 · Codex · Sampada: docs/design/sampada.md §19 · ADRs: 001, 002, 003, 004, 005, 006
 
 ## Brief — current truth
-- Content lives in lotsgj/media (media.gitajyoti.org). mygita holds product config, engine and renderers.
+- Content lives in `apps/gita-jyoti/media` (`lotsgj/media`, served by media.gitajyoti.org). `apps/gita-jyoti/mygita-app` holds product config, engine and renderers.
 - Logical paths + mounts (ADR-001). CI clones media to ../media; tests read it from there (or MYGITA_MEDIA_ROOT).
 - Player is playback-only. File mode remembers the picked media folder (media-folder-store.js).
-- Content-Kit 3 Tranche 1 is the pure contract layer used by apps/media-admin. Version 3.20261107-051550 freezes the mount inventory, collection tree, declared field types, reference graph and transaction-plan shape; callers own all I/O.
+- Content-Kit 3 Tranche 1 is the pure contract layer used by `apps/gita-jyoti/media-admin`. Version 3.20261107-051550 freezes the mount inventory, collection tree, declared field types, reference graph and transaction-plan shape; callers own all I/O.
+- Codex owns `mygita-app`; Claude owns `media` and `media-admin`; `website` is Codex-owned in a separate conversation. Cross-repository changes go through the user as hand-offs.
+- Media scripts consume `engine/js/content-kit.js`, `engine/js/media-contract.js`, `engine/js/content-kit-v4-version.js` and the MyGita root for publishing. Keep these MyGita-owned paths stable or hand a coordinated move to Claude.
 - Media has one split-ready mount inventory with 1,106 explicitly contracted files. Logical path is identity; cache identity remains path + SHA-256. Mount `prefixes` remain authoritative transitional runtime routing metadata—not Content-Kit ownership—and book-manifest hashes remain transitional until the Tranche 2 inventory cutover.
 - A running app checks `catalog.json` when its media source opens and on foreground return only after 24 hours. Changed manifests cause only changed CSV/JSON to prefetch; binaries remain lazy. A pending revision activates at the next navigation boundary.
 - Simple verse experiences render their canonical text first, then hydrate audio and visual metadata without moving the user away from the verse.
@@ -85,6 +87,7 @@ Updated 2026-11-07 · Codex · Sampada: docs/design/sampada.md §19 · ADRs: 001
   Sukta Chant: the single-value fields name only ganesha-atharva. Proposal: keep bookIds only.
 
 ## Changes
+- 2026-11-14 recorded the final sibling-repository layout, agent ownership and cross-repository hand-off boundary (Codex)
 - 2026-11-07 Content-Kit 3 contract hardening removed language/experience path inference, corrected illustration metadata typing, made version comparison major-aware, and clarified transitional prefix routing (Codex)
 - 2026-11-07 Content-Kit 3 Tranche 1 implemented: deterministic 3.x identity, split-ready mount inventory, explicit contracts and field types, separate collection tree, pure reference/move planning, and Media validation across 1,106 files (Codex)
 - 2026-11-06 content-kit v2, schema-3 publish, complete hashed inventories and incremental PWA media sync implemented and verified locally (Codex)

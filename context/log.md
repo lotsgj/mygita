@@ -97,3 +97,8 @@ Deployment: MyGita workflow run 42564134772 passed for exact commit `aa65af8c`; 
 ## W-0023 · 2026-11-09 · Codex · fix · Restore deployed Rachana
 Changed: the unified platform build now versions, brands and publishes Rachana while explicitly excluding every documentation asset from the PWA precache and service-worker handling.
 Tests: distribution contracts require the complete documentation surface; the platform browser regression opens `docs.html` from `dist/mygita`; focused contracts and both Rachana browser modes pass.
+
+## W-0024 · 2026-11-14 · Codex · S-19, S-23 · Repository ownership and layout
+Changed: recorded the final four-repository `apps/gita-jyoti/` layout, assigned MyGita and separately-conversed Website work to Codex, assigned Media and Media Admin to Claude, and required user-mediated cross-repository hand-offs.
+Contracts: retained the `media` sibling name and documented the stable MyGita Kit paths consumed by Media; MA-13 and MA-15 are done.
+Tests: ownership contract and stale-path search pass; existing operational `../media` paths remain unchanged.

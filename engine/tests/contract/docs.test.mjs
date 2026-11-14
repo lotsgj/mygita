@@ -134,6 +134,23 @@ test('the Rachana documentation design is itself documented and navigable', asyn
   }
 });
 
+test('agent context records repository ownership and the final sibling layout', async () => {
+  const [agents, claude, contextReadme, independentMedia] = await Promise.all([
+    readFile(path.join(projectRoot, 'AGENTS.md'), 'utf8'),
+    readFile(path.join(projectRoot, 'CLAUDE.md'), 'utf8'),
+    readFile(path.join(projectRoot, 'context/README.md'), 'utf8'),
+    readFile(path.join(projectRoot, 'context/features/19-independent-media.md'), 'utf8')
+  ]);
+  for (const instructions of [agents, claude]) {
+    assert.match(instructions, /Do not edit `media` or `media-admin`; hand media changes to Claude through the user\./);
+  }
+  for (const folder of ['mygita-app', 'media', 'media-admin', 'website']) assert.match(contextReadme, new RegExp('apps/gita-jyoti/' + folder));
+  assert.match(contextReadme, /Website work is Codex-owned but assigned to a separate conversation/);
+  assert.match(independentMedia, /apps\/gita-jyoti\/media-admin/);
+  const currentContext = [contextReadme, independentMedia].join('\n');
+  assert.doesNotMatch(currentContext, /apps\/(?:mygita|media|media-admin)(?:\/|\b)/);
+});
+
 test('the Rachana viewer uses a manifest allowlist, local Markdown parser, and file fallback', async () => {
   const [html, source, builder] = await Promise.all([
     readFile(path.join(projectRoot, 'docs.html'), 'utf8'),

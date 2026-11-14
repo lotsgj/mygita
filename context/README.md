@@ -1,6 +1,18 @@
 # context/ — agent working memory (not published, not human docs)
 Human-facing design lives in docs/design/ (including sampada.md). This folder is for agents: terse, structured, current.
 
+## Repos and owners
+| Local folder | Remote | Owner |
+| --- | --- | --- |
+| `apps/gita-jyoti/mygita-app` | `lotsgj/mygita` | Codex — engine, Content-Kit, products, docs and context |
+| `apps/gita-jyoti/media` | `lotsgj/media` | Claude — content, registries, manifests, inventories, scripts, tests and publishing |
+| `apps/gita-jyoti/media-admin` | `lotsgj/media-admin` | Claude — Media Admin application and tests |
+| `apps/gita-jyoti/website` | `lotsgj/gitajyoti` | Codex, in a separate conversation |
+
+Website work is Codex-owned but assigned to a separate conversation. Codex does not edit `media` or `media-admin`; Media migrations, registries, regenerated inventories and publishing go to the user as hand-offs for Claude. Claude does not edit `mygita-app`; required Kit or product changes go in the relevant feature file's Open section with an id and status.
+
+The Media folder remains named `media` because its catalog mount declares `local: "media"`. Media scripts consume `mygita-app/engine/js/content-kit.js`, `media-contract.js`, `content-kit-v4-version.js` and the MyGita root for publication. Keep those MyGita-owned paths stable or hand the required Media change to Claude through the user.
+
 ## Files
 | File | Holds | Rewrite or append | Limit |
 | --- | --- | --- | --- |

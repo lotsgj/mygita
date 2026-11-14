@@ -28,6 +28,8 @@ Updated 2026-11-09 · Codex · Sampada: docs/design/sampada.md §23 · ADR: 007
 - MA-8 · done · Preference-side versus variant-side `any` semantics — W-0019.
 - MA-9 · done · Scalar-only `none` sentinel — W-0019.
 - MA-10 · done · Verified W-0016–W-0018 baselines checkpointed per repository.
+- MA-13 · done · Final sibling-repository ownership and user-mediated hand-off boundary documented — W-0024.
+- MA-15 · done · MyGita context and Rachana use the final `apps/gita-jyoti/…` folder layout — W-0024.
 
 ### W-0019 plan — contract completion
 1. Add the Media language registry and validation-registry adapter. Accept when unknown variant languages fail without caller-built ID lists.
