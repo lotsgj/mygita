@@ -10,6 +10,8 @@ const sources = [
   'js/i18n/i18n.js',
   'js/version-history.js',
   'js/profile-store.js',
+  'js/profile-api-provider.js',
+  'js/profile-repository.js',
   'js/profile-ui.js',
   'js/events/event-schema.js',
   'js/events/profile-analytics.js',

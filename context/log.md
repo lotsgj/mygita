@@ -102,3 +102,8 @@ Tests: distribution contracts require the complete documentation surface; the pl
 Changed: recorded the final four-repository `apps/gita-jyoti/` layout, assigned MyGita and separately-conversed Website work to Codex, assigned Media and Media Admin to Claude, and required user-mediated cross-repository hand-offs.
 Contracts: retained the `media` sibling name and documented the stable MyGita Kit paths consumed by Media; MA-13 and MA-15 are done.
 Tests: ownership contract and stale-path search pass; existing operational `../media` paths remain unchanged.
+
+## W-0025 · 2026-11-16 · Codex · S-24 · Gitajyoti profile attachment checkpoint
+Changed: added lazy API provider/repository, canonical string PIDs, API-verified profile attachment UI, minimal local projection, local reuse and a read-only Profile ID panel. Existing MyGita profile creation is replaced by external Gitajyoti registration plus attachment.
+Privacy: API session data and personal registration fields stay out of local projection and analytics; raw PIDs remain local adapter keys only.
+Tests: unit 85/85 covers session/DOB/local attachment and string PID events. Browser/API acceptance remains open; S-24 stays To unfold.

@@ -3,6 +3,8 @@ import { CollectionSource, CollectionSourceRequiredError, CollectionSourceSupers
 import { MediaFolderStore, directoryPermission } from '../media-folder-store.js';
 import { ProfileStore } from '../profile-store.js';
 import { ProfileUI } from '../profile-ui.js';
+import { ProfileRepository } from '../profile-repository.js';
+import { normalizeProfileId } from '../profile-api-provider.js';
 import { EventBus } from '../events/event-bus.js';
 import { ResumeAdapter } from '../events/resume-adapter.js';
 import { DiksoochiAdapter } from '../events/diksoochi-adapter.js';
@@ -100,6 +102,7 @@ const translate = (key, fallback, values = {}) => i18n.t(key, values) === key ? 
 
 configureExperiences(distribution());
 const profileStore = new ProfileStore({ databaseName: appConfig.databaseName || distribution().databaseName, languageModel: () => distribution().languages });
+const profileRepository = new ProfileRepository({ store: profileStore, provider: globalThis.__MYGITA_PROFILE_API__, languageModel: () => distribution().languages });
 const platformId = appConfig.id || distribution().id;
 const versionHistoryStore = new VersionHistoryStore({ databaseName: `${platformId}-version-history` });
 const mediaFolderStore = new MediaFolderStore({ databaseName: `${platformId}-local-media` });
@@ -135,6 +138,7 @@ const pwa = new PwaManager({
 const aboutDialog = new AboutDialog({ version: appVersion, translate, historyStore: versionHistoryStore, branding: appConfig.branding || distribution().branding });
 const profileUI = new ProfileUI({
   store: profileStore,
+  repository: profileRepository,
   onSelected: selectProfile,
   onCreated: createProfile,
   onChanged: handleProfileChange,
@@ -730,9 +734,9 @@ async function restoreRememberedMediaFolder() {
   }
 }
 
-function updateProfileUrl(profile) {
+function updateProfileUrl() {
   const next = new URL(location.href);
-  next.searchParams.set('pid', profile.pid);
+  next.searchParams.delete('pid');
   history.replaceState(null, '', next);
 }
 
@@ -740,7 +744,7 @@ async function activateProfile(profile) {
   if (state.activeProfile?.pid !== profile.pid) state.experienceResumes.clear();
   state.activeProfile = profile;
   setInterfaceLanguage(profile.interfaceLanguage);
-  updateProfileUrl(profile);
+  updateProfileUrl();
   await profileUI.renderPills(profile);
 }
 
@@ -750,9 +754,10 @@ async function selectProfile(profile) {
   await openProfileLocation(profile, { honorExplicit: state.profileSelectionMode === 'initial' });
 }
 
-async function createProfile(profile) {
+async function createProfile(profile, { attached = false } = {}) {
   await activateProfile(profile);
-  emitEvent('profile_created');
+  if (attached) await profileStore.setDefaultPid(profile.pid);
+  emitEvent('profile_created', { details: { source: attached ? 'gitajyoti_attachment' : 'local' } });
   if (location.protocol === 'file:' && explicitLocationRequested && play) return startRequestedExperience();
   goToExperienceSelection(profile, { source: 'profile_created' });
 }
@@ -795,7 +800,7 @@ function goToExperienceSelection(profile = state.activeProfile, { source = 'home
   home.searchParams.set('view', 'diksoochi');
   if (requestedLanguage && requestedLanguage !== distribution().languages.defaultContent) home.searchParams.set('lang', requestedLanguage);
   else home.searchParams.delete('lang');
-  if (profile) home.searchParams.set('pid', profile.pid);
+  home.searchParams.delete('pid');
   history.replaceState(null, '', home);
   if (track && profile) {
     emitEvent('home_opened', {
@@ -849,9 +854,26 @@ async function initializeProfiles() {
     await profileStore.open();
     emitEvent('app_opened', { profile: null });
     const profiles = await profileStore.list();
-    if (!profiles.length) return openProfileForm();
-    const requestedPid = Number(params.get('pid'));
-    let profile = Number.isInteger(requestedPid) && requestedPid > 0 ? await profileStore.get(requestedPid) : null;
+    const requestedPid = normalizeProfileId(params.get('pid'));
+    if (requestedPid) {
+      const local = await profileStore.get(requestedPid);
+      if (local) {
+        await activateProfile(local);
+        emitEvent('profile_selected');
+        return openProfileLocation(local, { honorExplicit: true });
+      }
+      await profileUI.showAttachForm({ pid: requestedPid });
+      return showOnly('profile-setup');
+    }
+    if (!profiles.length) {
+      if (location.hostname === '127.0.0.1' || location.hostname === 'localhost' || location.protocol === 'file:') return openProfileForm();
+      try {
+        const attached = await profileRepository.attachSessionProfile();
+        if (attached.ok) return createProfile(attached.profile, { attached: true });
+      } catch (_) {}
+      return openProfileForm();
+    }
+    let profile = null;
     if (!profile) {
       const defaultPid = await profileStore.defaultPid();
       profile = defaultPid ? await profileStore.get(defaultPid) : null;
@@ -938,7 +960,7 @@ async function startRequestedExperience() {
     chooserUrl.searchParams.delete('view');
     if (resume?.sid) chooserUrl.searchParams.set('sid', resume.sid);
     else chooserUrl.searchParams.delete('sid');
-    chooserUrl.searchParams.set('pid', state.activeProfile.pid);
+    chooserUrl.searchParams.delete('pid');
     const language = resume?.language || (distribution().languages.content.includes(requestedLanguage) ? requestedLanguage : state.activeProfile.contentLanguage);
     if (language && language !== distribution().languages.defaultContent) chooserUrl.searchParams.set('lang', language);
     else chooserUrl.searchParams.delete('lang');
@@ -962,7 +984,7 @@ async function startRequestedExperience() {
   chooserUrl.searchParams.delete('view');
   if (continueResume?.sid) chooserUrl.searchParams.set('sid', continueResume.sid);
   else chooserUrl.searchParams.delete('sid');
-  chooserUrl.searchParams.set('pid', state.activeProfile.pid);
+  chooserUrl.searchParams.delete('pid');
   const continueLink = document.getElementById('continue-journey-link');
   continueLink.href = chooserUrl.href;
   continueLink.dataset.experience = continueExperience;

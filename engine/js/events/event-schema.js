@@ -53,7 +53,7 @@ export function validateEventInput(name, input = {}) {
       throw new Error('location_changed requires experience and sid.');
     }
   }
-  if ((name === 'location_changed' || name === 'home_opened') && !Number.isInteger(Number(input.profileId))) {
+  if ((name === 'location_changed' || name === 'home_opened') && !String(input.profileId || '').trim()) {
     throw new Error(name + ' requires a profile ID.');
   }
   if (name === 'gita_sara_view_changed' && !['two_panel', 'three_panel'].includes(input.details?.view)) {

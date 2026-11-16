@@ -31,7 +31,9 @@ export class EventBus {
       event: name,
       occurredAt: new Date().toISOString(),
       sessionId: this.sessionId,
-      profileId: input.profileId == null ? null : Number(input.profileId),
+      // A profile ID is an opaque local-storage key. It may be the canonical
+      // Gitajyoti Crockford ID, so never coerce it to a number.
+      profileId: input.profileId == null ? null : input.profileId,
       anonymousProfileId: input.anonymousProfileId || null,
       context: {
         appVersion: this.appVersion,

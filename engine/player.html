@@ -51,6 +51,23 @@
     <h1 id="profile-form-title">Create your profile</h1>
     <p id="profile-form-intro">Profiles keep each person’s language and experience separate on this device.</p>
     <form id="profile-form">
+      <section class="profile-form-section" id="profile-id-section" hidden>
+        <h2>Profile ID</h2>
+        <p class="profile-id-value" id="profile-id-value"></p>
+        <p class="profile-id-note">This ID is created and verified by Gitajyoti. Your MyGita journey remains on this device.</p>
+      </section>
+      <section class="profile-form-section" id="profile-attach-section" hidden>
+        <h2>Use an existing profile</h2>
+        <p>Enter the Profile ID created at Gitajyoti. If this device has not verified it before, confirm your date of birth.</p>
+        <label class="field-label" for="profile-attach-id">Profile ID</label>
+        <input class="profile-input" id="profile-attach-id" autocomplete="off" placeholder="GJ-7K3M-9QX2" spellcheck="false">
+        <div id="profile-verify-fields" hidden>
+          <label class="field-label" for="profile-attach-dob">Date of birth</label>
+          <input class="profile-input" id="profile-attach-dob" type="date">
+          <div id="profile-turnstile"></div>
+        </div>
+        <p class="profile-register-link">New to Gitajyoti? <a href="https://gitajyoti.org/register.html">Create your profile</a></p>
+      </section>
       <section class="profile-form-section" id="profile-details-section">
         <h2 data-i18n="profile.details">Profile details</h2>
         <div class="profile-photo-field">

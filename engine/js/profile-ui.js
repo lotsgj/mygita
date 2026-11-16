@@ -1,8 +1,9 @@
 import { resizeProfilePhoto } from './profile-store.js';
 
 export class ProfileUI {
-  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null, products = () => [] }) {
+  constructor({ store, repository = null, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null, products = () => [] }) {
     this.store = store;
+    this.repository = repository;
     this.onSelected = onSelected;
     this.onCreated = onCreated;
     this.onChanged = onChanged;
@@ -12,6 +13,7 @@ export class ProfileUI {
     this.products = products;
     this.editingPid = null;
     this.photo = '';
+    this.turnstile = null;
     this.bind();
   }
 
@@ -75,6 +77,7 @@ export class ProfileUI {
   }
 
   async showForm(profile = null, { focusPreferences = false } = {}) {
+    if (!profile && this.repository) return this.showAttachForm();
     this.editingPid = profile?.pid || null;
     this.photo = profile?.photo || '';
     const formTitle = document.getElementById('profile-form-title');
@@ -85,9 +88,26 @@ export class ProfileUI {
     formIntro.textContent = profile
       ? this.translate('profile.intro.edit', 'Keep this profile’s local preferences up to date.')
       : this.translate('profile.intro.create', 'Profiles keep each person’s language and experience separate on this device.');
+    const attachSection = document.getElementById('profile-attach-section');
+    const idSection = document.getElementById('profile-id-section');
+    if (attachSection) attachSection.hidden = true;
+    document.querySelector('#profile-form button[type="submit"]').textContent = this.translate('profile.save', 'Save profile');
+    if (idSection) idSection.hidden = !profile?.profileSource;
+    const idValue = document.getElementById('profile-id-value');
+    if (idValue) idValue.textContent = profile?.profileSource ? profile.pid : '';
+    document.getElementById('profile-details-section').hidden = false;
+    document.getElementById('profile-preferences-section').hidden = false;
+    document.getElementById('profile-default').closest('label').hidden = false;
+    document.getElementById('profile-name').disabled = false;
+    document.getElementById('profile-dob').disabled = Boolean(profile?.profileSource);
+    document.getElementById('profile-interface-language').disabled = false;
+    document.getElementById('profile-content-language').disabled = false;
     document.getElementById('profile-name').value = profile?.name || '';
+    document.getElementById('profile-name').readOnly = Boolean(profile?.profileSource);
     document.getElementById('profile-dob').value = profile?.dob || '';
     document.getElementById('profile-gender').value = profile?.gender || '';
+    document.getElementById('profile-dob').closest('div').hidden = Boolean(profile?.profileSource);
+    document.getElementById('profile-gender').closest('div').hidden = Boolean(profile?.profileSource);
     document.getElementById('profile-interface-language').value = profile?.interfaceLanguage || '';
     const contentSelect = document.getElementById('profile-content-language');
     const model = this.languageModel();
@@ -109,6 +129,39 @@ export class ProfileUI {
       target?.scrollIntoView({ block: focusPreferences ? 'center' : 'nearest', behavior: 'smooth' });
       target?.focus({ preventScroll: true });
     });
+  }
+
+  async showAttachForm({ pid = '' } = {}) {
+    this.editingPid = null;
+    this.photo = '';
+    const formTitle = document.getElementById('profile-form-title');
+    const formIntro = document.getElementById('profile-form-intro');
+    formTitle.textContent = 'Use your Gitajyoti profile';
+    formIntro.textContent = 'MyGita keeps your learning journey on this device and uses an existing Gitajyoti Profile ID.';
+    document.getElementById('profile-id-section').hidden = true;
+    document.getElementById('profile-attach-section').hidden = false;
+    document.getElementById('profile-details-section').hidden = true;
+    document.getElementById('profile-preferences-section').hidden = true;
+    document.getElementById('profile-default').closest('label').hidden = true;
+    document.getElementById('profile-name').disabled = true;
+    document.getElementById('profile-dob').disabled = true;
+    document.getElementById('profile-interface-language').disabled = true;
+    document.getElementById('profile-content-language').disabled = true;
+    document.getElementById('profile-form-cancel').hidden = true;
+    document.getElementById('profile-form-error').textContent = '';
+    document.getElementById('profile-attach-id').value = pid;
+    document.getElementById('profile-attach-id').readOnly = Boolean(pid);
+    document.getElementById('profile-attach-dob').value = '';
+    document.getElementById('profile-attach-dob').max = new Date().toISOString().slice(0, 10);
+    document.getElementById('profile-verify-fields').hidden = true;
+    document.querySelector('#profile-form button[type="submit"]').textContent = 'Continue';
+    requestAnimationFrame(() => document.getElementById(pid ? 'profile-attach-dob' : 'profile-attach-id').focus());
+  }
+
+  async showVerificationFields() {
+    document.getElementById('profile-verify-fields').hidden = false;
+    if (!this.turnstile) this.turnstile = await this.repository.provider.renderVerificationTurnstile(document.getElementById('profile-turnstile'));
+    document.getElementById('profile-attach-dob').focus();
   }
 
   productName(product, language) {
@@ -206,9 +259,24 @@ export class ProfileUI {
       const error = document.getElementById('profile-form-error');
       error.textContent = '';
       try {
+        if (!this.editingPid && this.repository) {
+          const pid = document.getElementById('profile-attach-id').value;
+          const dateOfBirth = document.getElementById('profile-attach-dob').value;
+          const needsVerification = !document.getElementById('profile-verify-fields').hidden;
+          const turnstileToken = needsVerification ? await this.turnstile?.token?.() : '';
+          const result = await this.repository.attach(pid, { dateOfBirth, turnstileToken });
+          this.turnstile?.reset?.();
+          if (result.ok) return this.onCreated(result.profile, { attached: true });
+          if (result.code === 'unverified' && !needsVerification) {
+            await this.showVerificationFields();
+            error.textContent = 'Confirm your date of birth to use this Profile ID on this device.';
+            return;
+          }
+          throw new Error(result.message || 'We could not verify that Profile ID.');
+        }
         if (!document.getElementById('profile-name').value.trim()) throw new Error(this.translate('validation.name', 'Enter a profile name.'));
         const dob = document.getElementById('profile-dob').value;
-        if (!dob || new Date(dob + 'T00:00:00') > new Date()) throw new Error(this.translate('validation.dob', 'Enter a valid date of birth.'));
+        if (!this.repository && (!dob || new Date(dob + 'T00:00:00') > new Date())) throw new Error(this.translate('validation.dob', 'Enter a valid date of birth.'));
         const interfaceLanguage = document.getElementById('profile-interface-language').value;
         const contentLanguage = document.getElementById('profile-content-language').value;
         if (!interfaceLanguage) throw new Error(this.translate('validation.appLanguage', 'Choose an app language.'));
@@ -233,6 +301,7 @@ export class ProfileUI {
       }
     });
     document.getElementById('profile-name').addEventListener('input', () => this.renderPhotoPreview());
+    document.getElementById('profile-attach-id')?.addEventListener('input', (event) => { event.target.value = event.target.value.toUpperCase(); });
     document.getElementById('profile-interface-language').addEventListener('change', (event) => {
       const content = document.getElementById('profile-content-language');
       if (!this.editingPid && event.target.value) content.value = event.target.value;

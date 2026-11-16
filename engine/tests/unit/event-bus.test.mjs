@@ -48,6 +48,16 @@ test('event schema rejects unknown and incomplete events', () => {
   assert.equal(bus.emit('gita_sara_view_changed', { details: { view: 'two_panel' } }).details.view, 'two_panel');
 });
 
+test('local adapters retain canonical string Profile IDs without exposing them to analytics', async () => {
+  const saved = [];
+  const bus = new EventBus();
+  bus.subscribe(new ResumeAdapter({ store: { async saveResume(record) { saved.push(record); } } }));
+  const event = bus.emit('home_opened', { profileId: 'GJ-PHGK-GZZ1', context: { language: 'en' } });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(event.profileId, 'GJ-PHGK-GZZ1');
+  assert.equal(saved[0].pid, 'GJ-PHGK-GZZ1');
+});
+
 test('Diksoochi records only meaningful engagement thresholds without storing an event queue', async () => {
   const records = [];
   const adapter = new DiksoochiAdapter({ store: { async recordDiksoochiEngagement(record) { records.push(record); } } });

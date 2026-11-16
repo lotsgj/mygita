@@ -12,6 +12,16 @@ Sampada keeps both future possibilities and completed enhancements. Items retain
 
 ## To unfold
 
+### 24. Gitajyoti profile attachment
+
+**Status:** To unfold
+
+**Tag:** Major
+
+Gitajyoti owns learner registration and the canonical Crockford Base32 Profile ID. MyGita permits only attachment of an existing, API-verified Profile ID, while retaining a minimal device-local profile projection for offline preferences, journey, notes and cached media. A browser session cookie provides seamless same-device attachment; a different browser or installed PWA verifies Profile ID plus date of birth and Turnstile. Multiple verified profiles may be attached on one device. MyGita never creates a learner identity, stores API session data, or caches API responses in its service worker.
+
+The initial implementation now has a lazy API provider/repository boundary, canonical string PIDs in local state, and a read-only Profile ID panel. Focused regressions cover session attachment, DOB verification, direct verification without a duplicate lookup, offline local reuse, and privacy-safe event handling. Full browser acceptance and deployed API verification remain before this item can move to Done.
+
 ### 22. Deterministic analytics integration tests
 
 **Status:** To unfold

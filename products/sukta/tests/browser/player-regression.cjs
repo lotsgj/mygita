@@ -44,10 +44,9 @@ function productForCollection(collection) {
 }
 
 async function createProfile(page) {
-  await page.getByLabel('Name', { exact: true }).fill('Sukta Regression');
-  await page.getByLabel('Date of birth', { exact: true }).fill('1990-01-01');
-  await page.getByLabel('App language', { exact: true }).selectOption('en');
-  await page.getByRole('button', { name: 'Save profile' }).click();
+  await page.evaluate(() => { window.__MYGITA_TEST_PROFILE_NAMES['GJ-0000-0001'] = 'Sukta Regression'; });
+  await page.locator('#profile-attach-id').fill('GJ-0000-0001');
+  await page.getByRole('button', { name: 'Continue' }).click();
 }
 
 async function assertSid(page, sid) {
@@ -136,6 +135,10 @@ async function assertLongLineFixture(page, label) {
 
 async function runCollection(browser, collection, sids) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await context.addInitScript(() => {
+    window.__MYGITA_TEST_PROFILE_NAMES = {};
+    window.__MYGITA_PROFILE_API__ = { async getSession() { return { ok: true, profileIds: [] }; }, async getProfile(profileId) { return { ok: true, profile: { profileId, fields: { name: window.__MYGITA_TEST_PROFILE_NAMES[profileId] || profileId, preferred_language: 'English' } } }; }, async verifyProfile(profileId) { return this.getProfile(profileId); }, async forgetSession() { return { ok: true }; }, async renderVerificationTurnstile() { return { token: async () => 'test-token', reset() {} }; } };
+  });
   context.setDefaultTimeout(15000);
   const page = await context.newPage();
   const runtimeErrors = [];

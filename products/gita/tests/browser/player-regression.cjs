@@ -55,11 +55,13 @@ function silentWav(durationSeconds = 1, sampleRate = 8000) {
 }
 
 async function createProfile(page, name = 'Regression Profile', { expectHome = true } = {}) {
+  await page.locator('#profile-setup').waitFor({ state: 'visible' });
+  await page.locator('#profile-attach-section').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#experience-language-preferences').isHidden(), true, 'experience panel languages must not appear during first-time profile setup');
-  await page.getByLabel('Name', { exact: true }).fill(name);
-  await page.getByLabel('Date of birth', { exact: true }).fill('1990-01-01');
-  await page.getByLabel('App language', { exact: true }).selectOption('en');
-  await page.getByRole('button', { name: 'Save profile' }).click();
+  const pid = name === 'Second Regression' ? 'GJ-0000-0002' : name === 'Mobile Regression' ? 'GJ-0000-0003' : name === 'File Regression' ? 'GJ-0000-0004' : 'GJ-0000-0001';
+  await page.evaluate(([id, displayName]) => { window.__MYGITA_TEST_PROFILE_NAMES[id] = displayName; }, [pid, name]);
+  await page.locator('#profile-attach-id').fill(pid);
+  await page.getByRole('button', { name: 'Continue' }).click();
   if (expectHome) await page.getByRole('heading', { name: 'Diksoochi', exact: true }).waitFor();
   else await page.locator('#profile-setup').waitFor({ state: 'hidden' });
 }
@@ -147,6 +149,14 @@ async function run() {
   }));
   const page = await context.newPage();
   await page.addInitScript(({ baseUrl }) => {
+    window.__MYGITA_TEST_PROFILE_NAMES = {};
+    window.__MYGITA_PROFILE_API__ = {
+      async getSession() { return { ok: true, profileIds: [] }; },
+      async getProfile(profileId) { return { ok: true, profile: { profileId, fields: { name: window.__MYGITA_TEST_PROFILE_NAMES[profileId] || profileId, preferred_language: 'English' } } }; },
+      async verifyProfile(profileId) { return this.getProfile(profileId); },
+      async forgetSession() { return { ok: true }; },
+      async renderVerificationTurnstile() { return { token: async () => 'test-token', reset() {} }; }
+    };
     const writes = {};
     window.__workspaceWrites = writes;
     const directory = (prefix = '') => ({
@@ -200,7 +210,7 @@ async function run() {
 
   try {
     await page.goto(`${base}/player.html?play=gita-700&sid=6.7&lang=kn`, { waitUntil: 'networkidle' });
-    assert.equal(await page.getByLabel('App language', { exact: true }).inputValue(), '', 'first profile must require an explicit app language');
+    assert.equal(await page.getByLabel('Profile ID', { exact: true }).inputValue(), '', 'first profile must request an existing Profile ID');
     await createProfile(page);
     assert.equal(await page.locator('.diksoochi-dimension').count(), 0);
     assert.equal(await page.locator('#diksoochi-journey-empty').innerText(), 'Your journey details will be updated here.');
@@ -810,6 +820,10 @@ async function run() {
     const fileContext = await browser.newContext();
     fileContext.setDefaultTimeout(15000);
     fileContext.setDefaultNavigationTimeout(20000);
+    await fileContext.addInitScript(() => {
+      window.__MYGITA_TEST_PROFILE_NAMES = {};
+      window.__MYGITA_PROFILE_API__ = { async getSession() { return { ok: true, profileIds: [] }; }, async getProfile(profileId) { return { ok: true, profile: { profileId, fields: { name: window.__MYGITA_TEST_PROFILE_NAMES[profileId] || profileId, preferred_language: 'English' } } }; }, async verifyProfile(profileId) { return this.getProfile(profileId); }, async forgetSession() { return { ok: true }; }, async renderVerificationTurnstile() { return { token: async () => 'test-token', reset() {} }; } };
+    });
     const filePage = await fileContext.newPage();
     const fileRuntimeErrors = [];
     filePage.on('pageerror', (error) => fileRuntimeErrors.push(error.stack || error.message));

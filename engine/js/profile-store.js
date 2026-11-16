@@ -65,6 +65,12 @@ function randomAnalyticsId() {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function profileKey(pid) {
+  if (typeof pid === 'number' && Number.isInteger(pid) && pid > 0) return pid;
+  const value = String(pid || '').trim();
+  return value || null;
+}
+
 export class ProfileStore {
   constructor({ databaseName = 'verses-local-profiles', languageModel = () => ({ content: ['en', 'kn'], interface: ['en', 'kn'] }) } = {}) {
     this.databaseName = databaseName;
@@ -81,14 +87,47 @@ export class ProfileStore {
     await this.open();
     const transaction = this.database.transaction(PROFILE_STORE, 'readonly');
     const profiles = await requestResult(transaction.objectStore(PROFILE_STORE).getAll());
-    return profiles.sort((left, right) => left.pid - right.pid);
+    return profiles.sort((left, right) => String(right.updatedAt || right.createdAt || '').localeCompare(String(left.updatedAt || left.createdAt || '')));
   }
 
   async get(pid) {
     await this.open();
-    if (!Number.isInteger(Number(pid))) return null;
+    const key = profileKey(pid);
+    if (key == null) return null;
     const transaction = this.database.transaction(PROFILE_STORE, 'readonly');
-    return (await requestResult(transaction.objectStore(PROFILE_STORE).get(Number(pid)))) || null;
+    return (await requestResult(transaction.objectStore(PROFILE_STORE).get(key))) || null;
+  }
+
+  async attach(input) {
+    await this.open();
+    const pid = profileKey(input.pid);
+    if (typeof pid !== 'string') throw new Error('An attached profile requires a canonical Profile ID.');
+    const name = String(input.name || '').trim();
+    if (!name) throw new Error('The Profile service did not provide a profile name.');
+    const languages = this.languageModel();
+    const now = new Date().toISOString();
+    const existing = await this.get(pid);
+    const profile = {
+      ...(existing || {}),
+      pid,
+      name,
+      interfaceLanguage: languages.interface.includes(input.interfaceLanguage) ? input.interfaceLanguage : (existing?.interfaceLanguage || languages.interface[0] || 'en'),
+      contentLanguage: languages.content.includes(input.contentLanguage) ? input.contentLanguage : (existing?.contentLanguage || languages.defaultContent || 'en'),
+      photo: existing?.photo || '',
+      analyticsConsent: existing?.analyticsConsent ?? true,
+      analyticsProfileId: existing?.analyticsProfileId || randomAnalyticsId(),
+      profileSource: 'gitajyoti',
+      attachedAt: existing?.attachedAt || input.attachedAt || now,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now
+    };
+    delete profile.dob;
+    delete profile.gender;
+    delete profile.language;
+    const transaction = this.database.transaction(PROFILE_STORE, 'readwrite');
+    transaction.objectStore(PROFILE_STORE).put(profile);
+    await transactionDone(transaction);
+    return this.get(pid);
   }
 
   async save(input) {
@@ -124,15 +163,17 @@ export class ProfileStore {
 
   async remove(pid) {
     await this.open();
+    const key = profileKey(pid);
+    if (key == null) return;
     const transaction = this.database.transaction([PROFILE_STORE, SETTINGS_STORE, RESUME_STORE, DIKSOOCHI_ENGAGEMENT_STORE], 'readwrite');
-    transaction.objectStore(PROFILE_STORE).delete(Number(pid));
+    transaction.objectStore(PROFILE_STORE).delete(key);
     const settings = transaction.objectStore(SETTINGS_STORE);
     const defaultPid = await requestResult(settings.get('defaultPid'));
-    if (defaultPid && Number(defaultPid.value) === Number(pid)) settings.delete('defaultPid');
-    settings.delete(`journeyView:${Number(pid)}`);
-    settings.delete(`gitaSaraView:${Number(pid)}`);
-    settings.delete(`selectedProduct:${Number(pid)}`);
-    const panelPrefix = `panelLanguages:${Number(pid)}:`;
+    if (defaultPid && defaultPid.value === key) settings.delete('defaultPid');
+    settings.delete(`journeyView:${key}`);
+    settings.delete(`gitaSaraView:${key}`);
+    settings.delete(`selectedProduct:${key}`);
+    const panelPrefix = `panelLanguages:${key}:`;
     const settingsCursor = settings.openCursor();
     settingsCursor.onsuccess = () => {
       const cursor = settingsCursor.result;
@@ -140,9 +181,9 @@ export class ProfileStore {
       if (String(cursor.key).startsWith(panelPrefix)) cursor.delete();
       cursor.continue();
     };
-    transaction.objectStore(RESUME_STORE).delete(Number(pid));
+    transaction.objectStore(RESUME_STORE).delete(key);
     const engagement = transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid');
-    const engagementCursor = engagement.openKeyCursor(IDBKeyRange.only(Number(pid)));
+    const engagementCursor = engagement.openKeyCursor(IDBKeyRange.only(key));
     engagementCursor.onsuccess = () => {
       const cursor = engagementCursor.result;
       if (!cursor) return;
@@ -154,9 +195,10 @@ export class ProfileStore {
 
   async getResume(pid) {
     await this.open();
-    if (!Number.isInteger(Number(pid))) return null;
+    const key = profileKey(pid);
+    if (key == null) return null;
     const transaction = this.database.transaction(RESUME_STORE, 'readonly');
-    return (await requestResult(transaction.objectStore(RESUME_STORE).get(Number(pid)))) || null;
+    return (await requestResult(transaction.objectStore(RESUME_STORE).get(key))) || null;
   }
 
   async getExperienceResume(pid, experience, product = '') {
@@ -180,8 +222,8 @@ export class ProfileStore {
 
   async saveResume(resume) {
     await this.open();
-    if (!Number.isInteger(Number(resume.pid))) throw new Error('A resume point requires a profile ID.');
-    const pid = Number(resume.pid);
+    const pid = profileKey(resume.pid);
+    if (pid == null) throw new Error('A resume point requires a profile ID.');
     const transaction = this.database.transaction(RESUME_STORE, 'readwrite');
     const store = transaction.objectStore(RESUME_STORE);
     const existing = await requestResult(store.get(pid));
@@ -243,7 +285,7 @@ export class ProfileStore {
     await this.open();
     const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
     const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get('defaultPid'));
-    return setting ? Number(setting.value) : null;
+    return setting?.value ?? null;
   }
 
   async setDefaultPid(pid) {
@@ -251,29 +293,34 @@ export class ProfileStore {
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
     const store = transaction.objectStore(SETTINGS_STORE);
     if (pid == null) store.delete('defaultPid');
-    else store.put({ key: 'defaultPid', value: Number(pid) });
+    else {
+      const key = profileKey(pid);
+      if (key != null) store.put({ key: 'defaultPid', value: key });
+    }
     await transactionDone(transaction);
   }
 
   async getSelectedProduct(pid) {
     await this.open();
-    if (!Number.isInteger(Number(pid))) return null;
+    const key = profileKey(pid);
+    if (key == null) return null;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
-    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`selectedProduct:${Number(pid)}`));
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`selectedProduct:${key}`));
     return typeof setting?.value === 'string' ? setting.value : null;
   }
 
   async setSelectedProduct(pid, productId) {
     await this.open();
-    if (!Number.isInteger(Number(pid)) || !productId) return;
+    const key = profileKey(pid);
+    if (key == null || !productId) return;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
-    transaction.objectStore(SETTINGS_STORE).put({ key: `selectedProduct:${Number(pid)}`, value: String(productId) });
+    transaction.objectStore(SETTINGS_STORE).put({ key: `selectedProduct:${key}`, value: String(productId) });
     await transactionDone(transaction);
   }
 
   async getPanelLanguages(pid, productId, experienceId) {
     await this.open();
-    const key = `panelLanguages:${Number(pid)}:${String(productId)}:${String(experienceId)}`;
+    const key = `panelLanguages:${profileKey(pid)}:${String(productId)}:${String(experienceId)}`;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
     const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(key));
     return setting?.value && typeof setting.value === 'object' ? { ...setting.value } : {};
@@ -281,7 +328,7 @@ export class ProfileStore {
 
   async setPanelLanguages(pid, productId, experienceId, value) {
     await this.open();
-    const key = `panelLanguages:${Number(pid)}:${String(productId)}:${String(experienceId)}`;
+    const key = `panelLanguages:${profileKey(pid)}:${String(productId)}:${String(experienceId)}`;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
     const store = transaction.objectStore(SETTINGS_STORE);
     if (!value || !Object.keys(value).length) store.delete(key);
@@ -291,40 +338,44 @@ export class ProfileStore {
 
   async getJourneyView(pid) {
     await this.open();
-    if (!Number.isInteger(Number(pid))) return null;
+    const key = profileKey(pid);
+    if (key == null) return null;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
-    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`journeyView:${Number(pid)}`));
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`journeyView:${key}`));
     return ['cards', 'table'].includes(setting?.value) ? setting.value : null;
   }
 
   async setJourneyView(pid, view) {
     await this.open();
-    if (!Number.isInteger(Number(pid)) || !['cards', 'table'].includes(view)) return;
+    const key = profileKey(pid);
+    if (key == null || !['cards', 'table'].includes(view)) return;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
-    transaction.objectStore(SETTINGS_STORE).put({ key: `journeyView:${Number(pid)}`, value: view });
+    transaction.objectStore(SETTINGS_STORE).put({ key: `journeyView:${key}`, value: view });
     await transactionDone(transaction);
   }
 
   async getGitaSaraView(pid) {
     await this.open();
-    if (!Number.isInteger(Number(pid))) return null;
+    const key = profileKey(pid);
+    if (key == null) return null;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
-    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`gitaSaraView:${Number(pid)}`));
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`gitaSaraView:${key}`));
     return ['two_panel', 'three_panel'].includes(setting?.value) ? setting.value : null;
   }
 
   async setGitaSaraView(pid, view) {
     await this.open();
-    if (!Number.isInteger(Number(pid)) || !['two_panel', 'three_panel'].includes(view)) return;
+    const key = profileKey(pid);
+    if (key == null || !['two_panel', 'three_panel'].includes(view)) return;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
-    transaction.objectStore(SETTINGS_STORE).put({ key: `gitaSaraView:${Number(pid)}`, value: view });
+    transaction.objectStore(SETTINGS_STORE).put({ key: `gitaSaraView:${key}`, value: view });
     await transactionDone(transaction);
   }
 
   async recordDiksoochiEngagement({ pid, experience, sid, chapter, seconds, occurredAt }) {
     await this.open();
-    const profileId = Number(pid);
-    if (!Number.isInteger(profileId) || !experience || !sid || !chapter) return;
+    const profileId = profileKey(pid);
+    if (profileId == null || !experience || !sid || !chapter) return;
     const key = `${profileId}:${experience}:${sid}`;
     const transaction = this.database.transaction(DIKSOOCHI_ENGAGEMENT_STORE, 'readwrite');
     const store = transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE);
@@ -342,7 +393,7 @@ export class ProfileStore {
   async getDiksoochiSummary(pid) {
     await this.open();
     const transaction = this.database.transaction(DIKSOOCHI_ENGAGEMENT_STORE, 'readonly');
-    const rows = await requestResult(transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid').getAll(Number(pid)));
+    const rows = await requestResult(transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid').getAll(profileKey(pid)));
     const meaningful = rows.filter((row) => row.meaningfulVisitCount > 0 || row.maxEngagementSeconds >= 10);
     return {
       chapters: new Set(meaningful.map((row) => row.chapter)).size,
@@ -353,7 +404,7 @@ export class ProfileStore {
   async getDiksoochiDetails(pid) {
     await this.open();
     const transaction = this.database.transaction(DIKSOOCHI_ENGAGEMENT_STORE, 'readonly');
-    const rows = await requestResult(transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid').getAll(Number(pid)));
+    const rows = await requestResult(transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid').getAll(profileKey(pid)));
     const bySid = new Map();
     rows.filter((row) => row.meaningfulVisitCount > 0 || row.maxEngagementSeconds >= 10).forEach((row) => {
       const existing = bySid.get(row.sid) || { sid: row.sid, chapter: row.chapter, count: 0 };

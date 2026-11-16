@@ -249,6 +249,12 @@ function randomAnalyticsId() {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function profileKey(pid) {
+  if (typeof pid === 'number' && Number.isInteger(pid) && pid > 0) return pid;
+  const value = String(pid || '').trim();
+  return value || null;
+}
+
 class ProfileStore {
   constructor({ databaseName = 'verses-local-profiles', languageModel = () => ({ content: ['en', 'kn'], interface: ['en', 'kn'] }) } = {}) {
     this.databaseName = databaseName;
@@ -265,14 +271,47 @@ class ProfileStore {
     await this.open();
     const transaction = this.database.transaction(PROFILE_STORE, 'readonly');
     const profiles = await requestResult(transaction.objectStore(PROFILE_STORE).getAll());
-    return profiles.sort((left, right) => left.pid - right.pid);
+    return profiles.sort((left, right) => String(right.updatedAt || right.createdAt || '').localeCompare(String(left.updatedAt || left.createdAt || '')));
   }
 
   async get(pid) {
     await this.open();
-    if (!Number.isInteger(Number(pid))) return null;
+    const key = profileKey(pid);
+    if (key == null) return null;
     const transaction = this.database.transaction(PROFILE_STORE, 'readonly');
-    return (await requestResult(transaction.objectStore(PROFILE_STORE).get(Number(pid)))) || null;
+    return (await requestResult(transaction.objectStore(PROFILE_STORE).get(key))) || null;
+  }
+
+  async attach(input) {
+    await this.open();
+    const pid = profileKey(input.pid);
+    if (typeof pid !== 'string') throw new Error('An attached profile requires a canonical Profile ID.');
+    const name = String(input.name || '').trim();
+    if (!name) throw new Error('The Profile service did not provide a profile name.');
+    const languages = this.languageModel();
+    const now = new Date().toISOString();
+    const existing = await this.get(pid);
+    const profile = {
+      ...(existing || {}),
+      pid,
+      name,
+      interfaceLanguage: languages.interface.includes(input.interfaceLanguage) ? input.interfaceLanguage : (existing?.interfaceLanguage || languages.interface[0] || 'en'),
+      contentLanguage: languages.content.includes(input.contentLanguage) ? input.contentLanguage : (existing?.contentLanguage || languages.defaultContent || 'en'),
+      photo: existing?.photo || '',
+      analyticsConsent: existing?.analyticsConsent ?? true,
+      analyticsProfileId: existing?.analyticsProfileId || randomAnalyticsId(),
+      profileSource: 'gitajyoti',
+      attachedAt: existing?.attachedAt || input.attachedAt || now,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now
+    };
+    delete profile.dob;
+    delete profile.gender;
+    delete profile.language;
+    const transaction = this.database.transaction(PROFILE_STORE, 'readwrite');
+    transaction.objectStore(PROFILE_STORE).put(profile);
+    await transactionDone(transaction);
+    return this.get(pid);
   }
 
   async save(input) {
@@ -308,15 +347,17 @@ class ProfileStore {
 
   async remove(pid) {
     await this.open();
+    const key = profileKey(pid);
+    if (key == null) return;
     const transaction = this.database.transaction([PROFILE_STORE, SETTINGS_STORE, RESUME_STORE, DIKSOOCHI_ENGAGEMENT_STORE], 'readwrite');
-    transaction.objectStore(PROFILE_STORE).delete(Number(pid));
+    transaction.objectStore(PROFILE_STORE).delete(key);
     const settings = transaction.objectStore(SETTINGS_STORE);
     const defaultPid = await requestResult(settings.get('defaultPid'));
-    if (defaultPid && Number(defaultPid.value) === Number(pid)) settings.delete('defaultPid');
-    settings.delete(`journeyView:${Number(pid)}`);
-    settings.delete(`gitaSaraView:${Number(pid)}`);
-    settings.delete(`selectedProduct:${Number(pid)}`);
-    const panelPrefix = `panelLanguages:${Number(pid)}:`;
+    if (defaultPid && defaultPid.value === key) settings.delete('defaultPid');
+    settings.delete(`journeyView:${key}`);
+    settings.delete(`gitaSaraView:${key}`);
+    settings.delete(`selectedProduct:${key}`);
+    const panelPrefix = `panelLanguages:${key}:`;
     const settingsCursor = settings.openCursor();
     settingsCursor.onsuccess = () => {
       const cursor = settingsCursor.result;
@@ -324,9 +365,9 @@ class ProfileStore {
       if (String(cursor.key).startsWith(panelPrefix)) cursor.delete();
       cursor.continue();
     };
-    transaction.objectStore(RESUME_STORE).delete(Number(pid));
+    transaction.objectStore(RESUME_STORE).delete(key);
     const engagement = transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid');
-    const engagementCursor = engagement.openKeyCursor(IDBKeyRange.only(Number(pid)));
+    const engagementCursor = engagement.openKeyCursor(IDBKeyRange.only(key));
     engagementCursor.onsuccess = () => {
       const cursor = engagementCursor.result;
       if (!cursor) return;
@@ -338,9 +379,10 @@ class ProfileStore {
 
   async getResume(pid) {
     await this.open();
-    if (!Number.isInteger(Number(pid))) return null;
+    const key = profileKey(pid);
+    if (key == null) return null;
     const transaction = this.database.transaction(RESUME_STORE, 'readonly');
-    return (await requestResult(transaction.objectStore(RESUME_STORE).get(Number(pid)))) || null;
+    return (await requestResult(transaction.objectStore(RESUME_STORE).get(key))) || null;
   }
 
   async getExperienceResume(pid, experience, product = '') {
@@ -364,8 +406,8 @@ class ProfileStore {
 
   async saveResume(resume) {
     await this.open();
-    if (!Number.isInteger(Number(resume.pid))) throw new Error('A resume point requires a profile ID.');
-    const pid = Number(resume.pid);
+    const pid = profileKey(resume.pid);
+    if (pid == null) throw new Error('A resume point requires a profile ID.');
     const transaction = this.database.transaction(RESUME_STORE, 'readwrite');
     const store = transaction.objectStore(RESUME_STORE);
     const existing = await requestResult(store.get(pid));
@@ -427,7 +469,7 @@ class ProfileStore {
     await this.open();
     const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
     const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get('defaultPid'));
-    return setting ? Number(setting.value) : null;
+    return setting?.value ?? null;
   }
 
   async setDefaultPid(pid) {
@@ -435,29 +477,34 @@ class ProfileStore {
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
     const store = transaction.objectStore(SETTINGS_STORE);
     if (pid == null) store.delete('defaultPid');
-    else store.put({ key: 'defaultPid', value: Number(pid) });
+    else {
+      const key = profileKey(pid);
+      if (key != null) store.put({ key: 'defaultPid', value: key });
+    }
     await transactionDone(transaction);
   }
 
   async getSelectedProduct(pid) {
     await this.open();
-    if (!Number.isInteger(Number(pid))) return null;
+    const key = profileKey(pid);
+    if (key == null) return null;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
-    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`selectedProduct:${Number(pid)}`));
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`selectedProduct:${key}`));
     return typeof setting?.value === 'string' ? setting.value : null;
   }
 
   async setSelectedProduct(pid, productId) {
     await this.open();
-    if (!Number.isInteger(Number(pid)) || !productId) return;
+    const key = profileKey(pid);
+    if (key == null || !productId) return;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
-    transaction.objectStore(SETTINGS_STORE).put({ key: `selectedProduct:${Number(pid)}`, value: String(productId) });
+    transaction.objectStore(SETTINGS_STORE).put({ key: `selectedProduct:${key}`, value: String(productId) });
     await transactionDone(transaction);
   }
 
   async getPanelLanguages(pid, productId, experienceId) {
     await this.open();
-    const key = `panelLanguages:${Number(pid)}:${String(productId)}:${String(experienceId)}`;
+    const key = `panelLanguages:${profileKey(pid)}:${String(productId)}:${String(experienceId)}`;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
     const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(key));
     return setting?.value && typeof setting.value === 'object' ? { ...setting.value } : {};
@@ -465,7 +512,7 @@ class ProfileStore {
 
   async setPanelLanguages(pid, productId, experienceId, value) {
     await this.open();
-    const key = `panelLanguages:${Number(pid)}:${String(productId)}:${String(experienceId)}`;
+    const key = `panelLanguages:${profileKey(pid)}:${String(productId)}:${String(experienceId)}`;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
     const store = transaction.objectStore(SETTINGS_STORE);
     if (!value || !Object.keys(value).length) store.delete(key);
@@ -475,40 +522,44 @@ class ProfileStore {
 
   async getJourneyView(pid) {
     await this.open();
-    if (!Number.isInteger(Number(pid))) return null;
+    const key = profileKey(pid);
+    if (key == null) return null;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
-    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`journeyView:${Number(pid)}`));
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`journeyView:${key}`));
     return ['cards', 'table'].includes(setting?.value) ? setting.value : null;
   }
 
   async setJourneyView(pid, view) {
     await this.open();
-    if (!Number.isInteger(Number(pid)) || !['cards', 'table'].includes(view)) return;
+    const key = profileKey(pid);
+    if (key == null || !['cards', 'table'].includes(view)) return;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
-    transaction.objectStore(SETTINGS_STORE).put({ key: `journeyView:${Number(pid)}`, value: view });
+    transaction.objectStore(SETTINGS_STORE).put({ key: `journeyView:${key}`, value: view });
     await transactionDone(transaction);
   }
 
   async getGitaSaraView(pid) {
     await this.open();
-    if (!Number.isInteger(Number(pid))) return null;
+    const key = profileKey(pid);
+    if (key == null) return null;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readonly');
-    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`gitaSaraView:${Number(pid)}`));
+    const setting = await requestResult(transaction.objectStore(SETTINGS_STORE).get(`gitaSaraView:${key}`));
     return ['two_panel', 'three_panel'].includes(setting?.value) ? setting.value : null;
   }
 
   async setGitaSaraView(pid, view) {
     await this.open();
-    if (!Number.isInteger(Number(pid)) || !['two_panel', 'three_panel'].includes(view)) return;
+    const key = profileKey(pid);
+    if (key == null || !['two_panel', 'three_panel'].includes(view)) return;
     const transaction = this.database.transaction(SETTINGS_STORE, 'readwrite');
-    transaction.objectStore(SETTINGS_STORE).put({ key: `gitaSaraView:${Number(pid)}`, value: view });
+    transaction.objectStore(SETTINGS_STORE).put({ key: `gitaSaraView:${key}`, value: view });
     await transactionDone(transaction);
   }
 
   async recordDiksoochiEngagement({ pid, experience, sid, chapter, seconds, occurredAt }) {
     await this.open();
-    const profileId = Number(pid);
-    if (!Number.isInteger(profileId) || !experience || !sid || !chapter) return;
+    const profileId = profileKey(pid);
+    if (profileId == null || !experience || !sid || !chapter) return;
     const key = `${profileId}:${experience}:${sid}`;
     const transaction = this.database.transaction(DIKSOOCHI_ENGAGEMENT_STORE, 'readwrite');
     const store = transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE);
@@ -526,7 +577,7 @@ class ProfileStore {
   async getDiksoochiSummary(pid) {
     await this.open();
     const transaction = this.database.transaction(DIKSOOCHI_ENGAGEMENT_STORE, 'readonly');
-    const rows = await requestResult(transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid').getAll(Number(pid)));
+    const rows = await requestResult(transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid').getAll(profileKey(pid)));
     const meaningful = rows.filter((row) => row.meaningfulVisitCount > 0 || row.maxEngagementSeconds >= 10);
     return {
       chapters: new Set(meaningful.map((row) => row.chapter)).size,
@@ -537,7 +588,7 @@ class ProfileStore {
   async getDiksoochiDetails(pid) {
     await this.open();
     const transaction = this.database.transaction(DIKSOOCHI_ENGAGEMENT_STORE, 'readonly');
-    const rows = await requestResult(transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid').getAll(Number(pid)));
+    const rows = await requestResult(transaction.objectStore(DIKSOOCHI_ENGAGEMENT_STORE).index('pid').getAll(profileKey(pid)));
     const bySid = new Map();
     rows.filter((row) => row.meaningfulVisitCount > 0 || row.maxEngagementSeconds >= 10).forEach((row) => {
       const existing = bySid.get(row.sid) || { sid: row.sid, chapter: row.chapter, count: 0 };
@@ -584,8 +635,9 @@ async function resizeProfilePhoto(file) {
 // Source: js/profile-ui.js
 
 class ProfileUI {
-  constructor({ store, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null, products = () => [] }) {
+  constructor({ store, repository = null, onSelected, onCreated, onChanged, translate = (key, fallback) => fallback, onInterfaceLanguagePreview = () => {}, languageModel = () => null, products = () => [] }) {
     this.store = store;
+    this.repository = repository;
     this.onSelected = onSelected;
     this.onCreated = onCreated;
     this.onChanged = onChanged;
@@ -595,6 +647,7 @@ class ProfileUI {
     this.products = products;
     this.editingPid = null;
     this.photo = '';
+    this.turnstile = null;
     this.bind();
   }
 
@@ -658,6 +711,7 @@ class ProfileUI {
   }
 
   async showForm(profile = null, { focusPreferences = false } = {}) {
+    if (!profile && this.repository) return this.showAttachForm();
     this.editingPid = profile?.pid || null;
     this.photo = profile?.photo || '';
     const formTitle = document.getElementById('profile-form-title');
@@ -668,9 +722,26 @@ class ProfileUI {
     formIntro.textContent = profile
       ? this.translate('profile.intro.edit', 'Keep this profile’s local preferences up to date.')
       : this.translate('profile.intro.create', 'Profiles keep each person’s language and experience separate on this device.');
+    const attachSection = document.getElementById('profile-attach-section');
+    const idSection = document.getElementById('profile-id-section');
+    if (attachSection) attachSection.hidden = true;
+    document.querySelector('#profile-form button[type="submit"]').textContent = this.translate('profile.save', 'Save profile');
+    if (idSection) idSection.hidden = !profile?.profileSource;
+    const idValue = document.getElementById('profile-id-value');
+    if (idValue) idValue.textContent = profile?.profileSource ? profile.pid : '';
+    document.getElementById('profile-details-section').hidden = false;
+    document.getElementById('profile-preferences-section').hidden = false;
+    document.getElementById('profile-default').closest('label').hidden = false;
+    document.getElementById('profile-name').disabled = false;
+    document.getElementById('profile-dob').disabled = Boolean(profile?.profileSource);
+    document.getElementById('profile-interface-language').disabled = false;
+    document.getElementById('profile-content-language').disabled = false;
     document.getElementById('profile-name').value = profile?.name || '';
+    document.getElementById('profile-name').readOnly = Boolean(profile?.profileSource);
     document.getElementById('profile-dob').value = profile?.dob || '';
     document.getElementById('profile-gender').value = profile?.gender || '';
+    document.getElementById('profile-dob').closest('div').hidden = Boolean(profile?.profileSource);
+    document.getElementById('profile-gender').closest('div').hidden = Boolean(profile?.profileSource);
     document.getElementById('profile-interface-language').value = profile?.interfaceLanguage || '';
     const contentSelect = document.getElementById('profile-content-language');
     const model = this.languageModel();
@@ -692,6 +763,39 @@ class ProfileUI {
       target?.scrollIntoView({ block: focusPreferences ? 'center' : 'nearest', behavior: 'smooth' });
       target?.focus({ preventScroll: true });
     });
+  }
+
+  async showAttachForm({ pid = '' } = {}) {
+    this.editingPid = null;
+    this.photo = '';
+    const formTitle = document.getElementById('profile-form-title');
+    const formIntro = document.getElementById('profile-form-intro');
+    formTitle.textContent = 'Use your Gitajyoti profile';
+    formIntro.textContent = 'MyGita keeps your learning journey on this device and uses an existing Gitajyoti Profile ID.';
+    document.getElementById('profile-id-section').hidden = true;
+    document.getElementById('profile-attach-section').hidden = false;
+    document.getElementById('profile-details-section').hidden = true;
+    document.getElementById('profile-preferences-section').hidden = true;
+    document.getElementById('profile-default').closest('label').hidden = true;
+    document.getElementById('profile-name').disabled = true;
+    document.getElementById('profile-dob').disabled = true;
+    document.getElementById('profile-interface-language').disabled = true;
+    document.getElementById('profile-content-language').disabled = true;
+    document.getElementById('profile-form-cancel').hidden = true;
+    document.getElementById('profile-form-error').textContent = '';
+    document.getElementById('profile-attach-id').value = pid;
+    document.getElementById('profile-attach-id').readOnly = Boolean(pid);
+    document.getElementById('profile-attach-dob').value = '';
+    document.getElementById('profile-attach-dob').max = new Date().toISOString().slice(0, 10);
+    document.getElementById('profile-verify-fields').hidden = true;
+    document.querySelector('#profile-form button[type="submit"]').textContent = 'Continue';
+    requestAnimationFrame(() => document.getElementById(pid ? 'profile-attach-dob' : 'profile-attach-id').focus());
+  }
+
+  async showVerificationFields() {
+    document.getElementById('profile-verify-fields').hidden = false;
+    if (!this.turnstile) this.turnstile = await this.repository.provider.renderVerificationTurnstile(document.getElementById('profile-turnstile'));
+    document.getElementById('profile-attach-dob').focus();
   }
 
   productName(product, language) {
@@ -789,9 +893,24 @@ class ProfileUI {
       const error = document.getElementById('profile-form-error');
       error.textContent = '';
       try {
+        if (!this.editingPid && this.repository) {
+          const pid = document.getElementById('profile-attach-id').value;
+          const dateOfBirth = document.getElementById('profile-attach-dob').value;
+          const needsVerification = !document.getElementById('profile-verify-fields').hidden;
+          const turnstileToken = needsVerification ? await this.turnstile?.token?.() : '';
+          const result = await this.repository.attach(pid, { dateOfBirth, turnstileToken });
+          this.turnstile?.reset?.();
+          if (result.ok) return this.onCreated(result.profile, { attached: true });
+          if (result.code === 'unverified' && !needsVerification) {
+            await this.showVerificationFields();
+            error.textContent = 'Confirm your date of birth to use this Profile ID on this device.';
+            return;
+          }
+          throw new Error(result.message || 'We could not verify that Profile ID.');
+        }
         if (!document.getElementById('profile-name').value.trim()) throw new Error(this.translate('validation.name', 'Enter a profile name.'));
         const dob = document.getElementById('profile-dob').value;
-        if (!dob || new Date(dob + 'T00:00:00') > new Date()) throw new Error(this.translate('validation.dob', 'Enter a valid date of birth.'));
+        if (!this.repository && (!dob || new Date(dob + 'T00:00:00') > new Date())) throw new Error(this.translate('validation.dob', 'Enter a valid date of birth.'));
         const interfaceLanguage = document.getElementById('profile-interface-language').value;
         const contentLanguage = document.getElementById('profile-content-language').value;
         if (!interfaceLanguage) throw new Error(this.translate('validation.appLanguage', 'Choose an app language.'));
@@ -816,6 +935,7 @@ class ProfileUI {
       }
     });
     document.getElementById('profile-name').addEventListener('input', () => this.renderPhotoPreview());
+    document.getElementById('profile-attach-id')?.addEventListener('input', (event) => { event.target.value = event.target.value.toUpperCase(); });
     document.getElementById('profile-interface-language').addEventListener('change', (event) => {
       const content = document.getElementById('profile-content-language');
       if (!this.editingPid && event.target.value) content.value = event.target.value;
@@ -912,7 +1032,7 @@ function validateEventInput(name, input = {}) {
       throw new Error('location_changed requires experience and sid.');
     }
   }
-  if ((name === 'location_changed' || name === 'home_opened') && !Number.isInteger(Number(input.profileId))) {
+  if ((name === 'location_changed' || name === 'home_opened') && !String(input.profileId || '').trim()) {
     throw new Error(name + ' requires a profile ID.');
   }
   if (name === 'gita_sara_view_changed' && !['two_panel', 'three_panel'].includes(input.details?.view)) {
@@ -1001,7 +1121,9 @@ class EventBus {
       event: name,
       occurredAt: new Date().toISOString(),
       sessionId: this.sessionId,
-      profileId: input.profileId == null ? null : Number(input.profileId),
+      // A profile ID is an opaque local-storage key. It may be the canonical
+      // Gitajyoti Crockford ID, so never coerce it to a number.
+      profileId: input.profileId == null ? null : input.profileId,
       anonymousProfileId: input.anonymousProfileId || null,
       context: {
         appVersion: this.appVersion,

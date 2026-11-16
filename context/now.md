@@ -3,6 +3,7 @@
 ## Active
 | Work | Agent | S | Scope | Claimed paths | State |
 | --- | --- | --- | --- | --- | --- |
+| W-0025 | Codex | S-24 | Gitajyoti-verified profile attachment and local profile projection | engine/js/profile-*, engine/js/player/, engine/player.html, tests, docs/design, context | checkpointed; browser/API acceptance remains |
 
 ## Needs user
 - —
