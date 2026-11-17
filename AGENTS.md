@@ -19,4 +19,6 @@
 - Codex edits `apps/gita-jyoti/mygita-app`, including engine, Content-Kit, products, docs and context.
 - Codex also owns `apps/gita-jyoti/website`, but Website work is handled in a separate conversation.
 - Claude edits `apps/gita-jyoti/media` and `apps/gita-jyoti/media-admin`, including content, registries, manifests, inventories, Media scripts, tests and publishing.
-- Do not edit `media` or `media-admin`; hand media changes to Claude through the user.
+- Claude also owns `apps/gita-jyoti/api-server`.
+- If you are Codex: do not edit `media`, `media-admin` or `api-server`; hand those changes to Claude through the user.
+- If you are Claude: do not edit this repo; put Kit requests in mygita's feature file (Open section, with an id and a status), following context/README.md, and hand them to Codex through the user.
