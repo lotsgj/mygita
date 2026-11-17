@@ -45,6 +45,25 @@ async function closeServer(server) {
   await new Promise((resolve) => server.close(resolve));
 }
 
+async function stubExternalAnalytics(targetContext) {
+  const body = [
+    'window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments);};',
+    'window.dataLayer=window.dataLayer||[];',
+    'window.gtag=window.gtag||function(){window.dataLayer.push(arguments);};'
+  ].join('');
+  await Promise.all([
+    'https://www.clarity.ms/**',
+    'https://scripts.clarity.ms/**',
+    'https://www.googletagmanager.com/**',
+    'https://www.google-analytics.com/**'
+  ].map((url) => targetContext.route(url, (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/javascript',
+    headers: { 'Cache-Control': 'no-store' },
+    body
+  }))));
+}
+
 function silentWav(durationSeconds = 1, sampleRate = 8000) {
   const sampleCount = durationSeconds * sampleRate;
   const dataBytes = sampleCount * 2;
@@ -143,6 +162,7 @@ async function run() {
   let mockedAudioRequests = 0;
   const audioFixture = silentWav();
   await routeLocalMedia(context);
+  await stubExternalAnalytics(context);
   await context.route('https://media.gitajyoti.org/audio/**', (route) => {
     mockedAudioRequests += 1;
     return route.fulfill({
@@ -720,6 +740,7 @@ async function run() {
       window.__MYGITA_PROFILE_API__ = { async getSession() { return { ok: true, profileIds: [] }; }, async getProfile(profileId) { return { ok: true, profile: { profileId, fields: { name: window.__MYGITA_TEST_PROFILE_NAMES[profileId] || profileId, preferred_language: 'English' } } }; }, async verifyProfile(profileId) { return this.getProfile(profileId); }, async forgetSession() { return { ok: true }; }, async renderVerificationTurnstile() { return { token: async () => 'test-token', reset() {} }; } };
     });
     await routeLocalMedia(mobile);
+    await stubExternalAnalytics(mobile);
     const mobilePage = await mobile.newPage();
     await mobilePage.goto(`${base}/player.html?play=gita-700&sid=6.7`, { waitUntil: 'networkidle' });
     await createProfile(mobilePage, 'Mobile Regression');
@@ -775,6 +796,7 @@ async function run() {
 
     const migrationContext = await browser.newContext();
     await routeLocalMedia(migrationContext);
+    await stubExternalAnalytics(migrationContext);
     const migrationPage = await migrationContext.newPage();
     await migrationPage.goto(`${base}/offline.html`, { waitUntil: 'domcontentloaded' });
     await migrationPage.evaluate(() => new Promise((resolve, reject) => {
@@ -840,6 +862,7 @@ async function run() {
       };
     });
     await routeLocalMedia(languageContext);
+    await stubExternalAnalytics(languageContext);
     const languagePage = await languageContext.newPage();
     await languagePage.goto(`${base}/player.html`, { waitUntil: 'networkidle' });
     await createProfile(languagePage, 'Kannada Interface', { expectHome: false, pid: 'GJ-0000-0005' });
@@ -864,6 +887,7 @@ async function run() {
       window.__MYGITA_TEST_PROFILE_NAMES = {};
       window.__MYGITA_PROFILE_API__ = { async getSession() { return { ok: true, profileIds: [] }; }, async getProfile(profileId) { return { ok: true, profile: { profileId, fields: { name: window.__MYGITA_TEST_PROFILE_NAMES[profileId] || profileId, preferred_language: 'English' } } }; }, async verifyProfile(profileId) { return this.getProfile(profileId); }, async forgetSession() { return { ok: true }; }, async renderVerificationTurnstile() { return { token: async () => 'test-token', reset() {} }; } };
     });
+    await stubExternalAnalytics(fileContext);
     const filePage = await fileContext.newPage();
     const fileRuntimeErrors = [];
     filePage.on('pageerror', (error) => fileRuntimeErrors.push(error.stack || error.message));
