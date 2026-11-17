@@ -8,6 +8,7 @@
 
 ## Parts
 - [ ] W-0025 Profile provider, repository, local PID keys, attachment UI and regressions — implementation and focused regressions in progress
+- [x] W-0026 Browser regression reliability — canonical mock attachment, deterministic cleanup and bounded CI suites
 
 ## Open
 - [ ] API contract: `getProfile`, `getSession`, `verifyProfile` and `forgetSession` from API client 1.1.0 — accepted
@@ -21,3 +22,5 @@
 
 ## Changes
 - 2026-11-16 W-0025 started; API attachment boundary and focused regression added. Full browser acceptance remains.
+- 2026-11-17 W-0026 started after CI run 43929204404: platform browser regression used the retired local-creation form and leaked Chromium after its failure, causing the grouped browser step to run until GitHub's six-hour limit.
+- 2026-11-17 W-0026 done: platform and product browser fixtures use canonical mocked PIDs, every failure closes browser/server resources, and CI isolates each browser suite with bounded timeouts. Full browser, unit and contract regression passes locally.

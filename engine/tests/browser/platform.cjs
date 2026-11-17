@@ -17,6 +17,7 @@ const server = http.createServer((request, response) => {
 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
 const assetManifest = JSON.parse(fs.readFileSync(path.join(root, 'asset-manifest.json'), 'utf8'));
+const TEST_PID = 'GJ-0000-0001';
 assert.equal(manifest.name, 'MyGita');
 assert.equal(manifest.start_url, './player.html');
 assert.equal(manifest.scope, './');
@@ -27,16 +28,31 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
 
 (async () => {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
-  const context = await browser.newContext();
-  await context.route('https://media.gitajyoti.org/**', (route) => {
+  let browser;
+  let context;
+  try {
+    browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
+    context = await browser.newContext();
+    context.setDefaultTimeout(30000);
+    context.setDefaultNavigationTimeout(30000);
+    await context.addInitScript((pid) => {
+      window.__MYGITA_TEST_PROFILE_NAMES = { [pid]: 'Product Regression' };
+      window.__MYGITA_PROFILE_API__ = {
+        async getSession() { return { ok: true, profileIds: [] }; },
+        async getProfile(profileId) { return { ok: true, profile: { profileId, fields: { name: window.__MYGITA_TEST_PROFILE_NAMES[profileId] || profileId, preferred_language: 'English' } } }; },
+        async verifyProfile(profileId) { return this.getProfile(profileId); },
+        async forgetSession() { return { ok: true }; },
+        async renderVerificationTurnstile() { return { token: async () => 'test-token', reset() {} }; }
+      };
+    }, TEST_PID);
+    await context.route('https://media.gitajyoti.org/**', (route) => {
     const url = new URL(route.request().url());
     const relative = decodeURIComponent(url.pathname).replace(/^\/+/, '');
     const file = path.resolve(mediaRoot, relative);
     if (!file.startsWith(mediaRoot + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return route.fulfill({ status: 404, body: 'Not found' });
     return route.fulfill({ status: 200, contentType: mime[path.extname(file)] || 'application/octet-stream', headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }, body: fs.readFileSync(file) });
-  });
-  const page = await context.newPage();
+    });
+    const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('response', (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
@@ -48,10 +64,9 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
     const visible = await page.locator('body > section:not([hidden]), body > main:not([hidden]), #app:not([hidden]), #error-view:not([hidden])').evaluateAll((elements) => elements.map((element) => `${element.id || element.tagName}:${element.textContent.trim().slice(0, 220)}`));
     throw new Error(`Profile setup did not open: ${visible.join(' | ')}; runtime errors: ${errors.join(' | ')}`, { cause: error });
   }
-  await page.getByLabel('Name', { exact: true }).fill('Product Regression');
-  await page.getByLabel('Date of birth', { exact: true }).fill('1990-01-01');
-  await page.getByLabel('App language', { exact: true }).selectOption('en');
-  await page.getByRole('button', { name: 'Save profile' }).click();
+  await page.locator('#profile-attach-section').waitFor({ state: 'visible' });
+  await page.locator('#profile-attach-id').fill(TEST_PID);
+  await page.getByRole('button', { name: 'Continue' }).click();
   await page.locator('#product-list .product-pill').first().waitFor();
   assert.equal(await page.locator('#product-list .product-pill').count(), 2);
   assert.equal(await page.locator('[data-product-id="bhagavad-gita"]').getAttribute('aria-selected'), 'true');
@@ -72,7 +87,7 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
   await page.locator('#diksoochi [data-about]').click();
   assert.equal(await page.locator('#about-title').innerText(), 'About MyGita');
   await page.locator('[data-about-close]').click();
-  await page.goto(`${base}?pid=1&view=diksoochi`, { waitUntil: 'networkidle' });
+  await page.goto(`${base}?view=diksoochi`, { waitUntil: 'networkidle' });
   assert.equal(await page.locator('[data-product-id="sukta"]').getAttribute('aria-selected'), 'true', 'selected product persists per profile');
   await page.locator('#sukta-chant-link').click();
   assert.equal(await page.locator('#experience-detail').isVisible(), true, 'the first experience-card click reveals its detail');
@@ -85,7 +100,7 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
     throw new Error(`Sukta experience did not open: ${visible.join(' | ')}; runtime errors: ${errors.join(' | ')}`, { cause: error });
   }
   assert.match(page.url(), /[?&]product=sukta/);
-  await page.goto(`${base}?pid=1&product=bhagavad-gita&play=gita-chant&sid=2.47`, { waitUntil: 'networkidle' });
+  await page.goto(`${base}?product=bhagavad-gita&play=gita-chant&sid=2.47`, { waitUntil: 'networkidle' });
   await page.locator('.verse-chant-panels').waitFor();
   assert.match(page.url(), /[?&]product=bhagavad-gita/);
   assert.equal(await page.locator('#sid-label').innerText(), '2.47');
@@ -97,7 +112,10 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
   assert.equal(await page.title(), 'Welcome to Rachana — Rachana');
   assert.equal(assetManifest.precache.some((name) => name === 'docs.html' || name.startsWith('docs/')), false);
   assert.deepEqual(errors, []);
-  await browser.close();
-  server.close();
-  console.log('PASS: MyGita switches products, opens experiences, and serves browser-only Rachana documentation.');
-})().catch((error) => { console.error(error); server.close(); process.exitCode = 1; });
+    console.log('PASS: MyGita switches products, opens experiences, and serves browser-only Rachana documentation.');
+  } finally {
+    await context?.close();
+    await browser?.close();
+    if (server.listening) await new Promise((resolve) => server.close(resolve));
+  }
+})().catch((error) => { console.error(error); process.exitCode = 1; });

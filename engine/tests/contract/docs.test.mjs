@@ -141,9 +141,8 @@ test('agent context records repository ownership and the final sibling layout', 
     readFile(path.join(projectRoot, 'context/README.md'), 'utf8'),
     readFile(path.join(projectRoot, 'context/features/19-independent-media.md'), 'utf8')
   ]);
-  for (const instructions of [agents, claude]) {
-    assert.match(instructions, /Do not edit `media` or `media-admin`; hand media changes to Claude through the user\./);
-  }
+  assert.match(agents, /If you are Codex: do not edit `media`, `media-admin` or `api-server`; hand those changes to Claude through the user\./);
+  assert.match(claude, /@AGENTS\.md/);
   for (const folder of ['mygita-app', 'media', 'media-admin', 'website']) assert.match(contextReadme, new RegExp('apps/gita-jyoti/' + folder));
   assert.match(contextReadme, /Website work is Codex-owned but assigned to a separate conversation/);
   assert.match(independentMedia, /apps\/gita-jyoti\/media-admin/);

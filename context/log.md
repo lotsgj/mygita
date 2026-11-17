@@ -107,3 +107,8 @@ Tests: ownership contract and stale-path search pass; existing operational `../m
 Changed: added lazy API provider/repository, canonical string PIDs, API-verified profile attachment UI, minimal local projection, local reuse and a read-only Profile ID panel. Existing MyGita profile creation is replaced by external Gitajyoti registration plus attachment.
 Privacy: API session data and personal registration fields stay out of local projection and analytics; raw PIDs remain local adapter keys only.
 Tests: unit 85/85 covers session/DOB/local attachment and string PID events. Browser/API acceptance remains open; S-24 stays To unfold.
+
+## W-0026 · 2026-11-17 · Codex · S-24 · Browser regression reliability
+Changed: converted platform and product browser fixtures to canonical mocked Profile IDs, removed legacy local-profile creation paths, and ensured browser/server resources are closed on both success and failure.
+CI: browser suites are now isolated as platform, Gita, Sukta and Rachana steps; each has its own cap and the overall build is limited to 20 minutes.
+Tests: Gita, Sukta, platform and Rachana browser regression; unit 85/85; contract 30/30.

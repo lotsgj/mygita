@@ -10,6 +10,9 @@ const productsRoot = path.resolve(root, '..');
 const mediaRoot = process.env.MYGITA_MEDIA_ROOT || path.resolve(root, '../../../media');
 const dist = path.resolve(root, '../../dist/mygita');
 const chromePath = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const PRIMARY_PID = 'GJ-0000-0001';
+const MOBILE_PID = 'GJ-0000-0003';
+const FILE_PID = 'GJ-0000-0004';
 const mime = {
   '.css': 'text/css', '.csv': 'text/csv; charset=utf-8', '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.mp3': 'audio/mpeg',
@@ -35,6 +38,13 @@ function staticServer() {
   });
 }
 
+async function closeServer(server) {
+  if (!server.listening) return;
+  server.closeIdleConnections?.();
+  server.closeAllConnections?.();
+  await new Promise((resolve) => server.close(resolve));
+}
+
 function silentWav(durationSeconds = 1, sampleRate = 8000) {
   const sampleCount = durationSeconds * sampleRate;
   const dataBytes = sampleCount * 2;
@@ -54,11 +64,11 @@ function silentWav(durationSeconds = 1, sampleRate = 8000) {
   return buffer;
 }
 
-async function createProfile(page, name = 'Regression Profile', { expectHome = true } = {}) {
+async function createProfile(page, name = 'Regression Profile', { expectHome = true, pid: requestedPid = '' } = {}) {
   await page.locator('#profile-setup').waitFor({ state: 'visible' });
   await page.locator('#profile-attach-section').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#experience-language-preferences').isHidden(), true, 'experience panel languages must not appear during first-time profile setup');
-  const pid = name === 'Second Regression' ? 'GJ-0000-0002' : name === 'Mobile Regression' ? 'GJ-0000-0003' : name === 'File Regression' ? 'GJ-0000-0004' : 'GJ-0000-0001';
+  const pid = requestedPid || (name === 'Second Regression' ? 'GJ-0000-0002' : name === 'Mobile Regression' ? MOBILE_PID : name === 'File Regression' ? FILE_PID : PRIMARY_PID);
   await page.evaluate(([id, displayName]) => { window.__MYGITA_TEST_PROFILE_NAMES[id] = displayName; }, [pid, name]);
   await page.locator('#profile-attach-id').fill(pid);
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -245,11 +255,11 @@ async function run() {
     assert.ok(chantBoxes[0].right <= chantBoxes[1].left + 1 && chantBoxes[1].right <= chantBoxes[2].left + 1, 'desktop chant panels must not overlap');
     await page.setViewportSize({ width: 1440, height: 900 });
     for (const sid of ['1.27', '2.47']) {
-      await page.goto(`${base}/player.html?play=gita-chant&sid=${sid}&lang=en&pid=1`, { waitUntil: 'networkidle' });
+      await page.goto(`${base}/player.html?play=gita-chant&sid=${sid}&lang=en&pid=${PRIMARY_PID}`, { waitUntil: 'networkidle' });
       await page.waitForFunction(() => Array.from(document.querySelectorAll('.verse-chant-text')).every((text) => text.dataset.fitCap));
       await assertChantSourceLines(page, 4);
     }
-    await page.goto(`${base}/player.html?play=gita-chant&sid=18.E&lang=en&pid=1`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?play=gita-chant&sid=18.E&lang=en&pid=${PRIMARY_PID}`, { waitUntil: 'networkidle' });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForFunction(() => {
       const panels = Array.from(document.querySelectorAll('.verse-chant-panel'));
@@ -271,7 +281,7 @@ async function run() {
       assert.equal(row.overflowWrap, 'normal', 'wrapped prose must only break at normal opportunities');
       assert.equal(row.fitsHeight, true, 'wrapped prose must still fit the panel height');
     });
-    await page.goto(`${base}/player.html?play=gita-chant&sid=1.3&lang=kn&pid=1`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?play=gita-chant&sid=1.3&lang=kn&pid=${PRIMARY_PID}`, { waitUntil: 'networkidle' });
     await page.locator('.verse-chant-panels').waitFor();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForFunction(() => document.querySelector('.verse-chant-panels')?.clientHeight > 0);
@@ -329,15 +339,15 @@ async function run() {
     await page.locator('.gita-yoga-panels').evaluate((panels) => { panels.style.paddingBottom = ''; });
 
     await page.setViewportSize({ width: 1680, height: 950 });
-    await page.goto(`${base}/player.html?play=gita-yoga&sid=7.1&lang=kn&pid=1`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?play=gita-yoga&sid=7.1&lang=kn&pid=${PRIMARY_PID}`, { waitUntil: 'networkidle' });
     assert.equal(await page.locator('#renderer-root').evaluate((root) => root.scrollHeight <= root.clientHeight + 1), true, 'a content-fitting desktop verse must not create a renderer scrollbar');
     await page.setViewportSize({ width: 1280, height: 720 });
 
-    await page.goto(`${base}/player.html?play=gita-yoga&sid=8.1&pid=1`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?play=gita-yoga&sid=8.1&pid=${PRIMARY_PID}`, { waitUntil: 'networkidle' });
     assert.equal(await page.locator('.gita-yoga-panel').count(), 3, 'missing work-in-progress audio must not prevent verse rendering');
     assert.equal(await page.locator('#play-button').isDisabled(), true, 'a verse without mapped Gita Yoga audio must disable playback');
 
-    await page.goto(`${base}/player.html?play=gita-sara&sid=2.47&lang=en&pid=1`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?play=gita-sara&sid=2.47&lang=en&pid=${PRIMARY_PID}`, { waitUntil: 'networkidle' });
     await page.locator('.gita-sara-layout').waitFor();
     assert.equal(await page.locator('#sid-label').innerText(), '2.47');
     assert.equal(await page.locator('[data-sara-panel]').count(), 3);
@@ -394,7 +404,7 @@ async function run() {
     assert.equal(await page.locator('.gita-sara-deck-frame').count(), 1);
     assert.equal(await page.locator('.gita-sara-media-error').count(), 0);
 
-    await page.goto(`${base}/player.html?play=gita-sara&sid=1.1&lang=en&pid=1`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${base}/player.html?play=gita-sara&sid=1.1&lang=en&pid=${PRIMARY_PID}`, { waitUntil: 'domcontentloaded' });
     await page.locator('.gita-sara-media-image').waitFor();
     const illustrationSource = await page.locator('.gita-sara-media-image').getAttribute('src');
     assert.equal(new URL(illustrationSource).pathname, '/image/bhagavad-gita/gita-sara/illustration/1.1-1.webp', 'Gita Sara illustrations must resolve through the media root');
@@ -408,7 +418,7 @@ async function run() {
     await page.locator('[data-sara-panel="questions"]').waitFor({ state: 'visible' });
     assert.equal(await page.locator('[data-text-action="toggle-all"]').isHidden(), false);
     assert.match(await page.locator('[data-role="question-stage"]').innerText(), /^1\.\s+Who is Dhritarastra\?/);
-    await page.goto(`${base}/player.html?play=gita-sara&sid=D.1&lang=en&pid=1`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${base}/player.html?play=gita-sara&sid=D.1&lang=en&pid=${PRIMARY_PID}`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('.gita-sara-media-image')?.getAttribute('src')?.includes('/gita-sara/default/'));
     assert.equal(new URL(await page.locator('.gita-sara-media-image').getAttribute('src')).pathname, '/image/bhagavad-gita/gita-sara/default/transformation-cycle-clean.png');
     assert.equal(await page.locator('.gita-sara-media-image').getAttribute('alt'), 'TRUTH. REALISE. USE.');
@@ -425,7 +435,7 @@ async function run() {
     await assert.doesNotReject(() => page.locator('#sid-label').waitFor());
     assert.equal(await page.locator('#sid-label').innerText(), '1.B');
 
-    await page.goto(`${base}/player.html?play=gita-700&sid=6.7&lang=kn&pid=1`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?play=gita-700&sid=6.7&lang=kn&pid=${PRIMARY_PID}`, { waitUntil: 'networkidle' });
     await page.evaluate(() => document.fonts.ready);
     for (const { family, sample } of [
       { family: 'Gitaverse Noto Sans Latin', sample: 'Gitaverse' },
@@ -532,37 +542,37 @@ async function run() {
     });
     assert.deepEqual(accessibilityProblems, { visibleButtonsWithoutNames: 0, invalidDialogs: 0 });
 
-    await page.goto(`${base}/player.html?play=gita-700&sid=6.7&pid=1`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?play=gita-700&sid=6.7&pid=${PRIMARY_PID}`, { waitUntil: 'networkidle' });
     assert.equal(await page.locator('#edit-button, #workspace-overlay, #download-reminder').count(), 0, 'clean products do not include the legacy product-data editor');
 
-    await page.goto(`${base}/player.html?pid=1`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?pid=${PRIMARY_PID}`, { waitUntil: 'networkidle' });
     assert.equal(await page.locator('#sid-label').innerText(), '6.7');
     await page.keyboard.press('a');
     await page.getByRole('heading', { name: 'Diksoochi', exact: true }).waitFor();
     assert.equal(await page.locator('#continue-journey-link').getAttribute('data-experience'), 'gita-700', 'Home must continue the most recently visited experience rather than the first chooser item');
     assert.equal(await page.locator('#continue-journey-title').innerText(), 'Shloka 6.7');
-    await page.evaluate(() => new Promise((resolve, reject) => {
+    await page.evaluate((pid) => new Promise((resolve, reject) => {
       const request = indexedDB.open('gitaverse-profiles');
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         const database = request.result;
         const transaction = database.transaction('diksoochiEngagement', 'readwrite');
         transaction.objectStore('diksoochiEngagement').put({
-          key: '1:gita-700:6.7', pid: 1, experience: 'gita-700', sid: '6.7', chapter: '6',
+          key: `${pid}:gita-700:6.7`, pid, experience: 'gita-700', sid: '6.7', chapter: '6',
           firstMeaningfulAt: new Date().toISOString(), lastMeaningfulAt: new Date().toISOString(), meaningfulVisitCount: 1, maxEngagementSeconds: 10
         });
         transaction.objectStore('diksoochiEngagement').put({
-          key: '1:gita-yoga:6.7', pid: 1, experience: 'gita-yoga', sid: '6.7', chapter: '6',
+          key: `${pid}:gita-yoga:6.7`, pid, experience: 'gita-yoga', sid: '6.7', chapter: '6',
           firstMeaningfulAt: new Date().toISOString(), lastMeaningfulAt: new Date().toISOString(), meaningfulVisitCount: 2, maxEngagementSeconds: 20
         });
         transaction.objectStore('diksoochiEngagement').put({
-          key: '1:gita-700:8.4', pid: 1, experience: 'gita-700', sid: '8.4', chapter: '8',
+          key: `${pid}:gita-700:8.4`, pid, experience: 'gita-700', sid: '8.4', chapter: '8',
           firstMeaningfulAt: new Date().toISOString(), lastMeaningfulAt: new Date().toISOString(), meaningfulVisitCount: 1, maxEngagementSeconds: 10
         });
         transaction.oncomplete = () => { database.close(); resolve(); };
         transaction.onerror = () => reject(transaction.error);
       };
-    }));
+    }), PRIMARY_PID);
     await page.reload({ waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Diksoochi', exact: true }).waitFor();
     assert.equal(await page.locator('#diksoochi-know-summary-text').innerText(), 'You have explored 2 chapters and 2 shlokas.');
@@ -680,7 +690,7 @@ async function run() {
     assert.equal(await page.locator('.profile-card').count(), 1);
     await page.getByRole('button', { name: 'Back' }).click();
 
-    await page.goto(`${base}/player.html?play=gita-sara&sid=2.47&lang=en&pid=1`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${base}/player.html?play=gita-sara&sid=2.47&lang=en&pid=${PRIMARY_PID}`, { waitUntil: 'domcontentloaded' });
     await page.locator('.gita-sara-layout').waitFor();
     if (await page.locator('[data-sara-panel="questions"]').isHidden()) {
       await page.keyboard.press('q');
@@ -688,8 +698,16 @@ async function run() {
     }
     await page.keyboard.press('q');
     await page.waitForFunction(() => document.querySelector('[data-sara-panel="questions"]')?.hidden === true);
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.locator('.gita-sara-layout').waitFor();
+    await page.reload({ waitUntil: 'networkidle' });
+    if (await page.locator('#profile-selection').isVisible()) {
+      await page.locator('.profile-select').filter({ hasText: 'Regression Profile' }).click();
+    }
+    try {
+      await page.locator('.gita-sara-layout').waitFor();
+    } catch (error) {
+      const visible = await page.locator('body > section:not([hidden]), body > main:not([hidden]), #app:not([hidden]), #error-view:not([hidden])').evaluateAll((elements) => elements.map((element) => `${element.id || element.tagName}:${element.textContent.trim().slice(0, 280)}`));
+      throw new Error(`Gita Sara did not restore after reload: ${visible.join(' | ')}; runtime errors: ${errors.join(' | ')}`, { cause: error });
+    }
     await page.waitForFunction(() => document.querySelector('[data-sara-panel="questions"]')?.hidden === true);
     assert.equal(await page.locator('[data-sara-panel="questions"]').isHidden(), true, 'the Gita Sara view persists per profile across reload');
     await page.keyboard.press('q');
@@ -697,12 +715,16 @@ async function run() {
     console.log('CHECK: remote media experiences and profile persistence verified');
 
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await mobile.addInitScript(() => {
+      window.__MYGITA_TEST_PROFILE_NAMES = {};
+      window.__MYGITA_PROFILE_API__ = { async getSession() { return { ok: true, profileIds: [] }; }, async getProfile(profileId) { return { ok: true, profile: { profileId, fields: { name: window.__MYGITA_TEST_PROFILE_NAMES[profileId] || profileId, preferred_language: 'English' } } }; }, async verifyProfile(profileId) { return this.getProfile(profileId); }, async forgetSession() { return { ok: true }; }, async renderVerificationTurnstile() { return { token: async () => 'test-token', reset() {} }; } };
+    });
     await routeLocalMedia(mobile);
     const mobilePage = await mobile.newPage();
     await mobilePage.goto(`${base}/player.html?play=gita-700&sid=6.7`, { waitUntil: 'networkidle' });
     await createProfile(mobilePage, 'Mobile Regression');
     assert.equal(await mobilePage.locator('#diksoochi-journey-empty').isVisible(), true, 'mobile Diksoochi must show its compact journey state');
-    await mobilePage.goto(`${base}/player.html?play=gita-yoga&sid=1.1&pid=1`, { waitUntil: 'networkidle' });
+    await mobilePage.goto(`${base}/player.html?play=gita-yoga&sid=1.1&pid=${MOBILE_PID}`, { waitUntil: 'networkidle' });
     const yogaBoxes = await mobilePage.locator('.gita-yoga-panel').evaluateAll((panels) => panels.map((panel) => {
       const box = panel.getBoundingClientRect();
       return { left: box.left, top: box.top };
@@ -711,7 +733,7 @@ async function run() {
     assert.equal(new Set(yogaBoxes.map(({ top }) => Math.round(top))).size, 3, 'mobile Gita Yoga panels must occupy separate rows');
     assert.equal(await mobilePage.locator('[data-role="kn-transliteration"]').isVisible(), true, 'mobile language panels must retain their transliteration');
     assert.equal(await mobilePage.locator('[data-role="sanskrit-words"]').evaluate((words) => words.getBoundingClientRect().top > document.querySelector('[data-role="shloka"]').getBoundingClientRect().top), true, 'mobile must retain shloka before Sanskrit word-by-word text');
-    await mobilePage.goto(`${base}/player.html?play=gita-sara&sid=2.47&lang=en&pid=1`, { waitUntil: 'domcontentloaded' });
+    await mobilePage.goto(`${base}/player.html?play=gita-sara&sid=2.47&lang=en&pid=${MOBILE_PID}`, { waitUntil: 'domcontentloaded' });
     await mobilePage.locator('.gita-sara-layout').waitFor();
     const saraMobileBoxes = await mobilePage.locator('[data-sara-panel]').evaluateAll((panels) => panels.map((panel) => ({ left: panel.getBoundingClientRect().left, top: panel.getBoundingClientRect().top })));
     assert.equal(new Set(saraMobileBoxes.map(({ left }) => Math.round(left))).size, 1, 'mobile Gita Sara panels must share one column');
@@ -728,7 +750,7 @@ async function run() {
     const focusedMobileBoxes = await mobilePage.locator('[data-sara-panel="text"], [data-sara-panel="media"]').evaluateAll((panels) => panels.map((panel) => ({ left: panel.getBoundingClientRect().left, top: panel.getBoundingClientRect().top })));
     assert.equal(new Set(focusedMobileBoxes.map(({ left }) => Math.round(left))).size, 1, 'mobile focused panels remain one full-width column');
     assert.ok(focusedMobileBoxes[1].top > focusedMobileBoxes[0].top, 'mobile focused panels retain text-before-media order');
-    await mobilePage.goto(`${base}/player.html?play=gita-700&sid=6.7&pid=1`, { waitUntil: 'networkidle' });
+    await mobilePage.goto(`${base}/player.html?play=gita-700&sid=6.7&pid=${MOBILE_PID}`, { waitUntil: 'networkidle' });
     await mobilePage.keyboard.press('m');
     assert.equal(await mobilePage.locator('#questions-button').isHidden(), true, 'Questions stays hidden for renderers that do not yet support it');
     await mobilePage.keyboard.press('m');
@@ -795,23 +817,41 @@ async function run() {
     await migrationContext.close();
 
     const languageContext = await browser.newContext();
+    await languageContext.addInitScript(() => {
+      const languageProfileId = 'GJ-0000-0005';
+      window.__MYGITA_TEST_PROFILE_NAMES = { [languageProfileId]: 'Kannada Interface' };
+      window.__MYGITA_PROFILE_API__ = {
+        async getSession() { return { ok: true, profileIds: [] }; },
+        async getProfile(profileId) {
+          return {
+            ok: true,
+            profile: {
+              profileId,
+              fields: {
+                name: window.__MYGITA_TEST_PROFILE_NAMES[profileId] || profileId,
+                preferred_language: profileId === languageProfileId ? 'Kannada' : 'English'
+              }
+            }
+          };
+        },
+        async verifyProfile(profileId) { return this.getProfile(profileId); },
+        async forgetSession() { return { ok: true }; },
+        async renderVerificationTurnstile() { return { token: async () => 'test-token', reset() {} }; }
+      };
+    });
     await routeLocalMedia(languageContext);
     const languagePage = await languageContext.newPage();
     await languagePage.goto(`${base}/player.html`, { waitUntil: 'networkidle' });
-    await languagePage.getByLabel('Name', { exact: true }).fill('Kannada Interface');
-    await languagePage.getByLabel('Date of birth', { exact: true }).fill('1990-01-01');
-    await languagePage.getByLabel('App language', { exact: true }).selectOption('kn');
-    await languagePage.getByLabel('ಆದ್ಯತೆಯ ಗೀತಾ ವಿಷಯ ಭಾಷೆ', { exact: true }).selectOption('en');
-    await languagePage.getByRole('button', { name: 'ಪ್ರೊಫೈಲ್ ಉಳಿಸಿ' }).click();
+    await createProfile(languagePage, 'Kannada Interface', { expectHome: false, pid: 'GJ-0000-0005' });
     await languagePage.getByRole('heading', { name: 'ದಿಕ್ಸೂಚಿ', exact: true }).waitFor();
     await languagePage.getByRole('heading', { name: 'ಅನುಭವವನ್ನು ಆಯ್ಕೆಮಾಡಿ' }).waitFor();
     await languagePage.locator('#gita-700-link').click();
     await languagePage.locator('#experience-detail-action').click();
     await languagePage.locator('#sid-label').waitFor();
     assert.equal(await languagePage.locator('#help-button .top-menu-label').innerText(), 'ಸಹಾಯ');
-    assert.equal(await languagePage.locator('#language-button .top-menu-label').innerText(), 'ವಿಷಯ ಭಾಷೆ (English)');
-    assert.match(await languagePage.locator('#chapter-title').innerText(), /^1 — Arjuna Viṣāda Yoga$/);
-    await languagePage.goto(`${base}/player.html?play=gita-700&sid=1.B&lang=kn&pid=1`, { waitUntil: 'networkidle' });
+    assert.equal(await languagePage.locator('#language-button .top-menu-label').innerText(), 'ವಿಷಯ ಭಾಷೆ (ಕನ್ನಡ)');
+    assert.match(await languagePage.locator('#chapter-title').innerText(), /^1 — ಅರ್ಜುನ ವಿಷಾದ ಯೋಗ$/);
+    await languagePage.goto(`${base}/player.html?play=gita-700&sid=1.B&lang=kn&pid=GJ-0000-0005`, { waitUntil: 'networkidle' });
     assert.equal(await languagePage.locator('#help-button .top-menu-label').innerText(), 'ಸಹಾಯ');
     assert.equal(await languagePage.locator('#language-button .top-menu-label').innerText(), 'ವಿಷಯ ಭಾಷೆ (ಕನ್ನಡ)');
     assert.match(await languagePage.locator('#chapter-title').innerText(), /^1 — ಅರ್ಜುನ ವಿಷಾದ ಯೋಗ$/);
@@ -853,20 +893,20 @@ async function run() {
     await filePage.keyboard.press('ArrowRight');
     const originalLocalAudio = await filePage.locator('#audio').getAttribute('src');
     assert.match(originalLocalAudio, /^blob:/, 'file mode resolves relative audio inside the selected media folder');
-    await filePage.evaluate(() => new Promise((resolve, reject) => {
+    await filePage.evaluate((pid) => new Promise((resolve, reject) => {
       const request = indexedDB.open('gitaverse-profiles');
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         const database = request.result;
         const transaction = database.transaction('diksoochiEngagement', 'readwrite');
         transaction.objectStore('diksoochiEngagement').put({
-          key: '1:gita-700:6.7', pid: 1, experience: 'gita-700', sid: '6.7', chapter: '6',
+          key: `${pid}:gita-700:6.7`, pid, experience: 'gita-700', sid: '6.7', chapter: '6',
           firstMeaningfulAt: new Date().toISOString(), lastMeaningfulAt: new Date().toISOString(), meaningfulVisitCount: 1, maxEngagementSeconds: 10
         });
         transaction.oncomplete = () => { database.close(); resolve(); };
         transaction.onerror = () => reject(transaction.error);
       };
-    }));
+    }), FILE_PID);
     console.log('CHECK: file-mode journey fixture stored');
     await filePage.keyboard.press('a');
     await filePage.waitForFunction(() => document.querySelector('#home-collections-title')?.textContent === 'Local media ready');
@@ -904,7 +944,7 @@ async function run() {
     const obsoleteLocalMediaProbes = notFoundResponses.filter((url) => /^http:\/\/127\.0\.0\.1:\d+\/image\/bhagavad-gita\//.test(url));
     assert.ok(obsoleteLocalMediaProbes.length <= 1, 'at most one pre-render local availability probe may occur');
     assert.deepEqual(notFoundResponses.filter((url) => !obsoleteLocalMediaProbes.includes(url)), missingIllustrationResponses, 'only planned missing illustrations may produce other 404 responses');
-    await page.goto(`${base}/player.html?play=gita-700&sid=6.7&pid=1`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/player.html?play=gita-700&sid=6.7&pid=${PRIMARY_PID}`, { waitUntil: 'networkidle' });
     await page.locator('#sid-label').waitFor();
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
@@ -913,16 +953,21 @@ async function run() {
       }
     });
     await page.reload({ waitUntil: 'networkidle' });
+    if (await page.locator('#profile-selection').isVisible()) {
+      await page.locator('.profile-select').filter({ hasText: 'Regression Profile' }).click();
+    }
     await page.locator('#sid-label').waitFor();
-    await new Promise((resolve) => server.close(resolve));
+    await closeServer(server);
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('#profile-selection').waitFor({ state: 'visible' });
+    await page.locator('.profile-select').filter({ hasText: 'Regression Profile' }).click();
     await page.locator('#sid-label').waitFor();
     assert.equal(await page.locator('#sid-label').innerText(), '6.7');
     console.log('PASS: collection player browser parity, playback-only media selection, profiles, file mode, mobile layout/swipe, resume, and offline reload');
   } finally {
-    if (server.listening) await new Promise((resolve) => server.close(resolve));
     await context.close();
     await browser.close();
+    await closeServer(server);
   }
 }
 

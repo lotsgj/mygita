@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -64,12 +65,21 @@ jobs:
           pnpm run test:gita
           pnpm run test:sukta
 
-      - name: Run browser regressions
-        run: |
-          pnpm run test:platform-browser
-          pnpm run test:gita:browser
-          pnpm run test:sukta:browser
-          pnpm run test:docs-browser
+      - name: Run platform browser regression
+        timeout-minutes: 5
+        run: pnpm run test:platform-browser
+
+      - name: Run Gita browser regression
+        timeout-minutes: 8
+        run: pnpm run test:gita:browser
+
+      - name: Run Sukta browser regression
+        timeout-minutes: 5
+        run: pnpm run test:sukta:browser
+
+      - name: Run Rachana browser regression
+        timeout-minutes: 5
+        run: pnpm run test:docs-browser
 
       - name: Configure GitHub Pages
         if: github.event_name != 'pull_request'

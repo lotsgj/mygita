@@ -1,9 +1,10 @@
-# Now — 2026-11-14 · Codex
+# Now — 2026-11-17 · Codex
 
 ## Active
 | Work | Agent | S | Scope | Claimed paths | State |
 | --- | --- | --- | --- | --- | --- |
 | W-0025 | Codex | S-24 | Gitajyoti-verified profile attachment and local profile projection | engine/js/profile-*, engine/js/player/, engine/player.html, tests, docs/design, context | checkpointed; browser/API acceptance remains |
+| W-0026 | Codex | S-24 | Browser regression reliability for Profile ID attachment | engine/tests/browser/platform.cjs, workflow, context | done; full browser, unit and contract regression passes |
 
 ## Needs user
 - —
