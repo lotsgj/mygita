@@ -187,6 +187,12 @@ function emitEvent(name, { context = {}, details = {}, profile = state.activePro
   });
 }
 
+function syncAnalyticsIdentity(profile) {
+  const analyticsPid = profile?.analyticsConsent ? profile.analyticsPid : '';
+  clarityAdapter.setProfileIdentity(analyticsPid);
+  googleAnalyticsAdapter.setProfileIdentity(analyticsPid);
+}
+
 function showOnly(id) {
   ['profile-setup', 'profile-selection', 'diksoochi', 'journey-details', 'loading', 'error', 'data-chooser', 'app'].forEach((name) => {
     document.getElementById(name).hidden = name !== id;
@@ -743,6 +749,7 @@ function updateProfileUrl() {
 async function activateProfile(profile) {
   if (state.activeProfile?.pid !== profile.pid) state.experienceResumes.clear();
   state.activeProfile = profile;
+  syncAnalyticsIdentity(profile);
   setInterfaceLanguage(profile.interfaceLanguage);
   updateProfileUrl();
   await profileUI.renderPills(profile);
@@ -862,7 +869,13 @@ async function initializeProfiles() {
         emitEvent('profile_selected');
         return openProfileLocation(local, { honorExplicit: true });
       }
-      await profileUI.showAttachForm({ pid: requestedPid });
+      profileUI.showSetupProgress({ pid: requestedPid });
+      showOnly('profile-setup');
+      try {
+        const attached = await profileRepository.attachSessionProfile({ expectedPid: requestedPid });
+        if (attached.ok) return createProfile(attached.profile, { attached: true });
+      } catch (_) {}
+      await profileUI.showAttachForm({ pid: requestedPid, requireVerification: true });
       return showOnly('profile-setup');
     }
     if (!profiles.length) {
@@ -871,7 +884,8 @@ async function initializeProfiles() {
         const attached = await profileRepository.attachSessionProfile();
         if (attached.ok) return createProfile(attached.profile, { attached: true });
       } catch (_) {}
-      return openProfileForm();
+      await profileUI.showAttachForm();
+      return showOnly('profile-setup');
     }
     let profile = null;
     if (!profile) {

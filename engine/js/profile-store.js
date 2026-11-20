@@ -71,6 +71,19 @@ function profileKey(pid) {
   return value || null;
 }
 
+function analyticsPid(value) {
+  return String(value || '').trim();
+}
+
+export function mergeInvitations(existing = [], incoming = []) {
+  const byCode = new Map();
+  [...existing, ...incoming].forEach((invitation) => {
+    const code = String(invitation?.code || '').trim();
+    if (code && !byCode.has(code)) byCode.set(code, { ...invitation, code });
+  });
+  return [...byCode.values()];
+}
+
 export class ProfileStore {
   constructor({ databaseName = 'verses-local-profiles', languageModel = () => ({ content: ['en', 'kn'], interface: ['en', 'kn'] }) } = {}) {
     this.databaseName = databaseName;
@@ -116,6 +129,8 @@ export class ProfileStore {
       photo: existing?.photo || '',
       analyticsConsent: existing?.analyticsConsent ?? true,
       analyticsProfileId: existing?.analyticsProfileId || randomAnalyticsId(),
+      analyticsPid: analyticsPid(input.analyticsPid) || existing?.analyticsPid || '',
+      invitations: mergeInvitations(existing?.invitations, input.invitations),
       profileSource: 'gitajyoti',
       attachedAt: existing?.attachedAt || input.attachedAt || now,
       createdAt: existing?.createdAt || now,

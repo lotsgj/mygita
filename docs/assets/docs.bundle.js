@@ -255,6 +255,19 @@ function profileKey(pid) {
   return value || null;
 }
 
+function analyticsPid(value) {
+  return String(value || '').trim();
+}
+
+function mergeInvitations(existing = [], incoming = []) {
+  const byCode = new Map();
+  [...existing, ...incoming].forEach((invitation) => {
+    const code = String(invitation?.code || '').trim();
+    if (code && !byCode.has(code)) byCode.set(code, { ...invitation, code });
+  });
+  return [...byCode.values()];
+}
+
 class ProfileStore {
   constructor({ databaseName = 'verses-local-profiles', languageModel = () => ({ content: ['en', 'kn'], interface: ['en', 'kn'] }) } = {}) {
     this.databaseName = databaseName;
@@ -300,6 +313,8 @@ class ProfileStore {
       photo: existing?.photo || '',
       analyticsConsent: existing?.analyticsConsent ?? true,
       analyticsProfileId: existing?.analyticsProfileId || randomAnalyticsId(),
+      analyticsPid: analyticsPid(input.analyticsPid) || existing?.analyticsPid || '',
+      invitations: mergeInvitations(existing?.invitations, input.invitations),
       profileSource: 'gitajyoti',
       attachedAt: existing?.attachedAt || input.attachedAt || now,
       createdAt: existing?.createdAt || now,
@@ -723,6 +738,9 @@ class ProfileUI {
       ? this.translate('profile.intro.edit', 'Keep this profile’s local preferences up to date.')
       : this.translate('profile.intro.create', 'Profiles keep each person’s language and experience separate on this device.');
     const attachSection = document.getElementById('profile-attach-section');
+    const setupProgress = document.getElementById('profile-setup-progress');
+    if (setupProgress) setupProgress.hidden = true;
+    document.getElementById('profile-form').hidden = false;
     const idSection = document.getElementById('profile-id-section');
     if (attachSection) attachSection.hidden = true;
     document.querySelector('#profile-form button[type="submit"]').textContent = this.translate('profile.save', 'Save profile');
@@ -765,7 +783,7 @@ class ProfileUI {
     });
   }
 
-  async showAttachForm({ pid = '' } = {}) {
+  async showAttachForm({ pid = '', requireVerification = false } = {}) {
     this.editingPid = null;
     this.photo = '';
     const formTitle = document.getElementById('profile-form-title');
@@ -773,6 +791,9 @@ class ProfileUI {
     formTitle.textContent = 'Use your Gitajyoti profile';
     formIntro.textContent = 'MyGita keeps your learning journey on this device and uses an existing Gitajyoti Profile ID.';
     document.getElementById('profile-id-section').hidden = true;
+    const setupProgress = document.getElementById('profile-setup-progress');
+    if (setupProgress) setupProgress.hidden = true;
+    document.getElementById('profile-form').hidden = false;
     document.getElementById('profile-attach-section').hidden = false;
     document.getElementById('profile-details-section').hidden = true;
     document.getElementById('profile-preferences-section').hidden = true;
@@ -789,7 +810,17 @@ class ProfileUI {
     document.getElementById('profile-attach-dob').max = new Date().toISOString().slice(0, 10);
     document.getElementById('profile-verify-fields').hidden = true;
     document.querySelector('#profile-form button[type="submit"]').textContent = 'Continue';
-    requestAnimationFrame(() => document.getElementById(pid ? 'profile-attach-dob' : 'profile-attach-id').focus());
+    if (requireVerification) await this.showVerificationFields();
+    else requestAnimationFrame(() => document.getElementById('profile-attach-id').focus());
+  }
+
+  showSetupProgress({ pid }) {
+    this.editingPid = null;
+    document.getElementById('profile-form-title').textContent = 'Preparing MyGita';
+    document.getElementById('profile-form-intro').textContent = 'We are securely connecting your Gitajyoti profile to this device.';
+    document.getElementById('profile-setup-pid').textContent = pid;
+    document.getElementById('profile-form').hidden = true;
+    document.getElementById('profile-setup-progress').hidden = false;
   }
 
   async showVerificationFields() {
@@ -1235,6 +1266,15 @@ class ClarityAdapter {
     this.enabled = /^[a-z0-9]+$/i.test(this.projectId);
     this.started = false;
     this.tags = new Map();
+    this.analyticsIdentity = '';
+  }
+
+  setProfileIdentity(value) {
+    const analyticsIdentity = String(value || '').trim();
+    if (!this.enabled || !analyticsIdentity || this.analyticsIdentity === analyticsIdentity) return;
+    this.analyticsIdentity = analyticsIdentity;
+    this.start();
+    this.target.clarity('identify', analyticsIdentity);
   }
 
   accepts(event) {
@@ -1307,6 +1347,14 @@ class GoogleAnalyticsAdapter {
     this.location = locationRef;
     this.enabled = /^G-[A-Z0-9]+$/i.test(this.measurementId);
     this.started = false;
+    this.analyticsIdentity = '';
+  }
+
+  setProfileIdentity(value) {
+    const analyticsIdentity = String(value || '').trim();
+    if (!this.enabled || this.analyticsIdentity === analyticsIdentity) return;
+    this.analyticsIdentity = analyticsIdentity;
+    this.target.gtag?.('config', this.measurementId, { user_id: analyticsIdentity || undefined, update: true });
   }
 
   accepts(event) {

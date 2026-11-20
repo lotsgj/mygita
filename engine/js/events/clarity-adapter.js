@@ -9,6 +9,15 @@ export class ClarityAdapter {
     this.enabled = /^[a-z0-9]+$/i.test(this.projectId);
     this.started = false;
     this.tags = new Map();
+    this.analyticsIdentity = '';
+  }
+
+  setProfileIdentity(value) {
+    const analyticsIdentity = String(value || '').trim();
+    if (!this.enabled || !analyticsIdentity || this.analyticsIdentity === analyticsIdentity) return;
+    this.analyticsIdentity = analyticsIdentity;
+    this.start();
+    this.target.clarity('identify', analyticsIdentity);
   }
 
   accepts(event) {

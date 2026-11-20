@@ -38,7 +38,7 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
     await context.addInitScript((pid) => {
       window.__MYGITA_TEST_PROFILE_NAMES = { [pid]: 'Product Regression' };
       window.__MYGITA_PROFILE_API__ = {
-        async getSession() { return { ok: true, profileIds: [] }; },
+        async getSession() { return { ok: true, profileIds: window.__MYGITA_TEST_SESSION || [] }; },
         async getProfile(profileId) { return { ok: true, profile: { profileId, fields: { name: window.__MYGITA_TEST_PROFILE_NAMES[profileId] || profileId, preferred_language: 'English' } } }; },
         async verifyProfile(profileId) { return this.getProfile(profileId); },
         async forgetSession() { return { ok: true }; },
@@ -72,6 +72,14 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
   assert.equal(await page.locator('[data-product-id="bhagavad-gita"]').getAttribute('aria-selected'), 'true');
   assert.equal(await page.locator('[data-app-name]').innerText(), 'MyGita');
   assert.equal(await page.title(), 'MyGita');
+  await page.evaluate((pid) => {
+    window.__MYGITA_TEST_SESSION = [pid];
+    window.__MYGITA_TEST_PROFILE_NAMES[pid] = 'Session Profile';
+  }, 'GJ-0000-0002');
+  await page.goto(`${base}?pid=GJ-0000-0002`, { waitUntil: 'networkidle' });
+  await page.locator('#diksoochi').waitFor({ state: 'visible' });
+  assert.equal(page.url().includes('pid='), false, 'a matching session attaches the requested PID and removes it from the URL');
+  assert.equal(await page.locator('#profile-setup-progress').isHidden(), true, 'session setup does not leave the progress state visible');
   await page.locator('#diksoochi [data-analytics-info]').click();
   assert.equal(await page.locator('#analytics-info-overlay').isVisible(), true, 'anonymous usage details open from the landing footer');
   assert.match(await page.locator('#analytics-info-overlay').innerText(), /Microsoft Clarity/);

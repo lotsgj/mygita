@@ -4,7 +4,7 @@
 
 // Source: js/content-kit-v4-version.js
 // Human-approved major; generated minor identifies this reviewed contract revision.
-const CONTENT_KIT_V4_VERSION = '4.20261109-101633';
+const CONTENT_KIT_V4_VERSION = '4.20261119-120000';
 
 // Source: js/content-kit-v4.js
 // Content-Kit 4: pure variant contracts, resolution, coverage and plan shapes.
@@ -13,7 +13,7 @@ const CONTENT_KIT_V4_VERSION = '4.20261109-101633';
 const KIT_API = 4;
 const KIT_VERSION = CONTENT_KIT_V4_VERSION;
 // The standalone bundle replaces this marker with a reproducible source hash.
-const KIT_BUILD = 'bc99ea14c908';
+const KIT_BUILD = 'abd9f11bd2fb';
 
 const attribute = (type, options = {}) => Object.freeze({ type, ...options });
 const part = (representation, key, semanticAttributes = [], renditionAttributes = [], options = {}) => Object.freeze({
@@ -34,7 +34,7 @@ const LABELS = Object.freeze({
   parts: Object.freeze({ text: 'Text', metadata: 'Metadata', image: 'Image', recording: 'Recording', segments: 'Segments', presentation: 'Presentation', 'collection-metadata': 'Collection metadata' }),
   attributes: Object.freeze({ languages: 'Languages', voice: 'Voice', mode: 'Mode', theme: 'Theme', subtitles: 'Subtitles', format: 'Format', quality: 'Quality', width: 'Width', height: 'Height', resolution: 'Resolution', bitrate: 'Bitrate', sample_rate: 'Sample rate' }),
   values: Object.freeze({ none: 'No value', any: 'Any value', chant: 'Chant', learn: 'Learn', recite: 'Recite', light: 'Light', dark: 'Dark' }),
-  fields: Object.freeze({ collection_id: 'Collection ID', variant_id: 'Variant ID', rendition_id: 'Rendition ID', content_url: 'Content file', default_variant_id: 'Default variant', contributors: 'Contributors', contributor_id: 'Contributor ID', license: 'License', source: 'Source', title: 'Title', short_name: 'Short name', description: 'Description', attribution: 'Attribution', sid: 'Verse ID', order: 'Order', item_key: 'Item key', binding_slot_id: 'Binding slot ID' })
+  fields: Object.freeze({ collection_id: 'Collection ID', variant_id: 'Variant ID', rendition_id: 'Rendition ID', content_url: 'Content file', default_variant_id: 'Default variant', contributors: 'Contributors', contributor_id: 'Contributor ID', roles: 'Roles', portrait_url: 'Portrait path', license: 'License', source: 'Source', title: 'Title', short_name: 'Short name', description: 'Description', attribution: 'Attribution', sid: 'Verse ID', order: 'Order', item_key: 'Item key', binding_slot_id: 'Binding slot ID' })
 });
 
 const ATTRIBUTES = Object.freeze({
@@ -92,7 +92,7 @@ const REGISTRIES = Object.freeze({
   variants: Object.freeze({ key: ['collection_id', 'variant_id'], referenceField: 'content_url', layout: 'registry/<type>/<part>-variants.csv' }),
   renditions: Object.freeze({ key: ['collection_id', 'variant_id', 'rendition_id'], layout: 'registry/<type>/<part>-renditions.csv' }),
   defaults: Object.freeze({ key: ['collection_id', 'part'], fields: ['collection_id', 'part', 'default_variant_id'], layout: 'registry/<type>/defaults.csv' }),
-  contributors: Object.freeze({ scope: 'media', key: ['contributor_id'] }),
+  contributors: Object.freeze({ scope: 'media', key: ['contributor_id'], fields: ['contributor_id', 'name', 'roles', 'portrait_url'], portrait: Object.freeze({ role: 'acharya', logicalPath: 'image/profile/acharya/<contributor_id>-<n>.(webp|png)', mimeTypes: ['image/webp', 'image/png'] }) }),
   cuePurposes: Object.freeze({ scope: 'media', key: ['cue_id', 'language'] })
 });
 

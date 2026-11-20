@@ -29,6 +29,7 @@
     "build:player": "cd engine && node scripts/build-player.mjs && node scripts/build-content-kit.mjs && node scripts/build-content-kit-v4.mjs",
     "build:content-kit": "cd engine && node scripts/build-content-kit.mjs",
     "build:content-kit-v4": "cd engine && node scripts/build-content-kit-v4.mjs",
+    "dev": "node engine/scripts/dev-server.mjs",
     "build": "npm run build:mygita"
   }
 }

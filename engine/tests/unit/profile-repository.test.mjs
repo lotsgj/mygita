@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ProfileRepository } from '../../js/profile-repository.js';
+import { mergeInvitations } from '../../js/profile-store.js';
 
 function profile(pid = 'GJ-PHGK-GZZ1') {
-  return { profileId: pid, fields: { name: 'Vijay Kumar', preferred_language: 'English', email: 'private@example.org', date_of_birth: '1980-01-01' } };
+  return { profileId: pid, analyticsPid: 'analytics-' + pid.slice(-4), invitations: [{ code: 'g4c-nov26-radhakrishna' }], fields: { name: 'Vijay Kumar', preferred_language: 'English', email: 'private@example.org', date_of_birth: '1980-01-01' } };
 }
 
 function fixture({ existing = null, getProfile = null, verifyProfile = null, session = [] } = {}) {
@@ -28,8 +29,17 @@ test('same-browser session attachment projects an existing Gitajyoti profile loc
   assert.equal(result.ok, true);
   assert.equal(result.profile.pid, 'GJ-PHGK-GZZ1');
   assert.equal(saved.get('GJ-PHGK-GZZ1').name, 'Vijay Kumar');
+  assert.equal(saved.get('GJ-PHGK-GZZ1').analyticsPid, 'analytics-GZZ1');
+  assert.equal(saved.get('GJ-PHGK-GZZ1').invitations[0].code, 'g4c-nov26-radhakrishna');
   assert.deepEqual(calls, [['session'], ['get', 'GJ-PHGK-GZZ1']]);
   assert.equal('email' in result.profile, false);
+});
+
+test('a requested PID auto-attaches only when the same PID is present in the session', async () => {
+  const { repository, calls } = fixture({ session: ['GJ-7K3M-9QX2'] });
+  const missing = await repository.attachSessionProfile({ expectedPid: 'GJ-PHGK-GZZ1' });
+  assert.deepEqual(missing, { ok: false, code: 'not_found' });
+  assert.deepEqual(calls, [['session']]);
 });
 
 test('an unverified PID asks for verification and DOB submits directly without a second lookup', async () => {
@@ -48,4 +58,16 @@ test('an attached PID reopens locally without contacting the API', async () => {
   assert.equal(result.ok, true);
   assert.equal(result.existing, true);
   assert.deepEqual(calls, []);
+});
+
+test('persisted invitations remain immutable while newly connected invitations append', () => {
+  const first = { code: 'g4c-nov26-radhakrishna', offering: { name: 'Original offering' } };
+  const merged = mergeInvitations([first], [
+    { code: 'g4c-nov26-radhakrishna', offering: { name: 'Changed remotely' } },
+    { code: 'g4c-dec26-vedanta', offering: { name: 'New offering' } }
+  ]);
+  assert.deepEqual(merged, [
+    first,
+    { code: 'g4c-dec26-vedanta', offering: { name: 'New offering' } }
+  ]);
 });

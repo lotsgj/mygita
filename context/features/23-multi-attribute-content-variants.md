@@ -14,6 +14,7 @@ Updated 2026-11-09 · Codex · Sampada: docs/design/sampada.md §23 · ADR: 007
 - [x] Tranche 2A local Media migration, canonical collection API and derived runtime publication — W-0017, W-0018
 - [x] Tranche 2B product bindings and higher-level mutation-plan builders — W-0019, W-0020, W-0021
 - [x] Tranche 3 coordinated Media-first remote cutover — W-0022
+- [x] Acharya portrait contributor contract — W-0027
 
 ## Open
 - Exact existing-content migration IDs and verification report are implementation outputs, not runtime legacy mappings.
@@ -30,6 +31,12 @@ Updated 2026-11-09 · Codex · Sampada: docs/design/sampada.md §23 · ADR: 007
 - MA-10 · done · Verified W-0016–W-0018 baselines checkpointed per repository.
 - MA-13 · done · Final sibling-repository ownership and user-mediated hand-off boundary documented — W-0024.
 - MA-15 · done · MyGita context and Rachana use the final `apps/gita-jyoti/…` folder layout — W-0024.
+- MA-17 · accepted · Acharya portraits use ordinary `image/profile/acharya/<contributor_id>-<n>.(webp|png)` assets. `registry/contributors.csv` optionally adds `portrait_url`, a logical media path; only an `acharya` contributor may use it, and it must be an inventoried WebP or PNG image. No profile type, file-id layer or Acharya registry — W-0027.
+
+### W-0027 plan — Acharya portrait contract
+1. Extend the contributor registry contract with optional `portrait_url`, retaining compatibility with the existing three-column registry. Accept when both schemas parse and `*_url` is documented as a logical path.
+2. Validate role, path, inventory and MIME rules; expose contributor portrait resolution. Accept when WebP and PNG resolve, while non-Acharya, uninventoried and wrong-MIME paths fail.
+3. Rebuild the shared bundles and run focused unit regression. Accept when existing Media remains valid without portrait data and all portrait tests pass.
 
 ### W-0019 plan — contract completion
 1. Add the Media language registry and validation-registry adapter. Accept when unknown variant languages fail without caller-built ID lists.
@@ -60,3 +67,4 @@ Updated 2026-11-09 · Codex · Sampada: docs/design/sampada.md §23 · ADR: 007
 - 2026-11-09 Tranche 2A completed canonical collection joins, ID vocabularies, MIME-derived current renditions and generated read-only runtime publication (Codex)
 - 2026-11-09 Tranche 2B completed contract vocabularies, resolver semantics, product bindings, usage queries and mutation-plan previews (Codex)
 - 2026-11-09 Tranche 3 published Media first and MyGita second; the exact MyGita deployment commit passed GitHub Actions (Codex)
+- 2026-11-19 MA-17 added optional contributor `portrait_url`, strict Acharya role/path/inventory/MIME validation, and logical portrait resolution; WebP and PNG are supported (Codex)

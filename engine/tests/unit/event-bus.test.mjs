@@ -109,6 +109,19 @@ test('Clarity receives only allowlisted analytics values', () => {
   assert.equal(JSON.stringify(calls).includes('99'), false);
 });
 
+test('Clarity identifies an analytics PID only when explicitly set', () => {
+  const target = {};
+  const clarity = new ClarityAdapter({
+    projectId: 'test123', target,
+    documentRef: { head: { appendChild() {} }, createElement: () => ({ dataset: {} }), querySelector: () => null }
+  });
+  clarity.setProfileIdentity('analytics-7k3m');
+  clarity.setProfileIdentity('');
+  const calls = target.clarity.q.map((args) => Array.from(args));
+  assert.deepEqual(calls.filter((call) => call[0] === 'identify'), [['identify', 'analytics-7k3m']]);
+  assert.equal(JSON.stringify(calls).includes('GJ-'), false);
+});
+
 test('Clarity receives the Gita Sara view-change event without panel content', () => {
   const target = {};
   const clarity = new ClarityAdapter({
@@ -195,6 +208,19 @@ test('Google Analytics receives only the shared privacy-safe projection', () => 
   assert.equal(JSON.stringify(calls).includes('must-not-be-sent'), false);
   assert.equal(JSON.stringify(calls).includes('Private'), false);
   assert.equal(JSON.stringify(calls).includes('99'), false);
+});
+
+test('Google Analytics configures only the supplied analytics PID as its user identity', () => {
+  const target = {};
+  const adapter = new GoogleAnalyticsAdapter({
+    measurementId: 'G-TEST123', target,
+    documentRef: { head: { appendChild() {} }, createElement: () => ({ dataset: {} }), querySelector: () => null }
+  });
+  adapter.initialize({ appVersion: '1.test', displayMode: 'browser' });
+  adapter.setProfileIdentity('analytics-7k3m');
+  const calls = target.dataLayer.map((args) => Array.from(args));
+  assert.ok(calls.some((call) => call[0] === 'config' && call[2].user_id === 'analytics-7k3m'));
+  assert.equal(JSON.stringify(calls).includes('GJ-'), false);
 });
 
 test('Google Analytics emits sanitized manual SPA page views without query parameters', () => {

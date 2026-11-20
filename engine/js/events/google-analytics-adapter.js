@@ -9,6 +9,14 @@ export class GoogleAnalyticsAdapter {
     this.location = locationRef;
     this.enabled = /^G-[A-Z0-9]+$/i.test(this.measurementId);
     this.started = false;
+    this.analyticsIdentity = '';
+  }
+
+  setProfileIdentity(value) {
+    const analyticsIdentity = String(value || '').trim();
+    if (!this.enabled || this.analyticsIdentity === analyticsIdentity) return;
+    this.analyticsIdentity = analyticsIdentity;
+    this.target.gtag?.('config', this.measurementId, { user_id: analyticsIdentity || undefined, update: true });
   }
 
   accepts(event) {

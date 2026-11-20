@@ -26,9 +26,11 @@ test('the API provider is lazy and delegates verification', async () => {
 });
 
 test('API profile projection retains only MyGita local fields', () => {
-  const profile = localProfileFromApi({ profileId: 'GJ-7K3M-9QX2', fields: {
+  const profile = localProfileFromApi({ profileId: 'GJ-7K3M-9QX2', analyticsPid: 'analytics-7k3m', invitations: [{ code: 'g4c-nov26-radhakrishna', offering: { name: 'Gita class' } }], fields: {
     name: 'Vijay Kumar', mobile: '+9198', email: 'v@example.org', date_of_birth: '1980-01-01', gender: 'male', preferred_language: 'English'
   } }, () => ({ defaultContent: 'en', registry: { en: { name: 'English' }, kn: { name: 'Kannada' } } }));
-  assert.deepEqual(Object.keys(profile).sort(), ['attachedAt', 'contentLanguage', 'interfaceLanguage', 'name', 'pid', 'profileSource']);
+  assert.deepEqual(Object.keys(profile).sort(), ['analyticsPid', 'attachedAt', 'contentLanguage', 'interfaceLanguage', 'invitations', 'name', 'pid', 'profileSource']);
   assert.equal(profile.pid, 'GJ-7K3M-9QX2');
+  assert.equal(profile.analyticsPid, 'analytics-7k3m');
+  assert.equal(profile.invitations[0].code, 'g4c-nov26-radhakrishna');
 });

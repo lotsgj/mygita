@@ -112,3 +112,17 @@ Tests: unit 85/85 covers session/DOB/local attachment and string PID events. Bro
 Changed: converted platform and product browser fixtures to canonical mocked Profile IDs, removed legacy local-profile creation paths, and ensured browser/server resources are closed on both success and failure.
 CI: browser suites are now isolated as platform, Gita, Sukta and Rachana steps; each has its own cap and the overall build is limited to 20 minutes.
 Tests: Gita, Sukta, platform and Rachana browser regression; unit 85/85; contract 30/30.
+
+## W-0027 · 2026-11-19 · Codex · S-23 · Acharya portrait contributor contract
+Changed: contributors may optionally declare `portrait_url`, a mounted logical path to an ordinary `image/profile/acharya/<contributor_id>-<n>.webp` or `.png` asset. The kit enforces the `acharya` role, filename/path, inventory entry and WebP/PNG MIME type, and exposes safe logical portrait resolution.
+Compatibility: existing three-column contributor registries remain valid; no Media content, registry or inventory was edited in MyGita.
+Tests: unit 87/87 and contract 30/30; both generated Content-Kit bundles match their sources.
+
+## W-0028 · 2026-11-20 · Codex · S-24 · Seamless PID setup and analytics identity
+Changed: a `?pid=` with an exactly matching Gitajyoti session shows an unobtrusive setup state, attaches locally and opens Home; mismatches retain the PID and require DOB plus Turnstile proof. The local projection preserves immutable invitation connections and optional API-provided `analytics_pid`.
+Privacy: GA receives `user_id` and Clarity receives `identify` only from `analytics_pid` when the existing analytics preference permits it; raw canonical PIDs are never sent to either vendor.
+Tests: full unit 91/91, contract 30/30, platform/Gita/Sukta/Rachana browser regressions and rebuilt MyGita distribution pass locally.
+
+## W-0029 · 2026-11-20 · Codex · S-24 · Local Website registration origin
+Changed: added the MyGita development server with a `--website-url` option. It rewrites the registration link only while serving `engine/player.html`; production and built HTML retain `https://gitajyoti.org/register.html` and no local port enters shipped browser code.
+Tests: development-server unit 2/2 and live local HTTP response check pass.

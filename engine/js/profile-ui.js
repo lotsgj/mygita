@@ -89,6 +89,9 @@ export class ProfileUI {
       ? this.translate('profile.intro.edit', 'Keep this profile’s local preferences up to date.')
       : this.translate('profile.intro.create', 'Profiles keep each person’s language and experience separate on this device.');
     const attachSection = document.getElementById('profile-attach-section');
+    const setupProgress = document.getElementById('profile-setup-progress');
+    if (setupProgress) setupProgress.hidden = true;
+    document.getElementById('profile-form').hidden = false;
     const idSection = document.getElementById('profile-id-section');
     if (attachSection) attachSection.hidden = true;
     document.querySelector('#profile-form button[type="submit"]').textContent = this.translate('profile.save', 'Save profile');
@@ -131,7 +134,7 @@ export class ProfileUI {
     });
   }
 
-  async showAttachForm({ pid = '' } = {}) {
+  async showAttachForm({ pid = '', requireVerification = false } = {}) {
     this.editingPid = null;
     this.photo = '';
     const formTitle = document.getElementById('profile-form-title');
@@ -139,6 +142,9 @@ export class ProfileUI {
     formTitle.textContent = 'Use your Gitajyoti profile';
     formIntro.textContent = 'MyGita keeps your learning journey on this device and uses an existing Gitajyoti Profile ID.';
     document.getElementById('profile-id-section').hidden = true;
+    const setupProgress = document.getElementById('profile-setup-progress');
+    if (setupProgress) setupProgress.hidden = true;
+    document.getElementById('profile-form').hidden = false;
     document.getElementById('profile-attach-section').hidden = false;
     document.getElementById('profile-details-section').hidden = true;
     document.getElementById('profile-preferences-section').hidden = true;
@@ -155,7 +161,17 @@ export class ProfileUI {
     document.getElementById('profile-attach-dob').max = new Date().toISOString().slice(0, 10);
     document.getElementById('profile-verify-fields').hidden = true;
     document.querySelector('#profile-form button[type="submit"]').textContent = 'Continue';
-    requestAnimationFrame(() => document.getElementById(pid ? 'profile-attach-dob' : 'profile-attach-id').focus());
+    if (requireVerification) await this.showVerificationFields();
+    else requestAnimationFrame(() => document.getElementById('profile-attach-id').focus());
+  }
+
+  showSetupProgress({ pid }) {
+    this.editingPid = null;
+    document.getElementById('profile-form-title').textContent = 'Preparing MyGita';
+    document.getElementById('profile-form-intro').textContent = 'We are securely connecting your Gitajyoti profile to this device.';
+    document.getElementById('profile-setup-pid').textContent = pid;
+    document.getElementById('profile-form').hidden = true;
+    document.getElementById('profile-setup-progress').hidden = false;
   }
 
   async showVerificationFields() {

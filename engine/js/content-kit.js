@@ -28,7 +28,7 @@ const CONTRACTS = Object.freeze({
   'ck4-defaults-registry': csv('ck4-defaults-registry', 'registry', ['collection_id', 'part', 'default_variant_id'], ['collection_id', 'part']),
   'ck4-variant-registry': csv('ck4-variant-registry', 'registry', null, ['collection_id', 'variant_id'], ['collection_id', 'variant_id']),
   'ck4-collection-metadata': csv('ck4-collection-metadata', 'metadata', ['collection_id', 'title', 'short_name', 'description', 'attribution'], ['collection_id']),
-  'ck4-contributors-registry': csv('ck4-contributors-registry', 'registry', ['contributor_id', 'name', 'roles'], ['contributor_id']),
+  'ck4-contributors-registry': csv('ck4-contributors-registry', 'registry', null, ['contributor_id'], ['contributor_id'], { headerRule: 'contributors', fields: { contributor_id: field('text', { required: true }), name: field('text', { required: true }), roles: field('text', { required: true }), portrait_url: field('media-path', { required: false }) } }),
   'ck4-cue-purposes-registry': csv('ck4-cue-purposes-registry', 'registry', ['cue_id', 'language', 'purpose', 'description'], ['cue_id', 'language']),
   'ck4-languages-registry': csv('ck4-languages-registry', 'registry', ['language_id', 'native_name', 'english_name', 'script'], ['language_id']),
   'runtime-verse-registry': csv('runtime-verse-registry', 'runtime', STRUCTURAL_VERSE_REGISTRY_HEADERS, ['collection_id'], undefined, { fields: { path: field('text') }, editable: false, generated: true }),
@@ -61,7 +61,12 @@ const CONTRACTS = Object.freeze({
   deck: json('deck', 'deck'), manifest: json('manifest', 'manifest', { editable: false, generated: true, references: [{ jsonPath: 'files[].path', target: 'file' }] }), 'media-catalog': json('media-catalog', 'media-catalog', { editable: false, generated: true, references: [{ jsonPath: 'books[].manifest', target: 'manifest' }] }),
   asset: Object.freeze({ id: 'asset', format: 'asset', role: 'asset', contentModel: 'single', entityType: 'asset', key: Object.freeze(['path']), locked: Object.freeze(['path']), fields: Object.freeze({ path: field('media-path'), media_type: field('enum') }), views: Object.freeze([]), references: Object.freeze([]), editable: false, generated: false })
 });
-const HEADER_RULES = Object.freeze({ composition: compositionHeaderRule, 'localized-images': localizedRegistryHeaderRule('images'), 'localized-text': localizedRegistryHeaderRule('text') });
+const contributorRegistryHeaderRule = (headers) => {
+  const required = ['contributor_id', 'name', 'roles'];
+  return required.every((field, index) => headers[index] === field)
+    && (headers.length === required.length || (headers.length === required.length + 1 && headers[3] === 'portrait_url'));
+};
+const HEADER_RULES = Object.freeze({ composition: compositionHeaderRule, contributors: contributorRegistryHeaderRule, 'localized-images': localizedRegistryHeaderRule('images'), 'localized-text': localizedRegistryHeaderRule('text') });
 export function describe() { return Object.freeze({ api: KIT_API, version: KIT_VERSION, build: KIT_BUILD, contracts: CONTRACTS }); }
 function kitError(message, details = {}) { return Object.assign(new Error(message), details); }
 function manifestPaths(manifest) { return (manifest.files || []).map((entry) => safeMediaPath(typeof entry === 'string' ? entry : entry.path)); }
@@ -183,6 +188,7 @@ export async function openMedia(readText) {
     const contract = contractFor(file);
     globalRegistries[name] = Object.freeze({ path, file, rows: Object.freeze(parseCollectionTable(await readText(path), expectedHeaders(contract), path).rows.map(Object.freeze)) });
   }
+  validateContributorPortraits(globalRegistries.contributors, fileIndex);
   const books = await Promise.all(catalog.books.map(async (entry) => { try { const manifest = validateBookManifest(JSON.parse(await readText(entry.manifest)), entry.book_id); return Object.freeze({ id: entry.book_id, manifestPath: entry.manifest, manifest, name: manifest.name || {}, languages: Object.freeze(Object.keys(manifest.runtime_view?.verses?.masters || {})), problems: Object.freeze([]) }); } catch (error) { return Object.freeze({ id: entry.book_id, manifestPath: entry.manifest, manifest: null, name: {}, languages: Object.freeze([]), problems: Object.freeze([{ path: entry.manifest, message: error.message }]) }); } }));
   return Object.freeze({ catalog, catalogFile: Object.freeze({ path: 'catalog.json', contract: 'media-catalog', language: null, role: 'media-catalog' }), books: Object.freeze(books), fileIndex, inventoryParts: Object.freeze(inventoryParts), registries: Object.freeze(globalRegistries), readText });
 }
@@ -199,6 +205,47 @@ export function validationRegistries(media) {
     contributors: ids('contributors', 'contributor_id'),
     cuePurposes: ids('cue_purposes', 'cue_id')
   });
+}
+
+function contributorRoles(value) {
+  return String(value || '').split(',').map((role) => role.trim()).filter(Boolean);
+}
+
+function portraitPathProblem(row, registryPath) {
+  const portraitUrl = String(row?.portrait_url || '').trim();
+  if (!portraitUrl) return null;
+  if (!contributorRoles(row.roles).includes('acharya')) return fieldProblem(registryPath, row.contributor_id, 'portrait_url', 'Only an Acharya contributor may set portrait_url.');
+  try { safeMediaPath(portraitUrl); } catch (error) { return fieldProblem(registryPath, row.contributor_id, 'portrait_url', error.message); }
+  const prefix = `image/profile/acharya/${row.contributor_id}-`;
+  if (!portraitUrl.startsWith(prefix) || !/\.(?:webp|png)$/i.test(portraitUrl)) return fieldProblem(registryPath, row.contributor_id, 'portrait_url', 'portrait_url must be image/profile/acharya/<contributor_id>-<n>.webp or .png.');
+  return null;
+}
+
+export function validateContributorPortraits(registry, fileIndex = new Map()) {
+  const rows = registry?.rows || [];
+  const registryPath = registry?.path || 'registry/contributors.csv';
+  for (const row of rows) {
+    const structural = portraitPathProblem(row, registryPath);
+    if (structural) throw kitError(structural.message, structural);
+    const portraitUrl = String(row?.portrait_url || '').trim();
+    if (!portraitUrl) continue;
+    const file = fileIndex.get(portraitUrl);
+    if (!file) throw kitError(`portrait_url is not inventoried: ${portraitUrl}.`, { path: registryPath, key: row.contributor_id, field: 'portrait_url' });
+    const mimeType = String(file.mime_type || '').split(';')[0].toLowerCase();
+    if (!['image/webp', 'image/png'].includes(mimeType)) throw kitError(`portrait_url must reference an inventoried WebP or PNG image: ${portraitUrl}.`, { path: registryPath, key: row.contributor_id, field: 'portrait_url' });
+  }
+  return Object.freeze(rows);
+}
+
+export function resolveContributorPortrait(media, contributorId) {
+  const registry = media?.registries?.contributors;
+  validateContributorPortraits(registry, media?.fileIndex);
+  const contributor = registry?.rows?.find((row) => row.contributor_id === contributorId);
+  if (!contributor) throw kitError(`Unknown contributor: ${contributorId}.`, { path: registry?.path || 'registry/contributors.csv', key: contributorId });
+  const portraitUrl = String(contributor.portrait_url || '').trim();
+  if (!portraitUrl) return null;
+  const file = media.fileIndex.get(portraitUrl);
+  return Object.freeze({ contributor_id: contributor.contributor_id, name: contributor.name, roles: Object.freeze(contributorRoles(contributor.roles)), portrait_url: portraitUrl, file: Object.freeze({ path: file.path, hash: file.hash, mime_type: file.mime_type, mount_id: file.mountId }) });
 }
 
 export function encodeItemKey(...components) {
@@ -493,7 +540,10 @@ export function checkFile(file, text) {
   try {
     const contract = contractFor(file); const parsed = readItems(file, text); const problems = [];
     if (contract.id === 'deck') validateDeckDescriptor(JSON.parse(text));
-    if (contract.format === 'csv') for (const item of parsed.items) for (const name of Object.keys(item.values)) { const problem = validateFieldValue(file.path, item.key, name, item.values[name], fieldDeclaration(contract, name)); if (problem) problems.push(problem); }
+    if (contract.format === 'csv') for (const item of parsed.items) {
+      for (const name of Object.keys(item.values)) { const problem = validateFieldValue(file.path, item.key, name, item.values[name], fieldDeclaration(contract, name)); if (problem) problems.push(problem); }
+      if (contract.id === 'ck4-contributors-registry') { const problem = portraitPathProblem(item.values, file.path); if (problem) problems.push(problem); }
+    }
     return Object.freeze(problems);
   } catch (error) { return Object.freeze([{ path: error.path || file.path, key: error.key, field: error.field, message: error.message }]); }
 }

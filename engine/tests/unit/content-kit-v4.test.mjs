@@ -18,6 +18,9 @@ test('Content-Kit 4 freezes the reviewed type, part and registry vocabulary', ()
   assert.equal(contract.registries.defaults.layout, 'registry/<type>/defaults.csv');
   assert.deepEqual(contract.identifiers.collection.scope, ['book_id', 'content_type', 'collection_id']);
   assert.equal(contract.registries.contributors.scope, 'media');
+  assert.deepEqual(contract.registries.contributors.fields, ['contributor_id', 'name', 'roles', 'portrait_url']);
+  assert.equal(contract.registries.contributors.portrait.role, 'acharya');
+  assert.deepEqual(contract.registries.contributors.portrait.mimeTypes, ['image/webp', 'image/png']);
   assert.equal(contract.registries.cuePurposes.scope, 'media');
   assert.equal(contract.labels.contentTypes.audio, 'Audio');
   assert.equal(contract.labels.parts.recording, 'Recording');

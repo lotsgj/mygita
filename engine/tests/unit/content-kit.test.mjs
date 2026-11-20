@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
-import { buildReferenceGraph, checkFile, checkSave, collections, configuredExperiences, contentTree, describe, insertItem, listProducts, mutationSnapshot, openMedia, openMediaSnapshot, planCollectionMutation, planDefaultMutation, planItemMutation, planMove, planVariantMutation, publish, readItems, removeItem, updateItem, usage, validationRegistries } from '../../js/content-kit.js';
+import { buildReferenceGraph, checkFile, checkSave, collections, configuredExperiences, contentTree, describe, insertItem, listProducts, mutationSnapshot, openMedia, openMediaSnapshot, planCollectionMutation, planDefaultMutation, planItemMutation, planMove, planVariantMutation, publish, readItems, removeItem, resolveContributorPortrait, updateItem, usage, validationRegistries } from '../../js/content-kit.js';
 import { resolveVariant, validateVariant } from '../../js/content-kit-v4.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
@@ -33,6 +33,15 @@ const changedLines = (before, after) => {
   return a.map((line, index) => (line === b[index] ? -1 : index)).filter((index) => index >= 0);
 };
 const hashText = async (text) => createHash('sha256').update(text).digest('hex');
+
+function portraitMedia({ roles = 'acharya', portraitUrl = 'image/profile/acharya/jai-sadguru-1.webp', mimeType = 'image/webp', inventoried = true } = {}) {
+  const fileIndex = new Map();
+  if (inventoried) fileIndex.set(portraitUrl, Object.freeze({ path: portraitUrl, mime_type: mimeType, hash: 'a'.repeat(64), mountId: 'media' }));
+  return {
+    registries: { contributors: { path: 'registry/contributors.csv', rows: [{ contributor_id: 'jai-sadguru', name: 'Jai Sadguru', roles, portrait_url: portraitUrl }] } },
+    fileIndex
+  };
+}
 
 test('products list their books and normalized languages from the local workspace', async () => {
   const products = listProducts(await localWorkspace());
@@ -88,6 +97,25 @@ test('the media root opens every book with its declared languages', async () => 
     contributors: ['swami-brahmananda', 'aj-padma-aj-vijay'],
     cuePurposes: []
   });
+});
+
+test('contributor portraits validate their public Acharya role, inventory and image MIME type', () => {
+  const webp = resolveContributorPortrait(portraitMedia(), 'jai-sadguru');
+  assert.equal(webp.portrait_url, 'image/profile/acharya/jai-sadguru-1.webp');
+  assert.equal(webp.file.mime_type, 'image/webp');
+  const png = resolveContributorPortrait(portraitMedia({ portraitUrl: 'image/profile/acharya/jai-sadguru-2.png', mimeType: 'image/png' }), 'jai-sadguru');
+  assert.equal(png.file.mime_type, 'image/png');
+  assert.throws(() => resolveContributorPortrait(portraitMedia({ roles: 'voice' }), 'jai-sadguru'), /Acharya/i);
+  assert.throws(() => resolveContributorPortrait(portraitMedia({ inventoried: false }), 'jai-sadguru'), /inventoried/i);
+  assert.throws(() => resolveContributorPortrait(portraitMedia({ mimeType: 'image/jpeg' }), 'jai-sadguru'), /WebP or PNG/i);
+});
+
+test('contributor portrait_url is optional and uses a strict logical image path', () => {
+  const contributors = { path: 'registry/contributors.csv', contract: 'ck4-contributors-registry' };
+  assert.deepEqual(checkFile(contributors, 'contributor_id#name#roles\nswami-brahmananda#Swami Brahmananda#voice\n'), []);
+  const problems = checkFile(contributors, 'contributor_id#name#roles#portrait_url\njai-sadguru#Jai Sadguru#voice#image/profile/acharya/jai-sadguru-1.webp\n');
+  assert.equal(problems.length, 1);
+  assert.match(problems[0].message, /Acharya/i);
 });
 
 test('a workspace requiring a newer kit is rejected before any content is activated', async () => {

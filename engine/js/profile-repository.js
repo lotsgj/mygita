@@ -18,7 +18,9 @@ export function localProfileFromApi(profile, languageModel) {
     interfaceLanguage: languageId(fields.preferred_language, languageModel),
     contentLanguage: languageId(fields.preferred_language, languageModel),
     attachedAt: new Date().toISOString(),
-    profileSource: 'gitajyoti'
+    profileSource: 'gitajyoti',
+    analyticsPid: String(profile?.analyticsPid || profile?.analytics_pid || '').trim(),
+    invitations: Array.isArray(profile?.invitations) ? profile.invitations.map((invitation) => ({ ...invitation })) : []
   };
 }
 
@@ -49,9 +51,11 @@ export class ProfileRepository {
     return current;
   }
 
-  async attachSessionProfile() {
+  async attachSessionProfile({ expectedPid = '' } = {}) {
     const session = await this.provider.getSession();
-    const pid = session.ok ? session.profileIds?.at(-1) : '';
+    const expected = normalizeProfileId(expectedPid);
+    const profileIds = session.ok ? (session.profileIds || []).map(normalizeProfileId).filter(Boolean) : [];
+    const pid = expected ? (profileIds.includes(expected) ? expected : '') : profileIds.at(-1);
     return pid ? this.attach(pid) : { ok: false, code: 'not_found' };
   }
 }
