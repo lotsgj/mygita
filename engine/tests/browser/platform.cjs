@@ -72,9 +72,9 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
   assert.equal(await page.locator('[data-product-id="bhagavad-gita"]').getAttribute('aria-selected'), 'true');
   assert.equal(await page.locator('[data-app-name]').innerText(), 'MyGita');
   assert.equal(await page.title(), 'MyGita');
-  await page.evaluate((pid) => {
+  await context.addInitScript((pid) => {
     window.__MYGITA_TEST_SESSION = [pid];
-    window.__MYGITA_TEST_PROFILE_NAMES[pid] = 'Session Profile';
+    window.__MYGITA_TEST_PROFILE_NAMES = { ...(window.__MYGITA_TEST_PROFILE_NAMES || {}), [pid]: 'Session Profile' };
   }, 'GJ-0000-0002');
   await page.goto(`${base}?pid=GJ-0000-0002`, { waitUntil: 'networkidle' });
   await page.locator('#diksoochi').waitFor({ state: 'visible' });

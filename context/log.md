@@ -126,3 +126,7 @@ Tests: full unit 91/91, contract 30/30, platform/Gita/Sukta/Rachana browser regr
 ## W-0029 · 2026-11-20 · Codex · S-24 · Local Website registration origin
 Changed: added the MyGita development server with a `--website-url` option. It rewrites the registration link only while serving `engine/player.html`; production and built HTML retain `https://gitajyoti.org/register.html` and no local port enters shipped browser code.
 Tests: development-server unit 2/2 and live local HTTP response check pass.
+
+## 2026-11-20 · Codex · S: fix · Platform session-attachment regression
+Changed: made the browser fixture install its mock same-device session before the `?pid=` navigation, rather than into the discarded prior document.
+Tests: platform browser regression passes locally.
