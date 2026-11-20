@@ -130,3 +130,7 @@ Tests: development-server unit 2/2 and live local HTTP response check pass.
 ## 2026-11-20 · Codex · S: fix · Platform session-attachment regression
 Changed: made the browser fixture install its mock same-device session before the `?pid=` navigation, rather than into the discarded prior document.
 Tests: platform browser regression passes locally.
+
+## 2026-11-20 · Codex · S: fix · Platform analytics isolation
+Changed: the platform browser fixture now stubs Clarity and Google Analytics requests, matching the Gita and Sukta browser fixtures, so analytics vendor scripts cannot influence application regression results.
+Tests: platform browser regression passes against a build with CI-style Clarity and GA IDs.

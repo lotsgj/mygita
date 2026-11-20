@@ -18,6 +18,26 @@ const server = http.createServer((request, response) => {
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
 const assetManifest = JSON.parse(fs.readFileSync(path.join(root, 'asset-manifest.json'), 'utf8'));
 const TEST_PID = 'GJ-0000-0001';
+
+async function stubExternalAnalytics(targetContext) {
+  const body = [
+    'window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments);};',
+    'window.dataLayer=window.dataLayer||[];',
+    'window.gtag=window.gtag||function(){window.dataLayer.push(arguments);};'
+  ].join('');
+  await Promise.all([
+    'https://www.clarity.ms/**',
+    'https://scripts.clarity.ms/**',
+    'https://www.googletagmanager.com/**',
+    'https://www.google-analytics.com/**'
+  ].map((url) => targetContext.route(url, (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/javascript',
+    headers: { 'Cache-Control': 'no-store' },
+    body
+  }))));
+}
+
 assert.equal(manifest.name, 'MyGita');
 assert.equal(manifest.start_url, './player.html');
 assert.equal(manifest.scope, './');
@@ -35,6 +55,7 @@ assert.equal(assetManifest.precache.some((name) => name.startsWith('products/') 
     context = await browser.newContext();
     context.setDefaultTimeout(30000);
     context.setDefaultNavigationTimeout(30000);
+    await stubExternalAnalytics(context);
     await context.addInitScript((pid) => {
       window.__MYGITA_TEST_PROFILE_NAMES = { [pid]: 'Product Regression' };
       window.__MYGITA_PROFILE_API__ = {
