@@ -247,7 +247,7 @@ function languageLabel(model, language) {
 
 // Source: js/content-kit-v4-version.js
 // Human-approved major; generated minor identifies this reviewed contract revision.
-const CONTENT_KIT_V4_VERSION = '4.20261119-120000';
+const CONTENT_KIT_V4_VERSION = '4.20261121-120000';
 
 // Source: js/player/collection-contracts.js
 const VERSE_CATALOG_HEADERS = Object.freeze(['language', 'content_type', 'content_url']);
@@ -1298,9 +1298,11 @@ async function readCollectionTextFromDirectory(rootHandle, url) {
 const KIT_API = 4;
 const KIT_VERSION = CONTENT_KIT_V4_VERSION;
 // The browser bundle replaces this marker with a reproducible hash of its canonical sources.
-const KIT_BUILD = '10b3b7a5a45e';
+const KIT_BUILD = '305dd82e30cd';
 const VERSE_LOCKED = Object.freeze(['cid', 'snum', 'sid', 'chapter_name']);
 const MEDIA_EXTENSIONS = Object.freeze({ mp3: 'audio', m4a: 'audio', ogg: 'audio', opus: 'audio', wav: 'audio', png: 'image', jpg: 'image', jpeg: 'image', webp: 'image', gif: 'image', svg: 'image', mp4: 'video', webm: 'video', pdf: 'asset' });
+const collectionCaches = new WeakMap();
+const experienceCaches = new WeakMap();
 const inferredFieldType = (name) => name === 'json' ? 'json' : name === 'order' || name === 'position' || name.endsWith('_order') ? 'number' : name.endsWith('_ms') ? 'ms' : name === 'path' || name.endsWith('_url') ? 'media-path' : 'text';
 const field = (type, options = {}) => Object.freeze({ type, required: options.required === true, ...options });
 const fieldsFor = (headers, declarations = {}, required = []) => Object.fromEntries(headers.map((name) => [name, declarations[name] || field(inferredFieldType(name), { required: required.includes(name) })]));
@@ -1390,7 +1392,7 @@ function productExperience(product, experienceId) {
   try { return JSON.parse(text); } catch (error) { throw kitError(`${path} is not valid JSON: ${error.message}`, { path }); }
 }
 
-async function configuredExperiences(workspace, media) {
+async function buildConfiguredExperiences(workspace, media) {
   const products = listProducts(workspace); const rawProducts = new Map(workspace.products.map((product) => [product.id, product])); const collectionCache = new Map(); const result = [];
   const bookCollections = async (bookId) => { if (!collectionCache.has(bookId)) collectionCache.set(bookId, await collections(media, bookId)); return collectionCache.get(bookId); };
   for (const product of products) {
@@ -1428,9 +1430,16 @@ async function configuredExperiences(workspace, media) {
   return Object.freeze(result);
 }
 
-async function usage(workspace, media, target, { resolveVariant = null } = {}) {
+async function configuredExperiences(workspace, media) {
+  let byWorkspace = experienceCaches.get(media);
+  if (!byWorkspace) { byWorkspace = new WeakMap(); experienceCaches.set(media, byWorkspace); }
+  if (!byWorkspace.has(workspace)) byWorkspace.set(workspace, buildConfiguredExperiences(workspace, media));
+  return byWorkspace.get(workspace);
+}
+
+async function usage(workspace, media, target, { resolveVariant = null, experiences = null } = {}) {
   const matches = []; const collectionCache = new Map();
-  for (const experience of await configuredExperiences(workspace, media)) for (const row of experience.rows) {
+  for (const experience of experiences || await configuredExperiences(workspace, media)) for (const row of experience.rows) {
     if (target.book_id && row.book_id !== target.book_id) continue;
     if (target.content_type && row.content_type !== target.content_type) continue;
     if (row.collection_id !== target.collection_id) continue;
@@ -1472,9 +1481,9 @@ async function openMedia(readText) {
     const contract = contractFor(file);
     globalRegistries[name] = Object.freeze({ path, file, rows: Object.freeze(parseCollectionTable(await readText(path), expectedHeaders(contract), path).rows.map(Object.freeze)) });
   }
-  validateContributorPortraits(globalRegistries.contributors, fileIndex);
+  const problems = contributorPortraitProblems(globalRegistries.contributors, fileIndex);
   const books = await Promise.all(catalog.books.map(async (entry) => { try { const manifest = validateBookManifest(JSON.parse(await readText(entry.manifest)), entry.book_id); return Object.freeze({ id: entry.book_id, manifestPath: entry.manifest, manifest, name: manifest.name || {}, languages: Object.freeze(Object.keys(manifest.runtime_view?.verses?.masters || {})), problems: Object.freeze([]) }); } catch (error) { return Object.freeze({ id: entry.book_id, manifestPath: entry.manifest, manifest: null, name: {}, languages: Object.freeze([]), problems: Object.freeze([{ path: entry.manifest, message: error.message }]) }); } }));
-  return Object.freeze({ catalog, catalogFile: Object.freeze({ path: 'catalog.json', contract: 'media-catalog', language: null, role: 'media-catalog' }), books: Object.freeze(books), fileIndex, inventoryParts: Object.freeze(inventoryParts), registries: Object.freeze(globalRegistries), readText });
+  return Object.freeze({ catalog, catalogFile: Object.freeze({ path: 'catalog.json', contract: 'media-catalog', language: null, role: 'media-catalog' }), books: Object.freeze(books), fileIndex, inventoryParts: Object.freeze(inventoryParts), registries: Object.freeze(globalRegistries), problems: Object.freeze(problems), readText });
 }
 function openMediaSnapshot(snapshot) {
   const values = snapshot?.texts instanceof Map ? snapshot.texts : new Map(Object.entries(snapshot?.texts || {}));
@@ -1505,27 +1514,35 @@ function portraitPathProblem(row, registryPath) {
   return null;
 }
 
-function validateContributorPortraits(registry, fileIndex = new Map()) {
+function contributorPortraitProblems(registry, fileIndex = new Map()) {
   const rows = registry?.rows || [];
   const registryPath = registry?.path || 'registry/contributors.csv';
+  const problems = [];
   for (const row of rows) {
     const structural = portraitPathProblem(row, registryPath);
-    if (structural) throw kitError(structural.message, structural);
+    if (structural) { problems.push(Object.freeze(structural)); continue; }
     const portraitUrl = String(row?.portrait_url || '').trim();
     if (!portraitUrl) continue;
     const file = fileIndex.get(portraitUrl);
-    if (!file) throw kitError(`portrait_url is not inventoried: ${portraitUrl}.`, { path: registryPath, key: row.contributor_id, field: 'portrait_url' });
+    if (!file) { problems.push(Object.freeze(fieldProblem(registryPath, row.contributor_id, 'portrait_url', `portrait_url is not inventoried: ${portraitUrl}.`))); continue; }
     const mimeType = String(file.mime_type || '').split(';')[0].toLowerCase();
-    if (!['image/webp', 'image/png'].includes(mimeType)) throw kitError(`portrait_url must reference an inventoried WebP or PNG image: ${portraitUrl}.`, { path: registryPath, key: row.contributor_id, field: 'portrait_url' });
+    if (!['image/webp', 'image/png'].includes(mimeType)) problems.push(Object.freeze(fieldProblem(registryPath, row.contributor_id, 'portrait_url', `portrait_url must reference an inventoried WebP or PNG image: ${portraitUrl}.`)));
   }
+  return Object.freeze(problems);
+}
+
+function validateContributorPortraits(registry, fileIndex = new Map()) {
+  const problems = contributorPortraitProblems(registry, fileIndex);
+  if (problems.length) throw kitError(problems[0].message, problems[0]);
+  const rows = registry?.rows || [];
   return Object.freeze(rows);
 }
 
 function resolveContributorPortrait(media, contributorId) {
   const registry = media?.registries?.contributors;
-  validateContributorPortraits(registry, media?.fileIndex);
   const contributor = registry?.rows?.find((row) => row.contributor_id === contributorId);
   if (!contributor) throw kitError(`Unknown contributor: ${contributorId}.`, { path: registry?.path || 'registry/contributors.csv', key: contributorId });
+  validateContributorPortraits({ ...registry, rows: [contributor] }, media?.fileIndex);
   const portraitUrl = String(contributor.portrait_url || '').trim();
   if (!portraitUrl) return null;
   const file = media.fileIndex.get(portraitUrl);
@@ -1539,7 +1556,7 @@ function encodeItemKey(...components) {
 }
 
 function parsedAttribute(name, value) {
-  if (name === 'languages' || name === 'subtitles') return ['none', 'any'].includes(value) ? value : String(value).split(',').map((item) => item.trim()).filter(Boolean);
+  if (name === 'languages' || name === 'subtitles' || name === 'voice') return ['none', 'any'].includes(value) ? value : String(value).split(',').map((item) => item.trim()).filter(Boolean);
   return value;
 }
 
@@ -1564,7 +1581,7 @@ function renditionFor(media, values, order = 1) {
   return [Object.freeze({ rendition_id: `rendition-${order}`, order, format, mime_type: file.mime_type, asset, hash: file.hash })];
 }
 
-async function collections(media, bookId) {
+async function buildCollections(media, bookId) {
   const book = media?.books?.find((entry) => entry.id === bookId);
   if (!book?.manifest) throw kitError(book?.problems?.[0]?.message || `Unknown book ${bookId}.`, { path: book?.manifestPath });
   const result = [];
@@ -1591,7 +1608,7 @@ async function collections(media, bookId) {
             const contentFile = collectionFile(media, variantRow.content_url, Array.isArray(parsedAttribute('languages', variantRow.languages)) && parsedAttribute('languages', variantRow.languages).length === 1 ? parsedAttribute('languages', variantRow.languages)[0] : null);
             const parsed = readItems(contentFile, await media.readText(contentFile.path));
             const attributes = Object.fromEntries(Object.entries(variantRow).filter(([name]) => !['collection_id', 'variant_id', 'content_url'].includes(name)).map(([name, item]) => [name, parsedAttribute(name, item)]));
-            if (attributes.voice && attributes.voice !== 'none' && !contributorIds.has(attributes.voice)) problems.push(Object.freeze({ part: partId, variant_id: variantRow.variant_id, field: 'voice', message: `Unknown contributor ${attributes.voice}.` }));
+            for (const contributor of Array.isArray(attributes.voice) ? attributes.voice : []) if (!contributorIds.has(contributor)) problems.push(Object.freeze({ part: partId, variant_id: variantRow.variant_id, field: 'voice', message: `Unknown contributor ${contributor}.` }));
             const items = parsed.items.map((item, index) => Object.freeze({ key: item.key, values: Object.freeze({ ...item.values }), renditions: Object.freeze(renditionFor(media, item.values, index + 1)) }));
             variants.push(Object.freeze({ collection_id: row.collection_id, variant_id: variantRow.variant_id, attributes: Object.freeze(attributes), content_url: variantRow.content_url, file: contentFile, items: Object.freeze(items) }));
           } catch (error) { problems.push(Object.freeze({ part: partId, variant_id: variantRow.variant_id, message: error.message })); }
@@ -1605,6 +1622,13 @@ async function collections(media, bookId) {
     }
   }
   return Object.freeze(result);
+}
+
+async function collections(media, bookId) {
+  let byBook = collectionCaches.get(media);
+  if (!byBook) { byBook = new Map(); collectionCaches.set(media, byBook); }
+  if (!byBook.has(bookId)) byBook.set(bookId, buildCollections(media, bookId));
+  return byBook.get(bookId);
 }
 async function contentTree(media, bookId) {
   const book = media?.books?.find((entry) => entry.id === bookId); if (!book?.manifest) throw kitError(book?.problems?.[0]?.message || `Unknown book ${bookId}.`, { path: book?.manifestPath });
@@ -1992,6 +2016,12 @@ function languageValue(value) { return Array.isArray(value) ? value.join('-') : 
 function defaultVariant(collection, part) { const value = collection.parts[part]; return value?.variants.find((variant) => variant.variant_id === value.default_variant_id) || value?.variants[0]; }
 function localizedVariant(collection, part, language) { return collection.parts[part]?.variants.find((variant) => Array.isArray(variant.attributes.languages) && variant.attributes.languages.includes(language)); }
 function metadataValues(collection, language = 'en') { return localizedVariant(collection, 'collection-metadata', language)?.items[0]?.values || collection.parts['collection-metadata']?.variants[0]?.items[0]?.values || {}; }
+function contributorCredit(collection, variant, contributorNames) {
+  const contributorIds = collection.contributors.length
+    ? collection.contributors
+    : (Array.isArray(variant?.attributes.voice) ? variant.attributes.voice : []);
+  return contributorIds.map((id) => contributorNames.get(id) || id).join(', ');
+}
 async function runtimeProjection(media, book) {
   const output = new Map(); const runtime = book.manifest.runtime_view || {}; const models = await collections(media, book.id);
   const byType = (type) => models.filter((collection) => collection.content_type === type);
@@ -2005,8 +2035,8 @@ async function runtimeProjection(media, book) {
   }
   const contributorNames = new Map((media.registries.contributors?.rows || []).map((row) => [row.contributor_id, row.name]));
   if (runtime.registries?.audio) output.set(runtime.registries.audio, csvText(AUDIO_REGISTRY_HEADERS, byType('audio').map((collection) => {
-    const variant = defaultVariant(collection, 'recording'); const meta = metadataValues(collection); const contributor = collection.contributors[0] || variant?.attributes.voice || '';
-    return { collection_id: collection.collection_id, title: meta.title || collection.collection_id, contributor: contributorNames.get(contributor) || contributor, language: languageValue(variant?.attributes.languages), catalog_url: variant?.content_url || '', cue_purpose_url: '', cue_url: '', attribution: meta.attribution || '', license: collection.license, source: collection.source };
+    const variant = defaultVariant(collection, 'recording'); const meta = metadataValues(collection);
+    return { collection_id: collection.collection_id, title: meta.title || collection.collection_id, contributor: contributorCredit(collection, variant, contributorNames), language: languageValue(variant?.attributes.languages), catalog_url: variant?.content_url || '', cue_purpose_url: '', cue_url: '', attribution: meta.attribution || '', license: collection.license, source: collection.source };
   })));
   if (runtime.registries?.images) output.set(runtime.registries.images, csvText(['collection_id', 'title', 'catalog_url', 'metadata_en_url', 'metadata_kn_url', 'attribution', 'license', 'source'], byType('image').map((collection) => {
     const meta = metadataValues(collection); return { collection_id: collection.collection_id, title: meta.title || collection.collection_id, catalog_url: defaultVariant(collection, 'image')?.content_url || '', metadata_en_url: localizedVariant(collection, 'metadata', 'en')?.content_url || '', metadata_kn_url: localizedVariant(collection, 'metadata', 'kn')?.content_url || '', attribution: meta.attribution || '', license: collection.license, source: collection.source };
@@ -2023,6 +2053,7 @@ async function runtimeProjection(media, book) {
 }
 async function publish(media, { readText, hashOf, workspace = null, releaseLabel = '', updatedAt = new Date().toISOString() } = {}) {
   if (typeof readText !== 'function' || typeof hashOf !== 'function') throw kitError('publish requires readText and hashOf functions.'); const writes = []; const changed = []; const blocking = []; const pending = []; const catalog = structuredClone(media.catalog);
+  blocking.push(...(media.problems || []));
   for (const book of media.books) {
     if (!book.manifest) { blocking.push(...book.problems); continue; }
     const manifest = structuredClone(book.manifest); const generated = await runtimeProjection({ ...media, readText }, book); const paths = await completeBookInventory(manifest, readText); const entries = [];
@@ -2041,5 +2072,5 @@ async function publish(media, { readText, hashOf, workspace = null, releaseLabel
   return Object.freeze({ writes: Object.freeze(writes), changed: Object.freeze(changed), problems: Object.freeze({ blocking: Object.freeze(blocking), pending: Object.freeze(pending) }), workspace: Boolean(workspace) });
 }
 
-globalThis.MyGitaContentKit = Object.freeze({ KIT_API, KIT_VERSION, KIT_BUILD, describe, listProducts, configuredExperiences, usage, openMedia, openMediaSnapshot, validationRegistries, validateContributorPortraits, resolveContributorPortrait, encodeItemKey, collections, contentTree, planItemMutation, planVariantMutation, planDefaultMutation, planCollectionMutation, mutationSnapshot, readItems, updateItem, insertItem, removeItem, newFile, checkFile, addToManifest, removeFromManifest, buildReferenceGraph, planMove, related, checkSave, publish });
+globalThis.MyGitaContentKit = Object.freeze({ KIT_API, KIT_VERSION, KIT_BUILD, describe, listProducts, configuredExperiences, usage, openMedia, openMediaSnapshot, validationRegistries, contributorPortraitProblems, validateContributorPortraits, resolveContributorPortrait, encodeItemKey, collections, contentTree, planItemMutation, planVariantMutation, planDefaultMutation, planCollectionMutation, mutationSnapshot, readItems, updateItem, insertItem, removeItem, newFile, checkFile, addToManifest, removeFromManifest, buildReferenceGraph, planMove, related, checkSave, publish });
 })();

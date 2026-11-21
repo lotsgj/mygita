@@ -134,3 +134,8 @@ Tests: platform browser regression passes locally.
 ## 2026-11-20 · Codex · S: fix · Platform analytics isolation
 Changed: the platform browser fixture now stubs Clarity and Google Analytics requests, matching the Gita and Sukta browser fixtures, so analytics vendor scripts cannot influence application regression results.
 Tests: platform browser regression passes against a build with CI-style Clarity and GA IDs.
+
+## W-0030 · 2026-11-21 · Codex · S-23 · Contributor and resolver hardening
+Changed: Content-Kit `4.20261121-120000` represents audio voice as an ordered contributor list, matches any requested member, and generates complete ordered audio credits. Portrait defects are diagnostics during opening but block publication. Deck descriptors resolve as JSON renditions under device format checks; item and configured-experience caches support repeated resolver and usage work.
+Handoff: Claude must migrate and republish Media voice rows, rebuild inventory, and revalidate Media Admin against this Kit version.
+Tests: unit 95/95, contract 30/30, engine 6/6, Gita 6/6 and Sukta 2/2 pass; both Content-Kit bundles regenerated.

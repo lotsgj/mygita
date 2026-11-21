@@ -32,6 +32,17 @@ Updated 2026-11-09 · Codex · Sampada: docs/design/sampada.md §23 · ADR: 007
 - MA-13 · done · Final sibling-repository ownership and user-mediated hand-off boundary documented — W-0024.
 - MA-15 · done · MyGita context and Rachana use the final `apps/gita-jyoti/…` folder layout — W-0024.
 - MA-17 · accepted · Acharya portraits use ordinary `image/profile/acharya/<contributor_id>-<n>.(webp|png)` assets. `registry/contributors.csv` optionally adds `portrait_url`, a logical media path; only an `acharya` contributor may use it, and it must be an inventoried WebP or PNG image. No profile type, file-id layer or Acharya registry — W-0027.
+- MA-18 · done · `openMedia()` returns usable media plus typed validation problems for malformed portraits; publish remains blocking and inventory rebuild precedes final validation — W-0030.
+- MA-19 · done · Live-Media tests assert contributor contract properties rather than historical IDs — W-0030.
+- MA-20 · done · Runtime audio credits preserve every contributor in stable declared order — W-0030.
+- MA-21 · done · Variant `voice` is an ordered contributor-ID list; matching accepts any requested member, while contributor registry roles remain person-level — W-0030.
+- MA-11 · done · Deck rendition declares a browser-supported presentation format and resolves under device capability checks — W-0030.
+- MA-12 · done · Kit indexes variants/items and configured experience rows once per Media open; usage and resolver previews reuse them — W-0030.
+
+### W-0030 plan — contributor and runtime hardening
+1. Replace live contributor-ID assertions with role/registry contract checks; make ordered voice lists validate, resolve and produce complete credits. Accept when current Media and multi-voice fixtures pass without historical IDs.
+2. Return non-fatal media validation diagnostics while retaining publish blocking; define deck's browser rendition. Accept when malformed portraits remain inspectable and a deck resolves under device capabilities.
+3. Index item lookup and configured experience usage. Accept when real-Media usage is under one second and full experience resolution is suitable for interactive preview.
 
 ### W-0027 plan — Acharya portrait contract
 1. Extend the contributor registry contract with optional `portrait_url`, retaining compatibility with the existing three-column registry. Accept when both schemas parse and `*_url` is documented as a logical path.
@@ -68,3 +79,4 @@ Updated 2026-11-09 · Codex · Sampada: docs/design/sampada.md §23 · ADR: 007
 - 2026-11-09 Tranche 2B completed contract vocabularies, resolver semantics, product bindings, usage queries and mutation-plan previews (Codex)
 - 2026-11-09 Tranche 3 published Media first and MyGita second; the exact MyGita deployment commit passed GitHub Actions (Codex)
 - 2026-11-19 MA-17 added optional contributor `portrait_url`, strict Acharya role/path/inventory/MIME validation, and logical portrait resolution; WebP and PNG are supported (Codex)
+- 2026-11-21 W-0030 completed ordered contributor voices and credits, non-fatal portrait diagnostics with publish blocking, JSON deck rendition support, and immutable-Media resolver/configuration caches (Codex)

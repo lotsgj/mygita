@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
 import { buildReferenceGraph, checkFile, checkSave, collections, configuredExperiences, contentTree, describe, insertItem, listProducts, mutationSnapshot, openMedia, openMediaSnapshot, planCollectionMutation, planDefaultMutation, planItemMutation, planMove, planVariantMutation, publish, readItems, removeItem, resolveContributorPortrait, updateItem, usage, validationRegistries } from '../../js/content-kit.js';
-import { resolveVariant, validateVariant } from '../../js/content-kit-v4.js';
+import { ATTRIBUTES, resolveVariant, validateVariant } from '../../js/content-kit-v4.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
 const mediaRoot = process.env.MYGITA_MEDIA_ROOT || path.resolve(repoRoot, '../media');
@@ -75,10 +75,11 @@ test('configured experiences expose kit-4 binding slots and resolvable compositi
 
 test('usage reports every configured experience that uses Swami Brahmananda audio', async () => {
   const workspace = await localWorkspace(); const media = await openMedia(readText);
-  const result = await usage(workspace, media, { book_id: 'bhagavad-gita', content_type: 'audio', collection_id: 'chanting-swami-brahmananda' });
+  const experiences = await configuredExperiences(workspace, media);
+  const result = await usage(workspace, media, { book_id: 'bhagavad-gita', content_type: 'audio', collection_id: 'chanting-swami-brahmananda' }, { experiences });
   assert.deepEqual(result.map((entry) => entry.experience_id).sort(), ['gita-700', 'gita-chant', 'gita-sara']);
   assert.ok(result.every((entry) => entry.binding_slot_id === 'primary-audio'));
-  const variantResult = await usage(workspace, media, { book_id: 'bhagavad-gita', content_type: 'audio', collection_id: 'chanting-swami-brahmananda', variant_id: 'recording-default' }, { resolveVariant });
+  const variantResult = await usage(workspace, media, { book_id: 'bhagavad-gita', content_type: 'audio', collection_id: 'chanting-swami-brahmananda', variant_id: 'recording-default' }, { resolveVariant, experiences });
   assert.deepEqual(variantResult.map((entry) => entry.experience_id).sort(), ['gita-700', 'gita-chant', 'gita-sara']);
 });
 
@@ -92,11 +93,10 @@ test('the media root opens every book with its declared languages', async () => 
     assert.deepEqual([...book.languages].sort(), ['en', 'kn', 'sa']);
   }
   assert.deepEqual(media.registries.languages.rows.map((row) => row.language_id), ['sa', 'en', 'kn']);
-  assert.deepEqual(validationRegistries(media), {
-    languages: ['sa', 'en', 'kn'],
-    contributors: ['swami-brahmananda', 'aj-padma-aj-vijay'],
-    cuePurposes: []
-  });
+  const registries = validationRegistries(media);
+  assert.ok(registries.languages.length);
+  assert.ok(registries.contributors.length);
+  assert.ok(registries.contributors.every((id) => media.registries.contributors.rows.some((row) => row.contributor_id === id)));
 });
 
 test('contributor portraits validate their public Acharya role, inventory and image MIME type', () => {
@@ -108,6 +108,17 @@ test('contributor portraits validate their public Acharya role, inventory and im
   assert.throws(() => resolveContributorPortrait(portraitMedia({ roles: 'voice' }), 'jai-sadguru'), /Acharya/i);
   assert.throws(() => resolveContributorPortrait(portraitMedia({ inventoried: false }), 'jai-sadguru'), /inventoried/i);
   assert.throws(() => resolveContributorPortrait(portraitMedia({ mimeType: 'image/jpeg' }), 'jai-sadguru'), /WebP or PNG/i);
+});
+
+test('a bad portrait is reported without preventing the media root from opening, but blocks publication', async () => {
+  const readWithBadPortrait = async (logicalPath) => logicalPath === 'registry/contributors.csv'
+    ? (await readText(logicalPath)).replace('image/profile/acharya/GJ-09VX-E4D8-1.webp', 'image/profile/acharya/GJ-09VX-E4D8-99.webp')
+    : readText(logicalPath);
+  const media = await openMedia(readWithBadPortrait);
+  assert.equal(media.books.length, 3);
+  assert.ok(media.problems.some((problem) => problem.field === 'portrait_url' && /not inventoried/i.test(problem.message)));
+  const preview = await publish(media, { readText: readWithBadPortrait, hashOf: async (logicalPath, replacement = null) => hashText(replacement ?? await readWithBadPortrait(logicalPath)) });
+  assert.ok(preview.problems.blocking.some((problem) => problem.field === 'portrait_url'));
 });
 
 test('contributor portrait_url is optional and uses a strict logical image path', () => {
@@ -167,8 +178,11 @@ test('canonical collections expose validated variants, stable keys and current r
   assert.match(illustrations.parts.image.variants[0].content_url, /catalog\.csv$/);
   assert.ok(illustrations.parts.metadata.variants.every((variant) => /master_(?:en|kn)\.csv$/.test(variant.content_url)));
   const audio = gita.find((collection) => collection.collection_id === 'chanting-swami-brahmananda');
-  assert.equal(audio.parts.recording.variants[0].attributes.voice, 'swami-brahmananda');
+  assert.ok(Array.isArray(audio.parts.recording.variants[0].attributes.voice));
+  assert.ok(audio.parts.recording.variants[0].attributes.voice.every((id) => registries.contributors.includes(id)));
   assert.ok(audio.parts.recording.variants.flatMap((variant) => variant.items).flatMap((item) => item.renditions).every((rendition) => ['mp3', 'ogg', 'opus'].includes(rendition.format)));
+  const deck = gita.find((collection) => collection.content_type === 'deck');
+  if (deck) assert.ok(resolveVariant(deck, { part: 'presentation', key: deck.parts.presentation.expected_keys[0], preferences: { languages: ['none'] }, capabilities: { formats: ATTRIBUTES.format.values } }).rendition);
 });
 
 test('field types come from contracts and committed single-line values contain no line breaks', async () => {

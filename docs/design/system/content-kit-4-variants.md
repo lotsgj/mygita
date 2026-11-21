@@ -1,7 +1,7 @@
 # Content-Kit 4 variant contract
 
 **Status:** Partial  
-**Last updated:** 9 November 2026
+**Last updated:** 21 November 2026
 
 Content-Kit 4 makes content variation explicit data. Its executable contract is frozen and the Media/MyGita integration is complete locally and remotely. Canonical CK4 registries are authoritative; the existing renderers consume an explicitly isolated `runtime_view` until their normalized input layer is replaced. Files under `runtime/` are generated, read-only projections rebuilt during publication.
 
@@ -19,9 +19,9 @@ Icon is not a separate type: chapter icons are an image collection whose configu
 
 ## Attributes and renditions
 
-Semantic attributes include ordered languages, voice, mode, theme and subtitles. Variant-side `any` is a wildcard fallback ranked below an exact match. Preference-side `any` means the caller is indifferent to that attribute; defaults and later tie-breakers decide. `none` has no value and is eligible only when explicitly requested, explicitly listed as a fallback, or the caller is indifferent. It is a scalar sentinel and cannot appear inside an ordered language list. An omitted attribute does not apply to the part.
+Semantic attributes include ordered languages, voice, mode, theme and subtitles. `voice` is an ordered comma-separated contributor-ID list: lead first, then the remaining credited people. A preference for any listed contributor matches the recording; a contributor's registry role does not constrain that match. Variant-side `any` is a wildcard fallback ranked below an exact match. Preference-side `any` means the caller is indifferent to that attribute; defaults and later tie-breakers decide. `none` has no value and is eligible only when explicitly requested, explicitly listed as a fallback, or the caller is indifferent. It is a scalar sentinel and cannot appear inside an ordered list. An omitted attribute does not apply to the part.
 
-Format and optional quality, dimensions, resolution, bitrate and sample rate are rendition attributes. Resolution always selects a semantic variant before selecting a supported rendition. Current Media catalogs derive one rendition for each referenced asset from the inventory MIME type and hash; filenames do not determine format. Dedicated rendition registries remain a later extension.
+Format and optional quality, dimensions, resolution, bitrate and sample rate are rendition attributes. Resolution always selects a semantic variant before selecting a supported rendition. Current Media catalogs derive one rendition for each referenced asset from the inventory MIME type and hash; filenames do not determine format. Deck presentation uses the `json` format for its descriptor so browser capability checks use the same resolution path. Dedicated rendition registries remain a later extension.
 
 ## Identity and registries
 
@@ -35,7 +35,7 @@ Item keys follow each part contract's declared key components. A single componen
 
 Composition rows name a binding slot, structured collection identity and logical item key. They never name a variant. Product experience configuration defines each slot's content type, part, semantic preferences, rendition preferences, profile-language behavior and the composition fields that supply collection and item identity. `configuredExperiences()` normalizes Gita and Sukta configurations and their existing composition files into the same kit-4 rows. The player and Media Admin therefore consume one binding declaration without `audioBinding` or UI-side interpretation.
 
-The shared resolver combines profile preferences, configured-experience preferences, product defaults, collection defaults, capabilities and explicit fallbacks, then returns the chosen variant and rendition together with its reasoning. Semantic attributes are compared lexicographically in each part contract's declared priority order; a lower-priority exact match cannot outweigh a higher-priority preference. `usage()` reports every product, experience and binding slot using a collection; variant-specific usage applies the same resolver.
+The shared resolver combines profile preferences, configured-experience preferences, product defaults, collection defaults, capabilities and explicit fallbacks, then returns the chosen variant and rendition together with its reasoning. Semantic attributes are compared lexicographically in each part contract's declared priority order; a lower-priority exact match cannot outweigh a higher-priority preference. Item lookup and configured experience rows are cached per immutable Media open; callers performing several usage checks may provide the already configured rows. `usage()` reports every product, experience and binding slot using a collection; variant-specific usage applies the same resolver.
 
 ## Coverage and segments
 
@@ -45,7 +45,7 @@ Segment meaning and order are semantic, while timings are bound to a rendition a
 
 ## Plans and I/O
 
-Content-Kit is pure. Item add/change/remove, variant add/change, default change, and collection add/change builders return complete canonical file texts with logical paths, contracts, precondition hashes or absence checks, and postcondition hashes. Every plan identifies the runtime projections, inventories, book manifest, root catalog and `media.ver` affected by later publication. `mutationSnapshot()` applies a plan in memory so Media Admin can rerun `collections()`, validation, usage checks and `publish()` preview before performing I/O.
+Content-Kit is pure. Item add/change/remove, variant add/change, default change, and collection add/change builders return complete canonical file texts with logical paths, contracts, precondition hashes or absence checks, and postcondition hashes. Every plan identifies the runtime projections, inventories, book manifest, root catalog and `media.ver` affected by later publication. `openMedia()` exposes non-fatal metadata diagnostics so an editor can inspect imperfect content; `publish()` turns those diagnostics into blocking issues. `mutationSnapshot()` applies a plan in memory so Media Admin can rerun `collections()`, validation, usage checks and `publish()` preview before performing I/O.
 
 Media Admin performs the actual writes and journals progress. Publication remains idempotent and orders assets before inventories, content and registries before manifests, the root catalog after manifests, and `media.ver` last.
 

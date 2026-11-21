@@ -5,11 +5,13 @@
 | --- | --- | --- | --- | --- | --- |
 | W-0025 | Codex | S-24 | Gitajyoti-verified profile attachment and local profile projection | engine/js/profile-*, engine/js/player/, engine/player.html, tests, docs/design, context | checkpointed; browser/API acceptance remains |
 | W-0026 | Codex | S-24 | Browser regression reliability for Profile ID attachment | engine/tests/browser/platform.cjs, workflow, context | done; full browser, unit and contract regression passes |
+| W-0030 | Codex | S-23 | Contributor credits, Kit diagnostics, deck rendition and resolver indexes | engine/js/content-kit*.js, tests, docs/design, context | done; Media/Admin restamp and migration handed to Claude |
 
 ## Needs user
 - —
 
 ## Handoffs (last 5)
+- 2026-11-21 Codex → user/Claude: Content-Kit `4.20261121-120000` adds ordered multi-contributor `voice`, complete runtime audio credits, non-fatal portrait diagnostics, deck `json` rendition support, and cached resolver/configuration paths. Please migrate Media voice values to ordered contributor IDs, remove temporary pair IDs when the registry permits, rebuild inventory, validate, publish, then re-run Media Admin review.
 - 2026-11-19 Codex → user/Claude: W-0027 makes `portrait_url` an optional logical-path field in the contributor contract. Claude may add published Acharya WebP/PNG assets and corresponding `acharya` contributor rows, then rebuild the Media inventory and publish.
 - 2026-11-20 Codex → user/Claude: W-0028 consumes optional `analytics_pid` on profile GET/verify responses. API should add it additively to those profile objects; MyGita continues safely without it and never emits canonical PIDs to analytics.
 - 2026-11-20 Codex → user/Website: W-0029 adds `pnpm run dev -- --website-url <website-origin>` for local registration testing. The Website's registration return URL remains `?pid=<profile-id>`; MyGita's API selection is unaffected.

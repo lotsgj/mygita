@@ -4,7 +4,7 @@
 
 // Source: js/content-kit-v4-version.js
 // Human-approved major; generated minor identifies this reviewed contract revision.
-const CONTENT_KIT_V4_VERSION = '4.20261119-120000';
+const CONTENT_KIT_V4_VERSION = '4.20261121-120000';
 
 // Source: js/content-kit-v4.js
 // Content-Kit 4: pure variant contracts, resolution, coverage and plan shapes.
@@ -13,7 +13,7 @@ const CONTENT_KIT_V4_VERSION = '4.20261119-120000';
 const KIT_API = 4;
 const KIT_VERSION = CONTENT_KIT_V4_VERSION;
 // The standalone bundle replaces this marker with a reproducible source hash.
-const KIT_BUILD = 'abd9f11bd2fb';
+const KIT_BUILD = 'ee935b225f1e';
 
 const attribute = (type, options = {}) => Object.freeze({ type, ...options });
 const part = (representation, key, semanticAttributes = [], renditionAttributes = [], options = {}) => Object.freeze({
@@ -39,11 +39,12 @@ const LABELS = Object.freeze({
 
 const ATTRIBUTES = Object.freeze({
   languages: attribute('ordered-language-list', { registry: 'languages', reserved: ['none'] }),
-  voice: attribute('registry-reference', { registry: 'contributors', role: 'voice', reserved: ['none'] }),
+  // A recording can credit several people. The order is meaningful: lead first.
+  voice: attribute('ordered-registry-list', { registry: 'contributors', reserved: ['none', 'any'] }),
   mode: attribute('enum', { values: ['chant', 'learn', 'recite'] }),
   theme: attribute('enum', { values: ['light', 'dark', 'any'] }),
   subtitles: attribute('ordered-language-list', { registry: 'languages', reserved: ['none'] }),
-  format: attribute('enum', { values: ['webp', 'png', 'svg', 'jpg', 'mp3', 'ogg', 'opus', 'mp4', 'webm'] }),
+  format: attribute('enum', { values: ['webp', 'png', 'svg', 'jpg', 'mp3', 'ogg', 'opus', 'mp4', 'webm', 'json'] }),
   quality: attribute('string', { optional: true }),
   width: attribute('integer', { optional: true, minimum: 1 }),
   height: attribute('integer', { optional: true, minimum: 1 }),
@@ -81,7 +82,7 @@ const CONTENT_TYPES = Object.freeze({
     'collection-metadata': collectionMetadata
   }) }),
   deck: Object.freeze({ parts: Object.freeze({
-    presentation: part('records', ['sid', 'order'], ['languages']),
+    presentation: part('records', ['sid', 'order'], ['languages'], ['format']),
     segments: part('records', ['segment_id'], [], [], { vocabulary: 'cue-purposes', timingPerRendition: true }),
     'collection-metadata': collectionMetadata
   }) })
@@ -145,7 +146,13 @@ function validateAttribute(name, value, registries = {}) {
     const allowed = registries.languages;
     if (allowed && value.some((entry) => !allowed.includes(entry))) fail(`${name} contains an unknown language.`, { attribute: name });
   } else if (definition.type === 'enum' && !definition.values.includes(value)) fail(`${name} has invalid value ${value}.`, { attribute: name });
-  else if (definition.type === 'registry-reference' && !definition.reserved?.includes(value)) {
+  else if (definition.type === 'ordered-registry-list') {
+    if (definition.reserved?.includes(value)) return;
+    if (!Array.isArray(value) || !value.length || value.some((entry) => typeof entry !== 'string' || !entry)) fail(`${name} must be a non-empty ordered list.`, { attribute: name });
+    if (value.some((entry) => definition.reserved?.includes(entry))) fail(`${name} uses reserved values only on their own.`, { attribute: name });
+    const allowed = registries[definition.registry];
+    if (allowed && value.some((entry) => !allowed.includes(entry))) fail(`${name} references an unknown ${definition.registry} value.`, { attribute: name });
+  } else if (definition.type === 'registry-reference' && !definition.reserved?.includes(value)) {
     const allowed = registries[definition.registry];
     if (allowed && !allowed.includes(value)) fail(`${name} references unknown ${definition.registry} value ${value}.`, { attribute: name });
     if (typeof value !== 'string' || !value) fail(`${name} requires a registry identifier.`, { attribute: name });
@@ -185,17 +192,28 @@ function validateVariant(contentType, partId, variant, registries = {}) {
   return Object.freeze({ ...clone(variant), representation: definition.representation });
 }
 
-function preferenceRank(candidate, requested) {
+function preferenceRank(candidate, requested, definition = null) {
   if (!requested?.length) return { compatible: true, score: 0, priority: [0, 0], kind: 'indifferent' };
   const wildcard = requested.findIndex((value) => value === 'any');
-  const exact = requested.findIndex((value) => sameValue(candidate, value));
+  const exact = definition?.type === 'ordered-registry-list' && Array.isArray(candidate)
+    ? requested.findIndex((value) => candidate.includes(value))
+    : requested.findIndex((value) => sameValue(candidate, value));
   if (exact >= 0 && exact !== wildcard) return { compatible: true, score: 1000 - exact * 20, priority: [3, -exact], kind: exact ? 'fallback' : 'exact' };
   if (scalar(candidate) === 'any' && !(wildcard === 0 && requested.length === 1)) return { compatible: true, score: 500, priority: [1, 0], kind: 'any' };
   if (wildcard >= 0) return { compatible: true, score: 0, priority: [0, -wildcard], kind: 'indifferent' };
   if (scalar(candidate) === 'any') return { compatible: true, score: 500, priority: [1, 0], kind: 'any' };
   return { compatible: false, score: -1, priority: [-1, 0], kind: scalar(candidate) === 'none' ? 'none-not-requested' : 'mismatch' };
 }
-function itemFor(variant, key) { return key == null ? null : (variant.items || []).find((item) => String(item.key) === String(key)); }
+const itemIndexes = new WeakMap();
+function itemFor(variant, key) {
+  if (key == null) return null;
+  let index = itemIndexes.get(variant);
+  if (!index) {
+    index = new Map((variant.items || []).map((item) => [String(item.key), item]));
+    itemIndexes.set(variant, index);
+  }
+  return index.get(String(key)) || null;
+}
 function supportedRenditions(item, request) {
   const formats = request.capabilities?.formats || [];
   const available = request.availability?.assets ? new Set(request.availability.assets) : null;
@@ -222,7 +240,7 @@ function resolveVariant(collection, request = {}) {
     if (request.key != null && !item) { considered.push({ variant_id: variant.variant_id, compatible: false, reason: 'missing-key' }); continue; }
     let score = 0; const priority = []; const matched = []; const fallback = []; let compatible = true;
     for (const name of definition.semanticAttributes) {
-      const rank = preferenceRank(variant.attributes?.[name], request.preferences?.[name]);
+      const rank = preferenceRank(variant.attributes?.[name], request.preferences?.[name], ATTRIBUTES[name]);
       if (!rank.compatible) { compatible = false; fallback.push(`${name}:${rank.kind}`); break; }
       score += rank.score;
       priority.push(rank.priority);

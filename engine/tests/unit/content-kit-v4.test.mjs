@@ -55,6 +55,19 @@ test('representative file and record variants validate without path inference', 
   assert.deepEqual(validateVariant('verse', 'text', renamed, registries).attributes.languages, ['en']);
 });
 
+test('voice credits are ordered contributor lists and match any named contributor', async () => {
+  const audio = await fixture('audio');
+  const variant = audio.parts.recording.variants[0];
+  variant.attributes.voice = ['lead', 'support'];
+  validateVariant('audio', 'recording', variant, { languages: ['sa', 'kn', 'en'], contributors: ['lead', 'support'] });
+  for (const voice of ['lead', 'support']) {
+    const result = resolveVariant(audio, { part: 'recording', key: '1.1:1', preferences: { languages: [['sa', 'kn', 'en']], voice: [voice], mode: ['learn'] }, capabilities: { formats: ['ogg'] } });
+    assert.equal(result.variant?.variant_id, 'padma-vijay-learn');
+  }
+  variant.attributes.voice = ['none', 'lead'];
+  assert.throws(() => validateVariant('audio', 'recording', variant, { languages: ['sa', 'kn', 'en'], contributors: ['lead'] }), /reserved values/i);
+});
+
 test('resolver selects semantics before a supported rendition and explains the result', async () => {
   const audio = await fixture('audio');
   const result = resolveVariant(audio, {
