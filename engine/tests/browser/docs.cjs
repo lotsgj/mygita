@@ -170,9 +170,11 @@ async function run() {
     assert.deepEqual(errors, [], 'Rachana browser console/page errors');
     console.log('PASS: Rachana Markdown rendering, shared profile and About, HTTP and file modes, direct routing, safe content, error state, history, and mobile navigation');
   } finally {
-    if (server.listening) await new Promise((resolve) => server.close(resolve));
+    // Chromium can retain HTTP keep-alive sockets. Close it before the server,
+    // otherwise server.close() can wait forever for the browser it is about to close.
     await context.close();
     await browser.close();
+    if (server.listening) await new Promise((resolve) => server.close(resolve));
   }
 }
 

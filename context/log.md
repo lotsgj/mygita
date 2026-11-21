@@ -139,3 +139,7 @@ Tests: platform browser regression passes against a build with CI-style Clarity 
 Changed: Content-Kit `4.20261121-120000` represents audio voice as an ordered contributor list, matches any requested member, and generates complete ordered audio credits. Portrait defects are diagnostics during opening but block publication. Deck descriptors resolve as JSON renditions under device format checks; item and configured-experience caches support repeated resolver and usage work.
 Handoff: Claude must migrate and republish Media voice rows, rebuild inventory, and revalidate Media Admin against this Kit version.
 Tests: unit 95/95, contract 30/30, engine 6/6, Gita 6/6 and Sukta 2/2 pass; both Content-Kit bundles regenerated.
+
+## 2026-11-21 · Codex · S: fix · Rachana regression cleanup
+Changed: close the Rachana Playwright browser before its static HTTP server, preventing the server from waiting on Chromium keep-alive sockets after the test reports success.
+Tests: Rachana browser regression passes and exits normally.
